@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notes</title>
+
+<!--
+  A single-file markdown notes app backed by a git repository.
+
+  Design rules (keep these if you fork it):
+    1. No build step. This file is the whole application; the only other
+       code that runs is the token broker, which never sees your notes.
+    2. The repository is the model. Paths are paths, filenames are titles.
+       No IDs, no mandatory frontmatter, no required link syntax. Anything
+       done here maps to an obvious git operation, and anything done
+       outside here just works.
+    3. All host-specific code lives in the PROVIDER section below. To
+       support GitLab, Gitea or anything else, implement those four
+       functions. Nothing else in this file knows what GitHub is.
+
+  Sign-in: "Sign in with GitHub" through a GitHub App. The app is installed
+  on the repositories you choose, so the token can reach those and nothing
+  else. One small broker (broker/worker.js) holds the client secret, because
+  GitHub requires it for the code-to-token swap and a web page cannot keep a
+  secret. The broker sees you at sign-in and at each 8-hour refresh; every
+  read and write of your notes goes straight from the browser to GitHub.
+
+  MIT licensed. See LICENSE.
+-->
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f7f8;
+    --bg-sunk: #eceef0;
+    --fg: #1a1d21;
+    --fg-soft: #6b7280;
+    --line: #dfe3e8;
+    --accent: #2f6f4f;
+    --accent-soft: #e6f0ea;
+    --danger: #b3261e;
+    --radius: 6px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181c;
+      --bg-soft: #1d2025;
+      --bg-sunk: #101215;
+      --fg: #e6e8ea;
+      --fg-soft: #9aa1ab;
+      --line: #2c3037;
+      --accent: #7fc8a0;
+      --accent-soft: #1f2d26;
+      --danger: #f2837c;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 15px;
+    line-height: 1.5;
+    overflow: hidden;
+  }
+  button {
+    font: inherit;
+    font-size: 13px;
+    color: var(--fg);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--bg-sunk); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button.primary:hover { opacity: .9; }
+  /* A disabled Save must look different from an armed one: it is the only
+     signal that there is nothing unsaved. */
+  button:disabled {
+    background: none;
+    border-color: var(--line);
+    color: var(--fg-soft);
+    cursor: default;
+  }
+  button:disabled:hover { background: none; opacity: 1; }
+  button.plain { background: none; border-color: transparent; padding: 5px 7px; }
+  button.plain:hover { background: var(--bg-soft); }
+  input, textarea {
+    font: inherit;
+    font-size: 14px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 7px 9px;
+    width: 100%;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  /* ---- shell ---------------------------------------------------- */
+
+  #shell { display: flex; flex-direction: column; height: 100%; }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-soft);
+    flex: none;
+  }
+  /* The filename must survive truncation; the folders above it are what gets
+     shortened when the header is narrow. */
+  #crumb {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--fg-soft);
+    white-space: nowrap;
+  }
+  #crumb .dir {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #crumb .name { flex: none; color: var(--fg); font-weight: 600; }
+  #crumb .tag { flex: none; color: var(--fg-soft); padding-left: 6px; }
+  #status {
+    font-size: 12px;
+    color: var(--fg-soft);
+    white-space: nowrap;
+  }
+  #status.err { color: var(--danger); }
+  /* Header badges: the editor fell back to a textarea, and settings are
+     session-only. Both are states you want to notice without being told. */
+  #degraded, #ephemeral {
+    display: none;
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--fg-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 1px 7px;
+    cursor: help;
+  }
+  body.plain-editor #degraded { display: inline-block; }
+  body.session-only #ephemeral {
+    display: inline-block;
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  /* ---- tree ----------------------------------------------------- */
+
+  #sidebar {
+    width: 260px;
+    flex: none;
+    border-right: 1px solid var(--line);
+    background: var(--bg-soft);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #sidebar-tools {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  #filter { font-size: 13px; padding: 5px 8px; }
+  #tree {
+    flex: 1;
+    overflow: auto;
+    padding: 6px 0 40px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px 3px 0;
+    cursor: pointer;
+    font-size: 13.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row:hover { background: var(--bg-sunk); }
+  .row.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .row .tw { flex: none; width: 12px; color: var(--fg-soft); font-size: 10px; }
+  .row.dir { color: var(--fg-soft); }
+  /* Attachments: visible so you know they are there, not openable. */
+  .row.binary { color: var(--fg-soft); opacity: .55; cursor: default; }
+  .empty { padding: 20px 14px; color: var(--fg-soft); font-size: 13px; }
+
+  /* ---- editor --------------------------------------------------- */
+
+  #editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #editor-pane .CodeMirror {
+    flex: 1;
+    height: auto;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.65;
+    background: var(--bg);
+    color: var(--fg);
+    padding: 6px 4px;
+  }
+  .fallback-editor {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    resize: none;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .fallback-editor:focus { outline: none; }
+  .CodeMirror-cursor { border-left-color: var(--fg); }
+  .CodeMirror-selected { background: var(--accent-soft) !important; }
+  .cm-s-default .cm-header { color: var(--accent); }
+  .cm-s-default .cm-link { color: var(--accent); }
+  .cm-s-default .cm-comment { color: var(--fg-soft); }
+  #placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg-soft);
+    font-size: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  /* ---- pinned pane ---------------------------------------------- */
+
+  #pins {
+    width: 300px;
+    flex: none;
+    border-left: 1px solid var(--line);
+    background: var(--bg-soft);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #pin-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 8px 0;
+    overflow-x: auto;
+  }
+  #pin-tabs button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 4px 8px 6px;
+    color: var(--fg-soft);
+    white-space: nowrap;
+  }
+  #pin-tabs button.active { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  #pin-add { padding: 8px; display: flex; gap: 6px; }
+  #pin-add input { font-size: 13.5px; }
+  #pin-list { flex: 1; overflow: auto; padding: 0 8px 40px; -webkit-overflow-scrolling: touch; }
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 4px;
+    border-radius: var(--radius);
+    font-size: 13.5px;
+  }
+  .task:hover { background: var(--bg-sunk); }
+  .task input { width: auto; flex: none; margin: 3px 0 0; accent-color: var(--accent); }
+  .task span { flex: 1; word-break: break-word; }
+  .task.done span { color: var(--fg-soft); text-decoration: line-through; }
+  .task-head {
+    padding: 10px 4px 3px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--fg-soft);
+  }
+
+  /* ---- settings dialog ------------------------------------------ */
+
+  dialog {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--fg);
+    padding: 0;
+    width: min(440px, calc(100vw - 32px));
+  }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  .dlg-body { padding: 18px; }
+  .dlg-body h2 { margin: 0 0 4px; font-size: 17px; }
+  .dlg-body p { margin: 0 0 16px; color: var(--fg-soft); font-size: 13px; }
+  label { display: block; margin-bottom: 11px; font-size: 12.5px; color: var(--fg-soft); }
+  label span { display: block; margin-bottom: 4px; }
+  label.check {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    cursor: pointer;
+  }
+  label.check input { width: auto; flex: none; margin: 2px 0 0; accent-color: var(--accent); }
+  label.check span { margin: 0; color: var(--fg); }
+  label.check em {
+    display: block;
+    margin-top: 3px;
+    font-style: normal;
+    color: var(--fg-soft);
+  }
+  .dlg-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--line);
+    background: var(--bg-soft);
+  }
+  .note {
+    font-size: 12px;
+    color: var(--fg-soft);
+    background: var(--bg-soft);
+    border-left: 2px solid var(--line);
+    padding: 8px 10px;
+    margin: 14px 0 0;
+  }
+  .note.err { color: var(--danger); border-left-color: var(--danger); }
+  .note code { font-family: var(--mono); font-size: 11.5px; }
+
+  button.signin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  button.signin:disabled { opacity: .6; }
+
+  select {
+    font: inherit;
+    font-size: 14px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 7px 9px;
+    width: 100%;
+  }
+  .hint { margin: -4px 0 12px !important; font-size: 12px !important; }
+  .hint a { color: var(--accent); cursor: pointer; }
+
+  .who { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .who img { border-radius: 50%; background: var(--bg-sunk); flex: none; }
+  #who-login { font-weight: 600; font-size: 15px; color: var(--fg); }
+  .who-sub { font-size: 12px; color: var(--fg-soft); }
+
+  /* ---- mobile ---------------------------------------------------- */
+
+  .only-narrow { display: none; }
+
+  @media (max-width: 820px) {
+    .only-narrow { display: inline-block; }
+
+    #sidebar {
+      position: absolute;
+      z-index: 20;
+      top: 0; bottom: 0; left: 0;
+      width: min(80vw, 300px);
+      transform: translateX(-102%);
+      transition: transform .18s ease;
+      box-shadow: 0 0 40px rgba(0,0,0,.25);
+    }
+    body.tree-open #sidebar { transform: none; }
+
+    #pins {
+      position: absolute;
+      z-index: 20;
+      left: 0; right: 0; bottom: 0;
+      width: auto;
+      height: min(70vh, 460px);
+      border-left: none;
+      border-top: 1px solid var(--line);
+      border-radius: 12px 12px 0 0;
+      transform: translateY(102%);
+      transition: transform .18s ease;
+      box-shadow: 0 -4px 40px rgba(0,0,0,.25);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    body.pins-open #pins { transform: none; }
+
+    #scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      background: rgba(0,0,0,.35);
+      display: none;
+    }
+    body.tree-open #scrim, body.pins-open #scrim { display: block; }
+
+    main { position: relative; overflow: hidden; }
+    #crumb { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <header>
+    <button class="plain only-narrow" id="btn-tree" title="Files">&#9776;</button>
+    <div id="crumb">no file open</div>
+    <span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
+    <span id="ephemeral" title="Session only: you are not remembered on this computer and will be signed out when the browser closes.">session</span>
+    <span id="status"></span>
+    <button id="btn-save" class="primary" disabled>Save</button>
+    <button class="plain only-narrow" id="btn-pins" title="Pinned">&#9745;</button>
+    <button class="plain" id="btn-settings" title="Settings">&#9881;</button>
+  </header>
+
+  <main>
+    <aside id="sidebar">
+      <div id="sidebar-tools">
+        <input id="filter" type="search" placeholder="Filter files" autocomplete="off">
+        <button class="plain" id="btn-new" title="New note">+</button>
+        <button class="plain" id="btn-refresh" title="Refresh">&#8635;</button>
+      </div>
+      <div id="tree"></div>
+    </aside>
+
+    <section id="editor-pane">
+      <div id="placeholder">Open a file, or press + to create one.</div>
+    </section>
+
+    <aside id="pins">
+      <div id="pin-tabs"></div>
+      <div id="pin-add">
+        <input id="pin-input" placeholder="Add a task" autocomplete="off">
+        <button id="pin-go" class="primary">Add</button>
+      </div>
+      <div id="pin-list"></div>
+    </aside>
+
+    <div id="scrim"></div>
+  </main>
+</div>
+
+<dialog id="settings">
+  <!-- Signed out -->
+  <div id="view-signin">
+    <div class="dlg-body">
+      <h2>Notes</h2>
+      <p>Markdown notes, kept in a GitHub repository you own.</p>
+
+      <button id="f-signin" class="primary signin">
+        <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        Sign in with GitHub
+      </button>
+
+      <label class="check">
+        <input type="checkbox" id="f-session-in">
+        <span>Forget me when I close the browser<em>For a work or shared computer. Nothing is kept on disk.</em></span>
+      </label>
+
+      <div id="signin-error" class="note err" hidden></div>
+      <div id="not-deployed" class="note" hidden>
+        This copy has not been set up yet. Fill in <code>DEPLOYMENT</code> near
+        the top of the script in <code>index.html</code>; the README explains how.
+      </div>
+    </div>
+  </div>
+
+  <!-- Signed in -->
+  <div id="view-account" hidden>
+    <div class="dlg-body">
+      <div class="who">
+        <img id="who-avatar" alt="" width="36" height="36" onerror="this.style.visibility='hidden'">
+        <div>
+          <div id="who-login"></div>
+          <div class="who-sub">Signed in with GitHub</div>
+        </div>
+      </div>
+
+      <label><span>Repository</span>
+        <select id="f-repo"></select>
+      </label>
+      <p class="hint" id="repo-hint">
+        Only repositories the app is installed on are listed.
+        <a id="f-install" target="_blank" rel="noopener">Choose repositories</a>
+      </p>
+
+      <label><span>Pinned files (comma separated)</span><input id="f-pins" placeholder="todo.md, scratch.md" autocomplete="off"></label>
+
+      <label class="check">
+        <input type="checkbox" id="f-session">
+        <span>Forget me when I close the browser<em>For a work or shared computer. Nothing is kept on disk.</em></span>
+      </label>
+    </div>
+    <div class="dlg-foot">
+      <button id="f-forget">Sign out</button>
+      <button id="f-save" class="primary">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+<script>
+"use strict";
+
+/* ================================================================
+   DEPLOYMENT  -  the only values you change to run your own copy.
+   None of them are secret: the client secret lives in the broker.
+   The README walks through where each one comes from.
+   ================================================================ */
+
+var DEPLOYMENT = {
+  clientId: "Iv23li_REPLACE_ME",                        // GitHub App > Client ID
+  appSlug:  "REPLACE_ME",                               // github.com/apps/<slug>
+  broker:   "https://notes-token-broker.REPLACE_ME.workers.dev"
+};
+
+// Tests and forks can override without editing the file.
+if (window.NOTES_DEPLOYMENT) DEPLOYMENT = Object.assign({}, DEPLOYMENT, window.NOTES_DEPLOYMENT);
+
+function deployed() {
+  return !/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);
+}
+
+/* ================================================================
+   CONFIG
+   ================================================================ */
+
+var CFG_KEY = "notes.config.v2";
+var UI_KEY  = "notes.ui.v1";
+var AUTH_KEY = "notes.signin";          // state + PKCE verifier, one sign-in
+
+/* Settings live in localStorage by default, so you sign in once per browser.
+   On a shared or work computer that is the wrong default: sessionOnly puts
+   them in sessionStorage instead, so closing the browser signs you out.
+   Which store the settings were found in is what sets this on load. */
+var sessionOnly = false;
+
+var cfg = load(CFG_KEY, {
+  token: "", refresh: "", expires: 0, login: "", avatar: "",
+  owner: "", repo: "", branch: "", pins: ["todo.md"]
+});
+
+var ui = load(UI_KEY, { open: {}, last: null, pin: 0 });
+
+function load(key, fallback) {
+  var raw = null;
+  try { raw = sessionStorage.getItem(key); } catch (e) {}
+  if (raw) sessionOnly = true;
+  if (!raw) { try { raw = localStorage.getItem(key); } catch (e) {} }
+  try {
+    return raw ? Object.assign({}, fallback, JSON.parse(raw)) : fallback;
+  } catch (e) { return fallback; }
+}
+
+function persist(key, val) {
+  var json = JSON.stringify(val);
+  try {
+    if (sessionOnly) {
+      sessionStorage.setItem(key, json);
+      localStorage.removeItem(key);          // never leave a copy behind
+    } else {
+      localStorage.setItem(key, json);
+    }
+  } catch (e) {}
+}
+
+function forgetStored(key) {
+  try { localStorage.removeItem(key); } catch (e) {}
+  try { sessionStorage.removeItem(key); } catch (e) {}
+}
+
+function signedIn() {
+  return !!cfg.token;
+}
+
+function configured() {
+  return !!(cfg.token && cfg.owner && cfg.repo && cfg.branch);
+}
+
+function saveCfg() { persist(CFG_KEY, cfg); }
+
+/* ================================================================
+   AUTH  -  GitHub App user tokens via the broker.
+
+   Sign-in is the standard authorization code flow with PKCE and a state
+   value, both kept in sessionStorage for the one round trip to GitHub.
+   Tokens last 8 hours; the refresh token lasts 6 months and is single-use,
+   so every refresh returns a new pair that must replace the old one.
+   ================================================================ */
+
+function redirectUri() {
+  return location.origin + location.pathname;
+}
+
+function randomString(bytes) {
+  var a = new Uint8Array(bytes);
+  crypto.getRandomValues(a);
+  return base64url(a);
+}
+
+function base64url(bytes) {
+  var s = "";
+  for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function signIn(remember) {
+  if (!deployed()) { showSignIn(); return Promise.resolve(); }
+  var verifier = randomString(48);
+  var state = randomString(24);
+  try {
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify({
+      state: state, verifier: verifier, session: !remember
+    }));
+  } catch (e) {}
+
+  return crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))
+    .then(function (hash) {
+      var q = new URLSearchParams({
+        client_id: DEPLOYMENT.clientId,
+        redirect_uri: redirectUri(),
+        state: state,
+        code_challenge: base64url(new Uint8Array(hash)),
+        code_challenge_method: "S256"
+      });
+      location.assign("https://github.com/login/oauth/authorize?" + q.toString());
+    });
+}
+
+/* Called on load when GitHub has sent us back with ?code=. Returns a promise
+   that settles once the URL is clean and we are signed in, or not. */
+function completeSignIn(params) {
+  var pending = null;
+  try { pending = JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); } catch (e) {}
+  try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
+  history.replaceState(null, "", redirectUri());   // the code is single-use; drop it
+
+  var code = params.get("code");
+  var state = params.get("state");
+
+  // Arriving straight from installing the app on github.com carries a code
+  // but none of our state. Rather than trust a code we did not ask for,
+  // start a proper sign-in; GitHub approves it without asking again.
+  if (!pending && params.get("setup_action")) {
+    return signIn(true);
+  }
+
+  if (!pending || !state || state !== pending.state) {
+    return Promise.reject(new Error("Sign-in expired or did not start here. Try again."));
+  }
+
+  return broker({ code: code, code_verifier: pending.verifier }).then(function (t) {
+    sessionOnly = !!pending.session;
+    forgetStored(CFG_KEY);
+    applyTokens(t);
+  });
+}
+
+function broker(body) {
+  return fetch(DEPLOYMENT.broker, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }).then(function (res) {
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (!res.ok || !data.access_token) {
+        var err = new Error(data.error_description || data.error || ("Sign-in failed (" + res.status + ")"));
+        err.code = data.error || "";
+        throw err;
+      }
+      return data;
+    });
+  }, function () {
+    throw new Error("Could not reach the sign-in service.");
+  });
+}
+
+function applyTokens(t) {
+  cfg.token = t.access_token;
+  cfg.refresh = t.refresh_token || "";
+  // expires_in is 0 when the GitHub App has token expiry turned off.
+  cfg.expires = t.expires_in ? Date.now() + t.expires_in * 1000 : 0;
+  saveCfg();
+}
+
+/* Another tab may already have refreshed. Refresh tokens are single-use, so
+   using ours after that would fail. Adopt theirs. */
+function adoptStoredTokens() {
+  var stored = load(CFG_KEY, {});
+  if (stored.token && stored.token !== cfg.token) {
+    cfg.token = stored.token;
+    cfg.refresh = stored.refresh || "";
+    cfg.expires = stored.expires || 0;
+    return true;
+  }
+  return false;
+}
+
+/* Two tabs refreshing at once would both spend the same single-use refresh
+   token; GitHub honours one and the other would be signed out. A browser-wide
+   lock makes them take turns: the second tab waits, then finds the first
+   tab's new tokens already in storage and uses those. */
+function withRefreshLock(fn) {
+  if (navigator.locks && navigator.locks.request) {
+    return navigator.locks.request("notes-token-refresh", fn);
+  }
+  return Promise.resolve().then(fn);
+}
+
+var refreshing = null;
+
+/* `stale` is the token that is expiring or was just rejected. If, once we
+   hold the lock, storage has something newer, another tab already did the
+   work. */
+function refreshTokens(stale) {
+  if (refreshing) return refreshing;
+  if (stale === undefined) stale = cfg.token;
+
+  refreshing = withRefreshLock(function () {
+    adoptStoredTokens();
+    if (cfg.token && cfg.token !== stale && !nearExpiry()) return cfg.token;
+    if (!cfg.refresh) { signOutLocally(""); throw signedOutError(); }
+
+    var spent = cfg.refresh;
+    return broker({ refresh_token: spent }).then(function (t) {
+      applyTokens(t);
+      return cfg.token;
+    }, function () {
+      // With the lock held, a failure means the token really is dead. Without
+      // Web Locks another tab may have won the race, so give it a moment.
+      var hasLocks = !!(navigator.locks && navigator.locks.request);
+      return waitForNewer(stale, hasLocks ? 0 : 2000).then(function (token) {
+        if (token) return token;
+        signOutLocally(spent);
+        throw signedOutError();
+      });
+    });
+  });
+  refreshing.then(done, done);
+  function done() { refreshing = null; }
+  return refreshing;
+}
+
+/* Resolves with a usable token newer than `stale`, or null after `ms`. The
+   check is on what we hold, not on whether this call did the adopting: the
+   cross-tab storage event often adopts the winner's token first. */
+function waitForNewer(stale, ms) {
+  return new Promise(function (resolve) {
+    var until = Date.now() + ms;
+    (function poll() {
+      adoptStoredTokens();
+      if (cfg.token && cfg.token !== stale && !nearExpiry()) return resolve(cfg.token);
+      if (Date.now() >= until) return resolve(null);
+      setTimeout(poll, 150);
+    })();
+  });
+}
+
+function nearExpiry() {
+  return !!cfg.expires && Date.now() > cfg.expires - 60000;
+}
+
+function currentToken() {
+  if (!cfg.token) return Promise.reject(signedOutError());
+  return nearExpiry() ? refreshTokens() : Promise.resolve(cfg.token);
+}
+
+function signedOutError() {
+  var e = new Error("Signed out. Sign in again to continue.");
+  e.status = 401;
+  e.signedOut = true;
+  return e;
+}
+
+/* Forget this tab's tokens. Storage is only cleared if it still holds the
+   refresh token that failed (`spent`): a newer pair written by another tab
+   must survive, or one tab's failure would sign every tab out. */
+function signOutLocally(spent) {
+  var stored = load(CFG_KEY, {});
+  if (!stored.refresh || stored.refresh === spent) forgetStored(CFG_KEY);
+  cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
+}
+
+/* Keep tabs in step: a refresh or sign-out in one applies to the others. */
+window.addEventListener("storage", function (e) {
+  if (e.key !== CFG_KEY) return;
+  if (!e.newValue) {
+    cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
+    showSignIn();
+    return;
+  }
+  adoptStoredTokens();
+});
+
+/* ================================================================
+   PROVIDER  -  the only GitHub-specific code in this file.
+
+   To support another host, reimplement these four functions with the
+   same signatures and return shapes. Nothing below this section knows
+   which host it is talking to.
+
+     listTree()                 -> [{ path, type }]   type: "blob" | "tree"
+     readFile(path)             -> { text, sha }      sha is null if absent
+     writeFile(path, text, sha) -> { sha }            the new sha
+     describe()                 -> "owner/repo@branch"
+   ================================================================ */
+
+var API = "https://api.github.com";
+
+function request(path, options, retried) {
+  options = options || {};
+  var used = "";
+  return currentToken().then(function (token) {
+    used = token;
+    return fetch(API + path, {
+      method: options.method || "GET",
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json"
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+  }).then(function (res) {
+    // A token GitHub no longer accepts: refresh once and try again.
+    if (res.status === 401 && !retried && cfg.refresh) {
+      return refreshTokens(used).then(function () { return request(path, options, true); });
+    }
+    if (res.status === 404 && options.allow404) return null;
+    if (!res.ok) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        var msg = body.message || res.statusText || ("HTTP " + res.status);
+        if (res.status === 401) msg = "Signed out. Sign in again to continue.";
+        if (res.status === 403) msg = "GitHub refused. Is the app installed on this repository?";
+        if (res.status === 409) msg = "Conflict. The file changed on the server.";
+        var err = new Error(msg);
+        err.status = res.status;
+        throw err;
+      });
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  });
+}
+
+/* Account-level calls, used only by the settings dialog. */
+
+function fetchUser() {
+  return request("/user");
+}
+
+// Every repository the signed-in user can reach through the app's
+// installations. Each installation is one account the app is installed on.
+function listRepos() {
+  return request("/user/installations?per_page=100").then(function (data) {
+    var installs = (data && data.installations) || [];
+    return Promise.all(installs.map(function (inst) {
+      return request("/user/installations/" + inst.id + "/repositories?per_page=100")
+        .then(function (d) { return (d && d.repositories) || []; });
+    }));
+  }).then(function (lists) {
+    var all = [].concat.apply([], lists);
+    return all.map(function (r) {
+      return { owner: r.owner.login, repo: r.name, branch: r.default_branch || "main",
+               full: r.full_name, private: !!r.private };
+    }).sort(function (a, b) { return a.full.localeCompare(b.full); });
+  });
+}
+
+function repoPath() {
+  return "/repos/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo);
+}
+
+// Encode a path for the contents API: slashes must stay literal.
+function encodePath(p) {
+  return p.split("/").map(encodeURIComponent).join("/");
+}
+
+function listTree() {
+  var url = repoPath() + "/git/trees/" + encodeURIComponent(cfg.branch) + "?recursive=1";
+  return request(url).then(function (data) {
+    if (data.truncated) flash("Repository is large; the file list is partial.", true);
+    return (data.tree || []).map(function (n) {
+      return { path: n.path, type: n.type };
+    });
+  });
+}
+
+function readFile(path) {
+  var url = repoPath() + "/contents/" + encodePath(path) +
+            "?ref=" + encodeURIComponent(cfg.branch);
+  return request(url, { allow404: true }).then(function (data) {
+    if (!data) return { text: "", sha: null };              // file does not exist yet
+    if (Array.isArray(data)) throw new Error("That path is a folder.");
+    return { text: fromBase64(data.content || ""), sha: data.sha };
+  });
+}
+
+function writeFile(path, text, sha) {
+  var body = {
+    message: (sha ? "Update " : "Create ") + path,
+    content: toBase64(text),
+    branch: cfg.branch
+  };
+  if (sha) body.sha = sha;                                  // optimistic concurrency
+  var url = repoPath() + "/contents/" + encodePath(path);
+  return request(url, { method: "PUT", body: body }).then(function (data) {
+    return { sha: data.content.sha };
+  });
+}
+
+function describe() {
+  return cfg.owner + "/" + cfg.repo + "@" + cfg.branch;
+}
+
+/* ---- base64 that survives UTF-8 and large files ---------------- */
+
+function toBase64(str) {
+  var bytes = new TextEncoder().encode(str);
+  var bin = "", CH = 0x8000;
+  for (var i = 0; i < bytes.length; i += CH) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return btoa(bin);
+}
+
+function fromBase64(b64) {
+  var bin = atob(b64.replace(/\s/g, ""));
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/* ================================================================
+   STATE
+   ================================================================ */
+
+var files = [];        // [{ path, type }]
+var current = null;    // { path, sha, saved }
+var editor = null;
+var pinCache = {};     // path -> { text, sha }
+var statusTimer = null;
+
+function $(id) { return document.getElementById(id); }
+
+function flash(msg, isError) {
+  var el = $("status");
+  el.textContent = msg;
+  el.className = isError ? "err" : "";
+  clearTimeout(statusTimer);
+  if (msg) {
+    statusTimer = setTimeout(function () { el.textContent = ""; }, isError ? 7000 : 2500);
+  }
+}
+
+function fail(err) {
+  console.error(err);
+  flash(err.message || String(err), true);
+  if (err && err.signedOut) showSignIn();
+}
+
+/* ================================================================
+   TREE
+   ================================================================ */
+
+function refreshTree() {
+  if (!configured()) return Promise.resolve();
+  flash("Loading...");
+  return listTree().then(function (list) {
+    files = list;
+    renderTree();
+    flash("");
+  }).catch(fail);
+}
+
+/* Files the editor can open safely. Anything else is binary as far as this
+   app is concerned: decoding it as text and writing it back would corrupt it,
+   so those rows are shown but not openable. An Obsidian vault is full of them
+   (pasted images, PDFs). A name with no extension (LICENSE, Makefile) is
+   treated as text. */
+var TEXT_FILE = /\.(md|markdown|mdx|txt|text|csv|tsv|json|jsonc|ya?ml|toml|ini|cfg|conf|canvas|excalidraw|base|html?|xml|svg|css|scss|js|mjs|cjs|jsx|ts|tsx|py|rb|sh|bash|zsh|fish|sql|rs|go|java|kt|swift|c|h|cpp|hpp|cs|lua|php|pl|r|jl|vue|astro|env|gitignore|gitattributes|editorconfig|log|org|rst|adoc|tex|bib|diff|patch|srt|vtt|properties|gradle|dockerfile|makefile)$/i;
+
+function isTextFile(path) {
+  var name = path.split("/").pop();
+  return name.indexOf(".") === -1 || TEXT_FILE.test(name);
+}
+
+/* Dot-folders are an app's own state, not notes: .obsidian, .git, .trash.
+   They are hidden from the tree. A pinned file is an explicit choice, so pins
+   are not filtered. */
+function isHidden(path) {
+  return path.split("/").some(function (seg) { return seg.charAt(0) === "."; });
+}
+
+function renderTree() {
+  var host = $("tree");
+  var term = $("filter").value.trim().toLowerCase();
+  host.textContent = "";
+
+  var blobs = files.filter(function (f) {
+    return f.type === "blob" && !isHidden(f.path);
+  });
+  if (term) {
+    blobs = blobs.filter(function (f) { return f.path.toLowerCase().indexOf(term) !== -1; });
+  }
+
+  if (!blobs.length) {
+    var e = document.createElement("div");
+    e.className = "empty";
+    e.textContent = configured() ? "No files." :
+      (signedIn() ? "Choose a repository in settings." : "Sign in to see your notes.");
+    host.appendChild(e);
+    return;
+  }
+
+  // Filtering flattens the view: it is a search result, not a tree.
+  if (term) {
+    blobs.slice(0, 300).forEach(function (f) {
+      host.appendChild(fileRow(f.path, f.path, 0));
+    });
+    return;
+  }
+
+  var root = { dirs: {}, files: [] };
+  blobs.forEach(function (f) {
+    var parts = f.path.split("/");
+    var node = root;
+    for (var i = 0; i < parts.length - 1; i++) {
+      node.dirs[parts[i]] = node.dirs[parts[i]] || { dirs: {}, files: [] };
+      node = node.dirs[parts[i]];
+    }
+    node.files.push({ name: parts[parts.length - 1], path: f.path });
+  });
+
+  (function walk(node, prefix, depth) {
+    Object.keys(node.dirs).sort().forEach(function (name) {
+      var path = prefix ? prefix + "/" + name : name;
+      var open = !!ui.open[path];
+
+      var row = document.createElement("div");
+      row.className = "row dir";
+      row.style.paddingLeft = (8 + depth * 14) + "px";
+      row.innerHTML = '<span class="tw">' + (open ? "&#9662;" : "&#9656;") + "</span>";
+      row.appendChild(document.createTextNode(name));
+      row.onclick = function () {
+        ui.open[path] = !open;
+        persist(UI_KEY, ui);
+        renderTree();
+      };
+      host.appendChild(row);
+
+      if (open) walk(node.dirs[name], path, depth + 1);
+    });
+
+    node.files.sort(function (a, b) {
+      return a.name.localeCompare(b.name);
+    }).forEach(function (f) {
+      host.appendChild(fileRow(f.name, f.path, depth));
+    });
+  })(root, "", 0);
+}
+
+function fileRow(label, path, depth) {
+  var text = isTextFile(path);
+  var row = document.createElement("div");
+  row.className = "row" +
+    (current && current.path === path ? " active" : "") +
+    (text ? "" : " binary");
+  row.style.paddingLeft = (8 + depth * 14) + "px";
+  row.innerHTML = '<span class="tw"></span>';
+  row.appendChild(document.createTextNode(label));
+
+  if (!text) {
+    row.title = "Not a text file. Attachments are left alone so they cannot be corrupted.";
+    row.onclick = function () {
+      flash(label + " is not a text file.", true);
+    };
+    return row;
+  }
+
+  row.onclick = function () {
+    openFile(path);
+    document.body.classList.remove("tree-open");
+  };
+  return row;
+}
+
+/* ================================================================
+   EDITOR
+   ================================================================ */
+
+// A plain textarea with the same small interface the app uses. This is the
+// fallback when CodeMirror is not on the page: the CDN is unreachable, the
+// file is opened offline, or a future CodeMirror moves. Editing keeps working
+// without syntax highlighting rather than the app being dead in the water.
+function textareaEditor(host) {
+  var ta = document.createElement("textarea");
+  ta.className = "fallback-editor";
+  ta.spellcheck = true;
+  host.appendChild(ta);
+
+  var handlers = [];
+  ta.addEventListener("input", function () {
+    handlers.forEach(function (h) { h(); });
+  });
+
+  return {
+    getValue: function () { return ta.value; },
+    setValue: function (v) { ta.value = v; },
+    clearHistory: function () {},
+    refresh: function () {},
+    focus: function () { ta.focus(); },
+    on: function (ev, fn) { if (ev === "change") handlers.push(fn); }
+  };
+}
+
+function ensureEditor() {
+  if (editor) return editor;
+  var ph = $("placeholder");
+  if (ph) ph.remove();
+  var host = $("editor-pane");
+
+  if (typeof CodeMirror === "function") {
+    editor = CodeMirror(host, {
+      value: "",
+      mode: "markdown",
+      lineWrapping: true,
+      lineNumbers: false,
+      viewportMargin: 30,
+      inputStyle: "contenteditable",
+      spellcheck: true,
+      extraKeys: {
+        "Cmd-S": function () { saveCurrent(); },
+        "Ctrl-S": function () { saveCurrent(); }
+      }
+    });
+  } else {
+    editor = textareaEditor(host);
+    // A badge in the header, not a toast: the status line is transient and
+    // gets cleared by whatever happens next.
+    document.body.classList.add("plain-editor");
+  }
+
+  editor.on("change", function () {
+    if (!current) return;
+    $("btn-save").disabled = !dirty();
+  });
+  return editor;
+}
+
+function dirty() {
+  return !!(current && editor && editor.getValue() !== current.saved);
+}
+
+function setCrumb(path, tag) {
+  var el = $("crumb");
+  el.textContent = "";
+
+  var dir = document.createElement("span");
+  dir.className = "dir";
+  dir.textContent = path.replace(/[^/]+$/, "");
+  el.appendChild(dir);
+
+  var name = document.createElement("span");
+  name.className = "name";
+  name.textContent = path.split("/").pop();
+  el.appendChild(name);
+
+  if (tag) {
+    var t = document.createElement("span");
+    t.className = "tag";
+    t.textContent = tag;
+    el.appendChild(t);
+  }
+}
+
+function openFile(path) {
+  // Guards the restore-on-boot path as well as a click.
+  if (!isTextFile(path)) {
+    flash(path.split("/").pop() + " is not a text file.", true);
+    return;
+  }
+  if (dirty() && !confirm("Discard unsaved changes to " + current.path + "?")) return;
+  flash("Opening...");
+  readFile(path).then(function (r) {
+    ensureEditor();
+    current = { path: path, sha: r.sha, saved: r.text };
+    editor.setValue(r.text);
+    editor.clearHistory();
+    editor.refresh();
+    $("btn-save").disabled = true;
+    setCrumb(path);
+    ui.last = path;
+    persist(UI_KEY, ui);
+    renderTree();
+    flash("");
+  }).catch(fail);
+}
+
+function saveCurrent() {
+  if (!current || !dirty()) return;
+  var text = editor.getValue();
+  var path = current.path;
+  flash("Saving...");
+  $("btn-save").disabled = true;
+
+  writeFile(path, text, current.sha).then(function (r) {
+    if (current && current.path === path) {
+      current.sha = r.sha;
+      current.saved = text;
+      setCrumb(path);
+      $("btn-save").disabled = !dirty();
+    }
+    if (cfg.pins.indexOf(path) !== -1) {
+      delete pinCache[path];
+      renderPins();
+    }
+    if (!files.some(function (f) { return f.path === path; })) refreshTree();
+    flash("Saved");
+  }).catch(function (err) {
+    $("btn-save").disabled = false;
+    if (err.status === 409 || err.status === 422) {
+      flash("Conflict: " + path + " changed on the server. Copy your text, then reopen it.", true);
+    } else {
+      fail(err);
+    }
+  });
+}
+
+function newFile() {
+  var path = prompt("New note path", suggestPath());
+  if (!path) return;
+  path = path.replace(/^\/+/, "").trim();
+  if (!path) return;
+  if (!/\.[a-z0-9]+$/i.test(path)) path += ".md";
+
+  if (files.some(function (f) { return f.path === path; })) { openFile(path); return; }
+
+  ensureEditor();
+  current = { path: path, sha: null, saved: "\u0000" };   // sentinel: always dirty
+  editor.setValue("# " + path.split("/").pop().replace(/\.md$/i, "") + "\n\n");
+  editor.clearHistory();
+  editor.refresh();
+  editor.focus();
+  $("btn-save").disabled = false;
+  setCrumb(path, "(new)");
+}
+
+function suggestPath() {
+  var d = new Date();
+  var p = function (n) { return (n < 10 ? "0" : "") + n; };
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + ".md";
+}
+
+/* ================================================================
+   PINNED FILES
+
+   A pinned file is rendered as a task list: every line matching
+   "- [ ] text" or "- [x] text" becomes a checkbox, and headings become
+   section labels. Toggling rewrites that one line and commits. The file
+   stays ordinary markdown, readable in any other editor.
+   ================================================================ */
+
+function renderPinTabs() {
+  var host = $("pin-tabs");
+  host.textContent = "";
+  cfg.pins.forEach(function (path, i) {
+    var b = document.createElement("button");
+    b.textContent = path.split("/").pop();
+    if (i === ui.pin) b.className = "active";
+    b.onclick = function () {
+      ui.pin = i;
+      persist(UI_KEY, ui);
+      renderPinTabs();
+      renderPins();
+    };
+    host.appendChild(b);
+  });
+}
+
+function activePin() {
+  return cfg.pins[ui.pin] || cfg.pins[0] || null;
+}
+
+function renderPins() {
+  var host = $("pin-list");
+  var path = activePin();
+  host.textContent = "";
+
+  if (!path || !configured()) {
+    host.innerHTML = '<div class="empty">' +
+      (configured() ? 'No pinned file.' : 'Your pinned tasks appear here.') + '</div>';
+    return;
+  }
+
+  var cached = pinCache[path];
+  if (!cached) {
+    host.innerHTML = '<div class="empty">Loading...</div>';
+    readFile(path).then(function (r) {
+      pinCache[path] = r;
+      if (activePin() === path) renderPins();
+    }).catch(function (err) {
+      host.textContent = "";
+      var e = document.createElement("div");
+      e.className = "empty";
+      e.textContent = err.message;
+      host.appendChild(e);
+    });
+    return;
+  }
+
+  var lines = cached.text.split("\n");
+  var any = false;
+
+  lines.forEach(function (line, index) {
+    var task = line.match(/^(\s*[-*]\s+)\[([ xX])\]\s?(.*)$/);
+    if (task) {
+      any = true;
+      var done = task[2].toLowerCase() === "x";
+      var row = document.createElement("label");
+      row.className = "task" + (done ? " done" : "");
+      var box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = done;
+      box.onchange = function () { toggleTask(path, index, box.checked); };
+      var txt = document.createElement("span");
+      txt.textContent = task[3];
+      row.appendChild(box);
+      row.appendChild(txt);
+      host.appendChild(row);
+      return;
+    }
+    var head = line.match(/^#{1,6}\s+(.*)$/);
+    if (head) {
+      any = true;
+      var h = document.createElement("div");
+      h.className = "task-head";
+      h.textContent = head[1];
+      host.appendChild(h);
+    }
+  });
+
+  if (!any) {
+    var e2 = document.createElement("div");
+    e2.className = "empty";
+    e2.textContent = "Nothing in " + path + " yet. Add a task above.";
+    host.appendChild(e2);
+  }
+}
+
+function toggleTask(path, index, checked) {
+  var cached = pinCache[path];
+  if (!cached) return;
+  var lines = cached.text.split("\n");
+  lines[index] = lines[index].replace(/\[([ xX])\]/, checked ? "[x]" : "[ ]");
+  commitPin(path, lines.join("\n"));
+}
+
+function addTask() {
+  var input = $("pin-input");
+  var text = input.value.trim();
+  var path = activePin();
+  if (!text || !path) return;
+
+  var cached = pinCache[path];
+  if (!cached) { flash("Still loading that file.", true); return; }
+
+  var body = cached.text.replace(/\s*$/, "");
+  var next = (body ? body + "\n" : "") + "- [ ] " + text + "\n";
+
+  input.value = "";
+  commitPin(path, next);
+}
+
+function commitPin(path, text) {
+  var cached = pinCache[path];
+  var sha = cached ? cached.sha : null;
+
+  pinCache[path] = { text: text, sha: sha };   // optimistic: redraw immediately
+  renderPins();
+  flash("Saving...");
+
+  writeFile(path, text, sha).then(function (r) {
+    if (pinCache[path]) pinCache[path].sha = r.sha;
+    if (current && current.path === path && !dirty()) {
+      current.sha = r.sha;
+      current.saved = text;
+      editor.setValue(text);
+    }
+    flash("Saved");
+  }).catch(function (err) {
+    delete pinCache[path];     // drop bad state and reload from the server
+    renderPins();
+    fail(err);
+  });
+}
+
+/* ================================================================
+   SETTINGS
+   ================================================================ */
+
+var repoChoices = [];
+
+function openDialog() {
+  var d = $("settings");
+  if (!d.open) d.showModal();
+}
+
+function showSignIn(message) {
+  $("view-signin").hidden = false;
+  $("view-account").hidden = true;
+  $("f-signin").disabled = !deployed();
+  $("not-deployed").hidden = deployed();
+  $("f-session-in").checked = sessionOnly;
+  var err = $("signin-error");
+  err.hidden = !message;
+  err.textContent = message || "";
+  openDialog();
+}
+
+/* The account view: who you are, which repository, which pinned files. */
+function openSettings() {
+  if (!signedIn()) { showSignIn(); return; }
+  $("view-signin").hidden = true;
+  $("view-account").hidden = false;
+  $("f-pins").value = cfg.pins.join(", ");
+  $("f-session").checked = sessionOnly;
+  $("f-install").href = "https://github.com/apps/" + encodeURIComponent(DEPLOYMENT.appSlug) +
+                        "/installations/new";
+  $("who-login").textContent = cfg.login ? "@" + cfg.login : "";
+  if (cfg.avatar) $("who-avatar").src = cfg.avatar;
+
+  var sel = $("f-repo");
+  sel.textContent = "";
+  sel.appendChild(new Option("Loading…", ""));
+  sel.disabled = true;
+  $("f-save").disabled = true;
+  openDialog();
+
+  // Who, and which repositories, are fetched fresh each time the dialog opens:
+  // installing the app on another repository should show up without a reload.
+  fetchUser().then(function (u) {
+    cfg.login = u.login || "";
+    cfg.avatar = u.avatar_url || "";
+    saveCfg();
+    $("who-login").textContent = "@" + cfg.login;
+    if (cfg.avatar) $("who-avatar").src = cfg.avatar;
+  }).catch(function () {});
+
+  listRepos().then(function (repos) {
+    repoChoices = repos;
+    sel.textContent = "";
+    if (!repos.length) {
+      sel.appendChild(new Option("No repositories yet: choose some below", ""));
+      $("repo-hint").firstChild.textContent =
+        "The app is not installed on any repository yet. ";
+      return;
+    }
+    repos.forEach(function (r, i) {
+      var o = new Option(r.full + (r.private ? "" : "  (public)"), String(i));
+      if (r.owner === cfg.owner && r.repo === cfg.repo) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.disabled = false;
+    $("f-save").disabled = false;
+
+    // First sign-in with the app on a single repository: nothing to choose.
+    if (!configured() && repos.length === 1) saveSettings();
+  }).catch(function (err) {
+    sel.textContent = "";
+    sel.appendChild(new Option("Could not load repositories", ""));
+    if (err.signedOut) showSignIn(err.message);
+  });
+}
+
+function saveSettings() {
+  var pick = repoChoices[Number($("f-repo").value)];
+  if (!pick) return;
+
+  var changedRepo = pick.owner !== cfg.owner || pick.repo !== cfg.repo;
+  cfg.owner  = pick.owner;
+  cfg.repo   = pick.repo;
+  cfg.branch = pick.branch;
+  cfg.pins   = $("f-pins").value.split(",").map(function (s) {
+    return s.trim().replace(/^\/+/, "");
+  }).filter(Boolean);
+
+  // Switching mode must clear the store we are leaving, so nothing is ever
+  // left on disk after choosing session-only.
+  sessionOnly = $("f-session").checked;
+  forgetStored(CFG_KEY);
+  forgetStored(UI_KEY);
+  document.body.classList.toggle("session-only", sessionOnly);
+
+  if (changedRepo) { ui.open = {}; ui.last = null; }
+  saveCfg();
+  persist(UI_KEY, ui);
+  $("settings").close();
+
+  pinCache = {};
+  ui.pin = 0;
+  if (changedRepo) {
+    current = null;
+    if (editor) editor.setValue("");
+  }
+  $("crumb").textContent = describe();
+
+  renderPinTabs();
+  renderPins();
+  refreshTree();
+}
+
+function forget() {
+  if (!confirm("Sign out on this browser?")) return;
+  forgetStored(CFG_KEY);
+  forgetStored(UI_KEY);
+  location.replace(redirectUri());
+}
+
+/* ================================================================
+   WIRING
+   ================================================================ */
+
+$("btn-save").onclick     = saveCurrent;
+$("btn-new").onclick      = newFile;
+$("btn-refresh").onclick  = refreshTree;
+$("btn-settings").onclick = openSettings;
+$("f-save").onclick       = saveSettings;
+$("f-forget").onclick     = forget;
+$("f-signin").onclick     = function () {
+  $("f-signin").disabled = true;
+  signIn(!$("f-session-in").checked);
+};
+
+// The dialog is the way in, not a popup to dismiss: while signed out or
+// without a repository chosen there is nothing behind it to use.
+$("settings").addEventListener("cancel", function (e) {
+  if (!configured()) e.preventDefault();
+});
+$("pin-go").onclick       = addTask;
+
+$("pin-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); addTask(); }
+});
+
+$("filter").addEventListener("input", renderTree);
+
+$("btn-tree").onclick = function () {
+  document.body.classList.remove("pins-open");
+  document.body.classList.toggle("tree-open");
+};
+
+$("btn-pins").onclick = function () {
+  document.body.classList.remove("tree-open");
+  document.body.classList.toggle("pins-open");
+  if (document.body.classList.contains("pins-open")) $("pin-input").focus();
+};
+
+$("scrim").onclick = function () {
+  document.body.classList.remove("tree-open", "pins-open");
+};
+
+document.addEventListener("keydown", function (e) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    saveCurrent();
+  }
+});
+
+window.addEventListener("beforeunload", function (e) {
+  if (dirty()) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ---- boot ------------------------------------------------------ */
+
+function start() {
+  document.body.classList.toggle("session-only", sessionOnly);
+  renderPinTabs();
+
+  if (!signedIn()) {
+    renderTree();
+    renderPins();
+    showSignIn();
+    return;
+  }
+  if (!configured()) {             // signed in, no repository chosen yet
+    renderTree();
+    renderPins();
+    openSettings();
+    return;
+  }
+  $("crumb").textContent = describe();
+  renderPins();
+  refreshTree().then(function () {
+    if (ui.last && files.some(function (f) { return f.path === ui.last; })) {
+      openFile(ui.last);
+    }
+  });
+}
+
+(function boot() {
+  var params = new URLSearchParams(location.search);
+  if (params.get("error")) {
+    // e.g. access_denied when the user clicks Cancel on GitHub
+    history.replaceState(null, "", redirectUri());
+    showSignIn(params.get("error_description") || "Sign-in was cancelled.");
+    return;
+  }
+  if (!params.get("code")) { start(); return; }
+
+  completeSignIn(params).then(start, function (err) {
+    start();
+    showSignIn(err.message);
+  });
+})();
+</script>
+</body>
+</html>

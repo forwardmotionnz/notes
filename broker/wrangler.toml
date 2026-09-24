@@ -1,0 +1,13 @@
+# Cloudflare Worker config for the token broker.
+# Deploy with:  npx wrangler deploy
+# Then set the secret once:  npx wrangler secret put CLIENT_SECRET
+
+name = "notes-token-broker"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# Not secrets. Replace with your own values.
+CLIENT_ID      = "Iv23li_REPLACE_ME"
+ALLOWED_ORIGIN = "https://roldaof.github.io"
+REDIRECT_URI   = "https://roldaof.github.io/notes/"

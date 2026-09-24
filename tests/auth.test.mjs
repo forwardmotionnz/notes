@@ -1,0 +1,374 @@
+import * as H from './harness.mjs';
+
+const t = H.suite('auth');
+await H.start();
+
+/* ===== first visit, not deployed ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh, { deploy: false });
+  const p = await H.page(ctx);
+  await p.waitForTimeout(200);
+  t.check('undeployed copy shows sign-in dialog', await H.dialogOpen(p));
+  t.check('and explains it needs setting up',
+    await p.evaluate(() => !document.getElementById('not-deployed').hidden));
+  t.check('sign-in button disabled until configured', await p.isDisabled('#f-signin'));
+  await ctx.close();
+}
+
+/* ===== the happy path ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await p.waitForTimeout(200);
+  t.check('signed-out visit shows only the sign-in button',
+    await p.evaluate(() => !document.getElementById('view-signin').hidden &&
+                           document.getElementById('view-account').hidden));
+  t.check('no repo, owner, branch or token fields anywhere',
+    await p.evaluate(() => !document.querySelector('#f-owner, #f-token, #f-branch')));
+  t.check('Escape does not dismiss the sign-in dialog', await (async () => {
+    await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+    return H.dialogOpen(p);
+  })());
+
+  await H.signIn(p);
+
+  const a = gh.log.authorize[0];
+  t.check('authorize carries our client id', a.client_id === H.DEPLOY.clientId);
+  t.check('authorize uses PKCE S256', a.code_challenge_method === 'S256' && a.code_challenge.length === 43,
+    a.code_challenge);
+  t.check('authorize carries a state value', a.state && a.state.length >= 20);
+  t.check('redirect is the app URL exactly', a.redirect_uri === H.APP(), a.redirect_uri);
+  t.check('code exchanged exactly once, PKCE verified by the fake', gh.log.exchanges === 1);
+  t.check('code and state removed from the address bar', !p.url().includes('code='), p.url());
+
+  t.check('single installed repo chosen automatically', !(await H.dialogOpen(p)));
+  t.check('its notes are loaded', (await H.rows(p)).includes('todo.md'), JSON.stringify(await H.rows(p)));
+  t.check('header shows the repo', (await p.textContent('#crumb')).includes('roldaof/obsidian-vault'));
+
+  const s = await H.stored(p);
+  t.check('remembered on this browser', !!s.local && s.session === null);
+  t.check('PKCE verifier not left behind',
+    await p.evaluate(() => sessionStorage.getItem('notes.signin') === null));
+
+  await p.fill('#pin-input', 'signed in with GitHub');
+  await p.click('#pin-go');
+  await p.waitForTimeout(400);
+  t.check('writes go through with the GitHub App token',
+    gh.files['todo.md'].includes('- [ ] signed in with GitHub') &&
+    gh.commits.at(-1).token.startsWith('ghu_'));
+
+  // reload: no dialog, straight in
+  await p.reload({ waitUntil: 'load' });
+  await p.waitForTimeout(500);
+  t.check('reload goes straight to the notes', !(await H.dialogOpen(p)) &&
+    (await H.rows(p)).includes('todo.md'));
+  t.check('no second sign-in on reload', gh.log.authorize.length === 1);
+
+  // account view shows who you are
+  await p.click('#btn-settings');
+  await p.waitForTimeout(400);
+  t.check('settings shows the GitHub login',
+    (await p.textContent('#who-login')) === '@roldaof', await p.textContent('#who-login'));
+  t.check('install link points at the app',
+    (await p.getAttribute('#f-install', 'href')) === 'https://github.com/apps/notes-test/installations/new');
+  t.check('no page errors on the happy path', p.errors.length === 0, p.errors.join(' | '));
+  await ctx.close();
+}
+
+/* ===== several repositories: a real choice ===== */
+{
+  const gh = H.fakeGitHub({ repos: [
+    { owner: { login: 'roldaof' }, name: 'obsidian-vault', full_name: 'roldaof/obsidian-vault', default_branch: 'main', private: true },
+    { owner: { login: 'roldaof' }, name: 'work-notes', full_name: 'roldaof/work-notes', default_branch: 'trunk', private: true },
+  ]});
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  t.check('with two repos the picker stays open', await H.dialogOpen(p));
+  const opts = await p.$$eval('#f-repo option', o => o.map(x => x.textContent));
+  t.check('both repos offered', opts.length === 2 && opts.join().includes('work-notes'), JSON.stringify(opts));
+
+  await p.selectOption('#f-repo', { index: 1 });
+  await p.click('#f-save');
+  await p.waitForTimeout(400);
+  const cfg = JSON.parse((await H.stored(p)).local);
+  t.check('choice saved with its default branch', cfg.repo === 'work-notes' && cfg.branch === 'trunk',
+    JSON.stringify({ repo: cfg.repo, branch: cfg.branch }));
+  await ctx.close();
+}
+
+/* ===== app installed nowhere yet ===== */
+{
+  const gh = H.fakeGitHub({ repos: [] });
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  t.check('no repos: dialog stays, save disabled', (await H.dialogOpen(p)) && (await p.isDisabled('#f-save')));
+  t.check('and points you to install it',
+    (await p.textContent('#repo-hint')).includes('not installed'), await p.textContent('#repo-hint'));
+  await ctx.close();
+}
+
+/* ===== CSRF: a code we did not ask for ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh, { tamperState: true });
+  const p = await H.page(ctx);
+  await p.waitForSelector('#f-signin:not([disabled])');
+  await p.click('#f-signin');
+  await p.waitForTimeout(800);
+  t.check('mismatched state is refused', gh.log.exchanges === 0);
+  t.check('user told to try again',
+    (await p.textContent('#signin-error')).toLowerCase().includes('try again'),
+    await p.textContent('#signin-error'));
+  t.check('nothing stored', (await H.stored(p)).local === null);
+  await ctx.close();
+}
+
+/* ===== a code planted in a link ===== */
+{
+  const gh = H.fakeGitHub();
+  gh.codes.set('attacker_code', { challenge: 'x', used: false });
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx, H.APP() + '?code=attacker_code&state=whatever');
+  await p.waitForTimeout(500);
+  t.check('a code arriving without our sign-in is never exchanged', gh.log.exchanges === 0 &&
+    gh.codes.get('attacker_code').used === false);
+  t.check('and scrubbed from the URL', !p.url().includes('attacker_code'));
+  await ctx.close();
+}
+
+/* ===== returning from installing the app on github.com ===== */
+{
+  const gh = H.fakeGitHub();
+  gh.codes.set('install_code', { challenge: 'x', used: false });
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx, H.APP() + '?code=install_code&installation_id=77&setup_action=install');
+  await p.waitForURL(u => !u.search.includes('code='), { timeout: 5000 });
+  await p.waitForTimeout(600);
+  t.check('install redirect restarts a proper sign-in', gh.log.authorize.length === 1);
+  t.check('the unsolicited install code is not used', gh.codes.get('install_code').used === false);
+  t.check('and you end up signed in', !(await H.dialogOpen(p)) && (await H.rows(p)).includes('todo.md'));
+  await ctx.close();
+}
+
+/* ===== cancel on GitHub ===== */
+{
+  const gh = H.fakeGitHub();
+  gh.denyNext = true;
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await p.waitForSelector('#f-signin:not([disabled])');
+  await p.click('#f-signin');
+  await p.waitForTimeout(700);
+  t.check('cancelling on GitHub returns to sign-in with the reason',
+    (await p.textContent('#signin-error')).includes('denied'), await p.textContent('#signin-error'));
+  t.check('button usable again', await p.isEnabled('#f-signin'));
+  await ctx.close();
+}
+
+/* ===== expiry and refresh ===== */
+{
+  const gh = H.fakeGitHub({ expiresIn: 30 });     // inside the 60 s margin: refresh on next call
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  const before = gh.log.refreshes;
+  await p.click('#btn-refresh');
+  await p.waitForTimeout(500);
+  t.check('near-expiry token refreshed before use', gh.log.refreshes > before);
+  const cfg = JSON.parse((await H.stored(p)).local);
+  t.check('rotated refresh token stored', cfg.refresh.startsWith('ghr_') &&
+    gh.refresh.get(cfg.refresh).used === false, cfg.refresh);
+  t.check('API call used the new token', gh.log.apiAuth.at(-1) === cfg.token);
+  t.check('no errors across refresh', p.errors.length === 0, p.errors.join(' | '));
+  await ctx.close();
+}
+
+/* ===== GitHub revokes the token early: 401 then retry ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  gh.expireAll();
+  await p.fill('#pin-input', 'after revoke');
+  await p.click('#pin-go');
+  await p.waitForTimeout(700);
+  t.check('401 triggers one refresh', gh.log.refreshes === 1);
+  t.check('and the write still lands', gh.files['todo.md'].includes('after revoke'));
+  t.check('user never saw an error', !(await H.status(p)).toLowerCase().includes('sign'),
+    await H.status(p));
+  await ctx.close();
+}
+
+/* ===== refresh token dead too: clean sign-out ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  gh.expireAll();
+  for (const v of gh.refresh.values()) v.used = true;
+  await p.click('#btn-refresh');
+  await p.waitForTimeout(700);
+  t.check('dead refresh token signs you out cleanly', await H.dialogOpen(p) &&
+    await p.evaluate(() => !document.getElementById('view-signin').hidden));
+  t.check('tokens removed from storage', (await H.stored(p)).local === null);
+  await ctx.close();
+}
+
+/* ===== two tabs, one refresh token ===== */
+{
+  const gh = H.fakeGitHub({ expiresIn: 30 });
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  t.check('second tab starts signed in', !(await H.dialogOpen(b)));
+
+  // both tabs hit the API at once with a near-expired token
+  await Promise.all([a.click('#btn-refresh'), b.click('#btn-refresh')]);
+  await a.waitForTimeout(900);
+  const aOk = !(await H.dialogOpen(a)), bOk = !(await H.dialogOpen(b));
+  t.check('simultaneous refresh in two tabs signs neither out', aOk && bOk,
+    JSON.stringify({ aOk, bOk, refreshes: gh.log.refreshes }));
+  await b.fill('#pin-input', 'from tab b');
+  await b.click('#pin-go');
+  await b.waitForTimeout(600);
+  t.check('both tabs keep working afterwards', gh.files['todo.md'].includes('from tab b'));
+  await ctx.close();
+}
+
+/* ===== forced collision: both tabs spend the SAME refresh token ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+
+  const shared = await a.evaluate(() => cfg.refresh);
+  const bHas = await b.evaluate(() => cfg.refresh);
+  t.check('both tabs hold the same refresh token', shared === bHas && !!shared);
+
+  // Fire both refreshes in the same instant. GitHub honours exactly one.
+  const [ra, rb] = await Promise.all([
+    a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message)),
+    b.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message)),
+  ]);
+  t.check('GitHub accepted the shared token exactly once', gh.refresh.get(shared).used === true);
+  t.check('with the lock, the second tab never spends a dead token',
+    gh.log.badRefresh === 0 && gh.log.refreshes === 1,
+    JSON.stringify({ bad: gh.log.badRefresh, ok: gh.log.refreshes }));
+  t.check('the losing tab adopts the winner\'s tokens instead of signing out',
+    ra === 'ok' && rb === 'ok', JSON.stringify({ ra, rb }));
+  const [ta, tb] = [await a.evaluate(() => cfg.token), await b.evaluate(() => cfg.token)];
+  t.check('both tabs end on the same live token', ta === tb && gh.access.has(ta), JSON.stringify({ ta, tb }));
+  await ctx.close();
+}
+
+/* ===== the storage guard, directly ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  const r = await p.evaluate(() => {
+    const newer = Object.assign({}, cfg, { token: 'ghu_newer', refresh: 'ghr_newer' });
+    localStorage.setItem('notes.config.v2', JSON.stringify(newer));
+    signOutLocally('ghr_some_old_spent_token');
+    const kept = JSON.parse(localStorage.getItem('notes.config.v2') || 'null');
+    localStorage.setItem('notes.config.v2', JSON.stringify(newer));
+    signOutLocally('ghr_newer');
+    const cleared = localStorage.getItem('notes.config.v2');
+    return { kept: kept && kept.refresh, cleared };
+  });
+  t.check('a failing tab cannot wipe a newer token pair', r.kept === 'ghr_newer', JSON.stringify(r));
+  t.check('but does clear the pair that actually failed', r.cleared === null, JSON.stringify(r));
+  await ctx.close();
+}
+
+/* ===== same collision on a browser without Web Locks ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  await ctx.addInitScript(() => {
+    try { Object.defineProperty(Navigator.prototype, 'locks', { get: () => undefined }); } catch (e) {}
+  });
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  t.check('lock API really absent in this test', await a.evaluate(() => !navigator.locks));
+
+  const [ra, rb] = await Promise.all([
+    a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message)),
+    b.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message)),
+  ]);
+  t.check('without locks, the loser still recovers by waiting for the winner',
+    ra === 'ok' && rb === 'ok', JSON.stringify({ ra, rb }));
+  const [ta, tb] = [await a.evaluate(() => cfg.token), await b.evaluate(() => cfg.token)];
+  t.check('and both end on the live token', ta === tb && gh.access.has(ta), JSON.stringify({ ta, tb }));
+  await ctx.close();
+}
+
+/* ===== work computer: session only ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p, { remember: false });
+  const s = await H.stored(p);
+  t.check('session-only chosen before sign-in: nothing on disk', s.local === null && !!s.session,
+    JSON.stringify({ local: !!s.local, session: !!s.session }));
+  t.check('session badge shown', await p.evaluate(
+    () => getComputedStyle(document.getElementById('ephemeral')).display !== 'none'));
+  const fresh = await H.page(ctx);                 // a new session in the same profile
+  await fresh.waitForTimeout(400);
+  t.check('a new browser session starts signed out', await H.dialogOpen(fresh));
+  await ctx.close();
+}
+
+/* ===== sign out ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(400);
+
+  await a.click('#btn-settings');
+  await a.waitForTimeout(300);
+  await a.click('#f-forget');
+  await a.waitForTimeout(700);
+  t.check('sign out clears storage', (await H.stored(a)).local === null);
+  t.check('sign out lands on the sign-in view', await H.dialogOpen(a));
+  await b.waitForTimeout(300);
+  t.check('other open tabs are signed out too', await H.dialogOpen(b));
+  await ctx.close();
+}
+
+/* ===== mobile ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh, { viewport: { width: 390, height: 780 } });
+  const p = await H.page(ctx);
+  await p.waitForTimeout(200);
+  const fits = await p.evaluate(() => {
+    const b = document.getElementById('f-signin').getBoundingClientRect();
+    return b.left >= 0 && b.right <= innerWidth && b.height >= 40;
+  });
+  t.check('sign-in button fits and is thumb-sized on a phone', fits);
+  await H.signIn(p);
+  t.check('phone sign-in lands in the notes', (await H.rows(p)).includes('todo.md'));
+  await ctx.close();
+}
+
+await H.stop();
+t.finish();

@@ -8,6 +8,6 @@ compatibility_date = "2026-09-01"
 
 [vars]
 # Not secrets. Replace with your own values.
-CLIENT_ID      = "Iv23li_REPLACE_ME"
-ALLOWED_ORIGIN = "https://roldaof.github.io"
-REDIRECT_URI   = "https://roldaof.github.io/notes/"
+CLIENT_ID      = "Iv23liBrUeC67BfCYF9c"
+ALLOWED_ORIGIN = "https://forwardmotionnz.github.io"
+REDIRECT_URI   = "https://forwardmotionnz.github.io/notes/"

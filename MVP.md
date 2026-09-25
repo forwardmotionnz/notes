@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 18 / 30
+Iterations: 19 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -22,7 +22,7 @@ Iterations: 18 / 30
 | D2 | 10 | done | `tests/delete.test.mjs` 37/37: Delete asks first, saying how to recover from the history (and that unsaved changes go too); saying no deletes nothing; one commit; the note closes and the list updates; a file changed elsewhere, a failure, a stale draft are not deleted and say why (pointing to Discard); a lost reply and an already-deleted file count as done; a double tap changes nothing; a slow delete is not raced by autosave or by switching apps; it waits for a pinned task being saved; the empty editor takes no typing; a pinned note is unpinned; other tabs close it, and one with unsaved words keeps them as a new, unsaved note (and a draft, even if it never heard); no Delete when read-only. Screens `tests/screens/d2-*.png` (incl. 320 px); commit d762495 |
 | E1 | 11 | done | `tests/wikilinks.test.mjs` 47/47, in CodeMirror and the plain editor: Ctrl-click, Cmd-click and a tap open `[[Note]]`, `[[Note|alias]]`, `[[folder/Note]]`, `[[Note#Heading]]`, any case; shortest path wins (by depth, then length), dot-folders ignored; a plain click and a tap at a link's edge only place the cursor; an unresolved link asks to create `<name>.md` (no means nothing, yes then Save creates it) in the folder's existing spelling; no offer before the list loads, from a partial or stale list, when read-only, or outside the repository. Screens `tests/screens/e1-*.png`; commit 918ad02 |
 | B2 | 12 | done | `tests/firstrun.test.mjs` 32/32: with the app on no repository, only the two steps, Check now and Sign out are on screen (step 1 focused); step 1 opens github.com/new with `notes` and Private filled in, step 2 the app's install page, both in a new tab; coming back, one repository is chosen by itself and its first note commits; with several, the usual choice; before one is in use nothing public is chosen for anyone, a private `notes` is preferred, a public one is named as public; failed or partly failed lists say so with Try again, on the steps or not; a slow list shows "looking"; Check now shows it is checking; fits a 390 px phone. Screens `tests/screens/b2-*.png`; commit 5bf6436 |
-| A2 | 14 | todo | |
+| A2 | 14 | done | `tests/welcome.test.mjs` 19/19: at most three sentences of at most 20 words, above Sign in, saying what Notes is, that it reads and writes files only in repositories the app is installed on (which you choose), that notes stay there and whoever runs the copy's App can reach them; a Privacy link to `PRIVACY.html` (GitHub Pages publishes `PRIVACY.md` there) in a new tab; Sign in has the focus; Forget me promises no more than PRIVACY.md (the privacy test holds the README to that too); fits 320 px. Screens `tests/screens/a2-*.png`; commit d91783c |
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | todo | |
 | F1 | 16 | todo | |
@@ -107,6 +107,10 @@ Iterations: 18 / 30
 ### A3: plan
 - Done looks like: `PRIVACY.md` says in plain language what the broker sees (sign-in codes and tokens in transit, never stored or logged), what the browser stores and where (each key, local or session storage, and when it goes), every other host the page talks to, who else a person is trusting on a shared copy, how to revoke access on GitHub (both the authorisation and the installation), and how to self-host instead.
 - Proof: `tests/privacy.test.mjs` holds the note to the code: every storage key a real session writes is named in it, and nothing is left after sign-out; every host in the page's policies is named; the broker's source keeps and logs nothing and only receives the fields the note lists; the GitHub settings pages it names are the documented ones.
+
+### A2: plan
+- Done looks like: the signed-out screen says, in at most three short sentences above the sign-in button, what Notes is, what it asks GitHub for (only the repositories you choose, their contents, read and write) and that notes stay in your repository, with a Privacy link to `PRIVACY.md` as GitHub Pages publishes it.
+- Proof: `tests/welcome.test.mjs` counts the sentences and words, checks each point and the link, and that it all fits a 320 px phone.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -243,6 +247,13 @@ Iterations: 18 / 30
 - Ledger: the `## Needs the owner` heading was lost in B2's ledger commit (a plan was inserted in its place); restored here, with nothing else missing.
 - G-4: nothing in the app changed. G-5: no code, dependency or request changed. G-6: README's known limits corrected and linked to PRIVACY.md.
 
+### A2: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each check reverted alone and caught: Sign in taking the focus (without it the dialog focused the Privacy link, so Enter opened the note); the link's address and its new tab; the "Forget me" wording. The words themselves are pinned by the test: three sentences at most, 20 words each at most, and each point the item asks for.
+- Rule 6: `PRIVACY.html` relies on GitHub Pages publishing `PRIVACY.md` there (jekyll-optional-front-matter is on by default and cannot be turned off; docs URL in the test). The repository has no `.nojekyll` or `_config.yml` to stop it. The README says what to do on another host.
+- G-3 findings, all taken: (1) The README still promised "Nothing is written to disk" for Forget me, against PRIVACY.md (browsers that reopen tabs bring the session back): the README is corrected and the privacy test now holds the README to it too. The checkbox text in the app said the same and was already changed in this item. (2) "Only the repositories you choose" is not true when an organisation installs the app for its members: now "only in repositories the app is installed on, which you choose"; test. (3) "Your notes stay in your repository" hid the one thing that changes the risk on someone else's copy: the third sentence now says whoever runs this copy's GitHub App can reach them too, as PRIVACY.md does; test. (4) The README pointed to the wrong place for the link: it now names `id="about"`.
+- G-4: `tests/screens/a2-{desktop,phone,small}-{light,dark}.png`: fits at 320 px with Sign in in view and focused; the link is visible in both themes. G-5: markup and one CSS rule, outside the hashed script; no request added. G-6: README says where the privacy note is published, and the Forget me paragraph matches PRIVACY.md.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -282,3 +293,4 @@ Iterations: 18 / 30
 - 2026-09-25 · E1 · done · 918ad02
 - 2026-09-25 · B2 · done · 5bf6436
 - 2026-09-25 · A3 · done · 211e75b (taken before A2, which links to it)
+- 2026-09-25 · A2 · done · d91783c

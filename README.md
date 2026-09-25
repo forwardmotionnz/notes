@@ -144,7 +144,10 @@ header shows which mode you are in.
 
 Sign-ins last six months per browser; the app renews the short-lived token
 every eight hours without asking. Several tabs open at once share one sign-in
-and take turns renewing it, so they never sign each other out.
+and take turns renewing it, so they never sign each other out. They share
+settings too: choose another repository or pinned files in one tab and the
+others follow, after saving what was open in them to the repository it came
+from. Signing out, or choosing *Forget me*, in one tab signs the others out.
 
 ## Using it with an existing Obsidian vault
 

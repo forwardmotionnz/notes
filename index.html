@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QDMvkgE39UlFvyHv6N8tQKdt0hY1D418EIQYwthjpbI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-tkpCq4or4jT4O4GJqojFFRNA33zXwdpK4lWEtOmRWe4=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -689,6 +689,11 @@ function load(key, fallback) {
   } catch (e) { return fallback; }
 }
 
+/* Write in place, then clear the other store. Removing first would tell
+   every other tab, for an instant, that there is no sign-in, and they would
+   drop to the sign-in view. Clearing localStorage on the way to session-only
+   does sign the other tabs out, on purpose: kept signed in, they would
+   write the sign-in back to disk. */
 function persist(key, val) {
   var json = JSON.stringify(val);
   try {
@@ -697,6 +702,7 @@ function persist(key, val) {
       localStorage.removeItem(key);          // never leave a copy behind
     } else {
       localStorage.setItem(key, json);
+      sessionStorage.removeItem(key);
     }
   } catch (e) {}
 }
@@ -877,8 +883,7 @@ function completeSignIn(params) {
 
   return broker({ code: code, code_verifier: pending.verifier }).then(function (t) {
     sessionOnly = !!pending.session;
-    forgetStored(CFG_KEY);
-    applyTokens(t);
+    applyTokens(t);                    // persist() clears the other store
   });
 }
 
@@ -949,6 +954,12 @@ function refreshTokens(stale) {
 
     var spent = cfg.refresh;
     return broker({ refresh_token: spent }).then(function (t) {
+      // While this was in flight another tab may have signed out or chosen
+      // "Forget me" (which cleared ours through the storage event), or,
+      // without Web Locks, refreshed first. Either way what we hold is no
+      // longer what we spent: write nothing, and carry on with what we
+      // hold (nothing, if signed out; the caller then reports it).
+      if (cfg.refresh !== spent) return cfg.token;
       applyTokens(t);
       return cfg.token;
     }, function () {
@@ -1016,6 +1027,7 @@ window.addEventListener("storage", function (e) {
     return;
   }
   adoptStoredTokens();
+  followSettings();
 });
 
 /* ================================================================
@@ -2012,34 +2024,21 @@ function loadRepoList() {
   });
 }
 
-function saveSettings() {
-  var pick = repoChoices[Number($("f-repo").value)];
-  if (!pick) return;
-
-  var changedRepo = pick.owner !== cfg.owner || pick.repo !== cfg.repo;
-  // Commit (or keep as a draft) the open file while cfg still names its
-  // repository.
+/* Point this tab at a repository and pinned files. The open file is
+   committed (or kept as a draft) first, while cfg still names the
+   repository it came from. Returns whether the repository changed. */
+function pointAt(owner, repo, branch, pins) {
+  var changedRepo = owner !== cfg.owner || repo !== cfg.repo || branch !== cfg.branch;
   if (changedRepo) leaveCurrent();
-  cfg.owner  = pick.owner;
-  cfg.repo   = pick.repo;
-  cfg.branch = pick.branch;
-  cfg.pins   = $("f-pins").value.split(",").map(function (s) {
-    return s.trim().replace(/^\/+/, "");
-  }).filter(Boolean);
-
-  // Switching mode must clear the store we are leaving, so nothing is ever
-  // left on disk after choosing session-only.
-  sessionOnly = $("f-session").checked;
-  forgetStored(CFG_KEY);
-  forgetStored(UI_KEY);
-  moveDrafts();
-  document.body.classList.toggle("session-only", sessionOnly);
-
+  cfg.owner = owner;
+  cfg.repo = repo;
+  cfg.branch = branch;
+  cfg.pins = pins;
   if (changedRepo) { ui.open = pathMap(); ui.last = null; }
-  saveCfg();
-  persist(UI_KEY, ui);
-  $("settings").close();
+  return changedRepo;
+}
 
+function showPointed(changedRepo) {
   pinCache = pathMap();
   ui.pin = 0;
   if (changedRepo) {
@@ -2048,10 +2047,43 @@ function saveSettings() {
     showDiscard(false);
   }
   $("crumb").textContent = describe();
-
   renderPinTabs();
   renderPins();
   refreshTree();
+}
+
+/* Another tab saved settings. Settings are shared by every remembered tab
+   in this browser, so this one follows; otherwise its stale copy would be
+   written back at its next token refresh and undo the change. A
+   session-only tab reads its own copy and is unaffected. */
+function followSettings() {
+  var s = load(CFG_KEY, {});
+  if (!s.owner || !s.repo || !s.branch) return;
+  var pins = Array.isArray(s.pins) ? s.pins : cfg.pins;
+  var pinsChanged = JSON.stringify(pins) !== JSON.stringify(cfg.pins);
+  var changedRepo = pointAt(s.owner, s.repo, s.branch, pins);
+  if (changedRepo || pinsChanged) showPointed(changedRepo);
+}
+
+function saveSettings() {
+  var pick = repoChoices[Number($("f-repo").value)];
+  if (!pick) return;
+
+  var changedRepo = pointAt(pick.owner, pick.repo, pick.branch,
+    $("f-pins").value.split(",").map(function (s) {
+      return s.trim().replace(/^\/+/, "");
+    }).filter(Boolean));
+
+  // Switching mode clears the store we are leaving (persist() below does
+  // it), so nothing is left on disk after choosing session-only.
+  sessionOnly = $("f-session").checked;
+  moveDrafts();
+  document.body.classList.toggle("session-only", sessionOnly);
+
+  saveCfg();
+  persist(UI_KEY, ui);
+  $("settings").close();
+  showPointed(changedRepo);
 }
 
 function forget() {

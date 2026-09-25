@@ -441,6 +441,161 @@ await H.start();
   await ctx.close();
 }
 
+/* ===== saving settings in one tab leaves the others signed in ===== */
+{
+  const gh = H.fakeGitHub({ files: { 'todo.md': '# Today\n', 'inbox.md': 'x\n' } });
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(600);
+  await a.click('#btn-settings');
+  await a.waitForSelector('#f-save:not([disabled])');
+  await a.click('#f-save');                        // nothing changed
+  await a.waitForTimeout(500);
+  t.check('saving settings in one tab does not sign another out', !(await H.dialogOpen(b)));
+  await H.clickRow(b, 'inbox.md');
+  await H.setEditor(b, 'from tab b\n');
+  await b.waitForTimeout(60);
+  await b.click('#btn-save');
+  await b.waitForTimeout(400);
+  t.check('and the other tab still saves', gh.files['inbox.md'] === 'from tab b\n');
+
+  // A fresh sign-in in one tab (e.g. after its token was refused) hands the
+  // new tokens to the others instead of signing them out.
+  await a.evaluate(() => signIn(true));
+  await a.waitForURL(u => !u.search.includes('code='), { timeout: 5000 });
+  await a.waitForTimeout(600);
+  t.check('signing in again in one tab does not sign another out', !(await H.dialogOpen(b)));
+  t.check('the other tab uses the new token', await b.evaluate(() => cfg.token) === await a.evaluate(() => cfg.token));
+
+  // Choosing "Forget me" in one tab is the exception: the others must stop
+  // writing the sign-in to disk, so they are signed out.
+  await a.click('#btn-settings');
+  await a.waitForSelector('#f-save:not([disabled])');
+  await a.check('#f-session');
+  await a.click('#f-save');
+  await a.waitForTimeout(500);
+  t.check('choosing session-only in one tab signs the other out', await H.dialogOpen(b));
+  t.check('and nothing is left on disk', (await H.stored(a)).local === null);
+  await ctx.close();
+}
+
+/* ===== another tab follows a change of repository and pins ===== */
+{
+  const repos = [
+    { owner: { login: 'roldaof' }, name: 'personal', full_name: 'roldaof/personal', default_branch: 'main', private: true },
+    { owner: { login: 'roldaof' }, name: 'work', full_name: 'roldaof/work', default_branch: 'main', private: true },
+  ];
+  const gh = H.fakeGitHub({ repos, files: { 'todo.md': '# t\n', 'work.md': '# w\n', 'inbox.md': 'x\n' } });
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  await a.waitForSelector('#f-save:not([disabled])');
+  await a.selectOption('#f-repo', { label: 'roldaof/personal' });
+  await a.click('#f-save');
+  await a.waitForTimeout(400);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(700);
+  await H.clickRow(b, 'inbox.md');
+  await H.setEditor(b, 'typed in b before the switch\n');
+  await b.waitForTimeout(60);
+
+  await a.click('#btn-settings');
+  await a.waitForSelector('#f-save:not([disabled])');
+  await a.selectOption('#f-repo', { label: 'roldaof/work' });
+  await a.fill('#f-pins', 'work.md');
+  await a.click('#f-save');
+  await a.waitForTimeout(700);
+  t.check('the other tab follows to the new repository', (await b.textContent('#crumb')).includes('roldaof/work'),
+    await b.textContent('#crumb'));
+  t.check('and its pins', JSON.stringify(await b.$$eval('#pin-tabs button', x => x.map(e => e.textContent))) === '["work.md"]');
+  const c = gh.commits.find(x => x.path === 'inbox.md');
+  t.check('what it had typed went to the repository it came from', !!c && c.repo === 'roldaof/personal',
+    JSON.stringify(gh.commits));
+  // The other tab writing its settings (as opening Settings or a token
+  // refresh does) must not undo the change.
+  await b.click('#btn-settings');
+  await b.waitForTimeout(600);
+  const fresh = await H.page(ctx);
+  await fresh.waitForTimeout(600);
+  t.check('a new tab opens the repository and pins last chosen', (await fresh.textContent('#crumb')).includes('roldaof/work') &&
+    JSON.stringify(await fresh.$$eval('#pin-tabs button', x => x.map(e => e.textContent))) === '["work.md"]',
+    await fresh.textContent('#crumb'));
+  await ctx.close();
+}
+
+/* ===== another tab follows a change of pins alone ===== */
+{
+  const gh = H.fakeGitHub({ files: { 'todo.md': '# t\n', 'later.md': '# l\n' } });
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(600);
+  await a.click('#btn-settings');
+  await a.waitForSelector('#f-save:not([disabled])');
+  await a.fill('#f-pins', 'todo.md, later.md');
+  await a.click('#f-save');
+  await a.waitForTimeout(600);
+  t.check('the other tab shows the new pins', JSON.stringify(await b.$$eval('#pin-tabs button',
+    x => x.map(e => e.textContent))) === '["todo.md","later.md"]');
+  await ctx.close();
+}
+
+/* ===== a refresh in flight during sign-out or "Forget me" leaves nothing on disk ===== */
+for (const how of ['forget me', 'sign out']) {
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(600);
+  // Slow enough that the other tab's sign-out or Settings lands first.
+  await b.route(H.DEPLOY.broker + '**', async r => { await new Promise(res => setTimeout(res, 3000)); return r.fallback(); });
+  // Tab B renews its token (slowly) while tab A's is still good, so A is
+  // not queued behind B's refresh lock.
+  b.evaluate(() => refreshTokens().catch(() => {}));
+  await b.waitForTimeout(300);
+  if (how === 'forget me') {
+    await a.click('#btn-settings');
+    await a.waitForSelector('#f-save:not([disabled])');
+    await a.check('#f-session');
+    await a.click('#f-save');
+  } else {
+    await a.click('#btn-settings');
+    await a.waitForTimeout(300);
+    await a.click('#f-forget');
+  }
+  await a.waitForTimeout(3500);
+  t.check(`a refresh finishing after "${how}" writes nothing to disk`,
+    await b.evaluate(() => localStorage.getItem('notes.config.v2')) === null);
+  t.check(`and that tab stays signed out`, await b.evaluate(() => !cfg.token));
+  t.check('without sending GitHub a request with no token', !gh.log.apiAuth.includes(''),
+    JSON.stringify(gh.log.apiAuth.slice(-4)));
+  await ctx.close();
+}
+
+/* ===== switching back from session-only to remembered sticks ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p, { remember: false });
+  await p.click('#btn-settings');
+  await p.waitForSelector('#f-save:not([disabled])');
+  await p.uncheck('#f-session');
+  await p.click('#f-save');
+  await p.waitForTimeout(400);
+  await p.reload({ waitUntil: 'load' });
+  await p.waitForTimeout(500);
+  const s = await H.stored(p);
+  t.check('back to remembered: on disk, no session copy left to override it', !!s.local && s.session === null);
+  t.check('and it stays remembered after a reload', await p.evaluate(
+    () => getComputedStyle(document.getElementById('ephemeral')).display === 'none'));
+  await ctx.close();
+}
+
 /* ===== sign out ===== */
 {
   const gh = H.fakeGitHub();

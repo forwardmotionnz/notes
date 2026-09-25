@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 7 / 30
+Iterations: 8 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -12,7 +12,7 @@ Iterations: 7 / 30
 | G1 | 5 | done | `tests/csp.test.mjs` 26/26 (runs first in `npm test`): two policies present and shaped as intended; inline script hash listed; no inline handlers; fetch, image, beacon, WebSocket, form, injected `<script>` and `<base>` to a third party all blocked and nothing reached it; a copy filled in exactly as the README says signs in end to end with nothing injected; the broker check agrees with the browser on 13 cases; a mismatched broker is reported and sign-in withheld. All 10 suites pass under the policy. Screens `tests/screens/g1-{desktop,phone}-{light,dark}.png`; commit 3290031 |
 | N1 | 5a | done | `tests/eol.test.mjs` 31/31: CRLF, CR and mixed files open clean (no draft, no autosave, not "restored" after reload); edits keep the file's endings and every untouched line's own ending (ties, lone CRs inside and at the end, two edits plus an insertion in one save, a moved line, a second save); pinned CRLF task lists read, tick and capture with CRLF; a BOM is kept; non-UTF-8 text is refused and never written; a lost reply is matched byte for byte; the reviewer's counterexamples; 20,000 seeded random files and edits all read back exactly as typed; a 30,000-line rewrite takes ~25 ms. Commit 4dec41f |
 | N2 | 5b | done | `tests/auth.test.mjs` 78/78, new cases: a return from installing signs nobody in, uses no code, shows a note with "Forget me" ticked, one click signs in session-only; "Choose repositories" opens a new tab and the tab refreshes its list on return, staying session-only; a remembered tab carries on and fetches the list once; an older, slower list never overrides a newer one; a refresh keeps an unsaved pick. Screens `tests/screens/n2-{desktop,phone}-{light,dark}.png`, `tests/screens/n2-settings-*.png`; commit 4f5062d |
-| N3 | 5c | todo | From G2 review: Save in Settings (or signing in) in one tab fires a storage event with no value first, and every other tab drops to the sign-in view with no way back but a new sign-in. |
+| N3 | 5c | done | `tests/auth.test.mjs` 97/97, new cases: saving settings, or signing in again, in one tab leaves the others signed in and saving (and they adopt the new token); choosing "Forget me" in one tab signs the others out and leaves nothing on disk; switching back to remembered sticks after a reload; other tabs follow a change of repository (committing their open file to the old one first) and of pins alone, and do not undo it later; a token refresh finishing after another tab signed out or chose "Forget me" writes nothing and sends no empty-token request. Commit COMMIT |
 | N4 | 5d | todo | From G2 review: a crafted `?error=…&error_description=…` link shows attacker-worded text as a sign-in error and hides a signed-in user's notes. Only honour it when a sign-in from this tab is pending; never show arbitrary text. |
 | N5 | 5e | todo | From N1 review: GitHub's contents API returns no content for files between 1 and 100 MB, so such a note opens empty with a valid sha, and the first save (or autosave) replaces the whole file. Must refuse, or read through the blob API, instead. Check the behaviour against GitHub's documentation before faking it. |
 | B1 | 6 | todo | |
@@ -63,6 +63,10 @@ Iterations: 7 / 30
 ### N2: plan
 - (Revised after review, see below.) First version: "Choose repositories" opens in the same tab, so a session-only tab keeps its session through GitHub and back. A return from installing the app never signs anyone in by itself: a tab already signed in keeps its sign-in and shows the updated repository list, and a tab that is not signed in shows the sign-in view with a short note, so the person chooses "Forget me" themselves. The unsolicited code is never used.
 - Proof: new cases in `tests/auth.test.mjs`; the old "install redirect restarts a proper sign-in … and you end up signed in" is rewritten, because an automatic remembered sign-in is exactly the defect.
+
+### N3: plan
+- Done looks like: settings and sign-in are written in place, and only then is the other store cleared, so other tabs see new values (and adopt them) rather than an empty one. Saving settings or signing in again in one tab never signs another out. Switching a tab to session-only still signs the others out, because otherwise they would write the sign-in back to disk.
+- Proof: two-tab cases in `tests/auth.test.mjs`.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -120,6 +124,12 @@ Iterations: 7 / 30
 - G-3 (checked against GitHub's docs source, since docs.github.com was blocked): with "Request user authorization during installation" on, as the README asks, GitHub returns the browser only after a first install; changing repositories later never comes back. (1) My first fix (same-tab link) would therefore strand people on github.com, and Back could show the stale list. Reverted to a new tab, and the Notes tab refreshes its list when it becomes visible again; the hint says so. (2) After a first install in a signed-in tab with no repository yet, the list was fetched twice, and a slow second answer could reset the person's pick so Save committed notes to the wrong repository (reproduced): only the newest list is used, the return opens settings once, and a refresh keeps an unsaved pick; tests. (3) A session-only person whose return lands in a fresh tab could still be remembered by clicking "Sign in" as the note invited: "Forget me" starts ticked there and the note points them back to their Notes tab. Not verified: whether an organisation member's install *request* returns with a code; it only affects apps registered under an organisation, not the README's setup.
 - G-4: the return note and the new hint are legible at 1280 and 390 px, light and dark. G-5: no dependency or request, `index.html` about 77 KB. G-6: README step 5 describes the new-tab flow, the refresh on return, and "Forget me" on a return.
 
+### N3: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each change reverted alone and caught: remove-first in Settings, remove-first in sign-in, session copy left on switching back, following another tab's settings, committing the open file before following, pins-only follow, the in-flight refresh check. Two checks proved redundant and were removed: an explicit sign-out throw, covered by "what we hold is not what we spent" plus the existing empty-token guard. My first in-flight test expired every token, so the other tab waited on the refresh lock and the race never happened; it now refreshes one tab alone and fails without the fix.
+- G-3 findings: (1) caused by this fix: a tab that now stays signed in kept its old repository and pins in memory and wrote them back at its next token refresh or Settings open, undoing another tab's change (reproduced). Tabs now follow shared settings, first committing or keeping as a draft what was open, against its own repository; tests. (2) Older: a refresh in flight when another tab signed out or chose "Forget me" wrote the token back to disk (reproduced for both). The result of a refresh is now discarded when what the tab holds is no longer what it spent; tests. My new comment had claimed this was covered; it was not until now. (3) The same root cause as (1) for folder state; covered by following.
+- G-4: nothing new on screen. G-5: no dependency or request; `index.html` about 79 KB. G-6: README says tabs share settings and what signing out in one does.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -132,6 +142,7 @@ Iterations: 7 / 30
 - 2026-09-25: The policy is a `<meta>` tag because GitHub Pages cannot send headers, and it comes in two parts. The app's part pins its one inline script by sha256 rather than allowing `'unsafe-inline'`. Deployment settings moved into a JSON data block so that a fork's edits never touch the hash.
 - 2026-09-25: Line endings are kept per line, by diffing the editor text against the text as read, rather than by picking one ending per file. A notes app must never change bytes the user did not touch.
 - 2026-09-25: A return from GitHub's install flow never signs anyone in. Where the app cannot know whether the computer is shared, it defaults to "Forget me": the cost is signing in again, while the other mistake leaves a six-month token on someone else's disk.
+- 2026-09-25: Remembered tabs share one set of settings and follow each other; session-only tabs keep their own. Two remembered tabs on different repositories cannot be kept apart without per-tab storage, and the last writer silently winning was worse.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -143,3 +154,4 @@ Iterations: 7 / 30
 - 2026-09-25 · G1 · done · 3290031
 - 2026-09-25 · N1 · done · 4dec41f
 - 2026-09-25 · N2 · done · 4f5062d
+- 2026-09-25 · N3 · done · COMMIT

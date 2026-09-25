@@ -6,7 +6,7 @@
   are single use, access tokens expire, and refresh tokens rotate and die
   after one use, as GitHub's do.
 */
-import { chromium } from 'playwright';
+import * as playwright from 'playwright';
 import { readFileSync } from 'fs';
 import { createServer } from 'http';
 import { createHash } from 'crypto';
@@ -23,6 +23,12 @@ export const setPageEdit = fn => { pageEdit = fn || (html => html); };
 const PAGE = () => pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
   /(<meta http-equiv="Content-Security-Policy" content=")connect-src [^"]*(">)/,
   '$1connect-src https://api.github.com https://broker.test$2'));
+
+// Which engine: BROWSER=chromium (the default) or webkit, which is what
+// Safari and every browser on iOS use. tests/run.mjs runs the suite in both.
+export const ENGINES = ['chromium', 'webkit'];
+const ENGINE = process.env.BROWSER || 'chromium';
+export const engine = () => ENGINE;
 
 export const DEPLOY = {
   clientId: 'Iv23liTESTCLIENT',
@@ -41,7 +47,7 @@ export function suite(name) {
     },
     finish() {
       const bad = results.filter(r => !r.pass);
-      console.log('\n' + '='.repeat(60) + `\n${name}: ${results.length - bad.length}/${results.length} passed`);
+      console.log('\n' + '='.repeat(60) + `\n${name} [${ENGINE}]: ${results.length - bad.length}/${results.length} passed`);
       if (bad.length) {
         bad.forEach(b => console.log(' FAIL ' + b.n + '  ' + b.detail));
         process.exitCode = 1;
@@ -178,7 +184,8 @@ export async function start() {
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   origin = `http://127.0.0.1:${server.address().port}`;
-  browser = await chromium.launch();
+  if (!ENGINES.includes(ENGINE)) throw new Error(`Unknown engine BROWSER=${ENGINE}: use ${ENGINES.join(' or ')}.`);
+  browser = await playwright[ENGINE].launch();
   return { origin: origin + '/notes/' };
 }
 

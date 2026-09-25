@@ -4,7 +4,9 @@
   "type": "module",
   "description": "Markdown notes in one HTML file, backed by a GitHub repository.",
   "scripts": {
-    "test": "node tests/csp.test.mjs && node tests/broker.test.mjs && node tests/auth.test.mjs && node tests/app.test.mjs && node tests/vault.test.mjs && node tests/drafts.test.mjs && node tests/autosave.test.mjs && node tests/switching.test.mjs && node tests/hostile.test.mjs && node tests/eol.test.mjs && node tests/large.test.mjs && node tests/empty.test.mjs && node tests/access.test.mjs && node tests/shared.test.mjs && node tests/rename.test.mjs && node tests/delete.test.mjs && node tests/wikilinks.test.mjs && node tests/firstrun.test.mjs && node tests/privacy.test.mjs && node tests/welcome.test.mjs"
+    "test": "node tests/run.mjs",
+    "test:chromium": "node tests/run.mjs chromium",
+    "test:webkit": "node tests/run.mjs webkit"
   },
   "devDependencies": {
     "playwright": "1.56.0"

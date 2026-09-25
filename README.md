@@ -294,10 +294,16 @@ Keep these if you contribute:
 
 ```sh
 npm install
+npx playwright install --with-deps chromium webkit
 npm test
 ```
 
-Runs in a headless browser with GitHub simulated, and the real broker code in
+Runs every suite twice: in Chromium, and in WebKit, the engine of Safari and
+of every browser on iOS. `npm run test:chromium` or `npm run test:webkit`
+runs one on purpose; a missing engine fails the run rather than being
+skipped. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
+
+The browser is headless, with GitHub simulated and the real broker code in
 the loop. The simulation verifies the PKCE challenge, expires tokens and
 rotates single-use refresh tokens the way GitHub does. Nothing touches the
 network.

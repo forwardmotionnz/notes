@@ -153,6 +153,12 @@ Obsidian would not understand, so both can work on the same repository.
 - `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are. They
   are not rendered or followed, just preserved.
 - Filenames with spaces and accents work.
+- Line endings are kept: a note written on Windows (CRLF) is saved with
+  CRLF, and an edit changes only the lines you touched, even in a file that
+  mixes endings. New lines take the ending most of the file uses. A
+  byte-order mark at the start of a file is kept too.
+- A text file that is not UTF-8 (an old Windows or Latin-1 file) is not
+  opened: shown here it would be garbled, and saved it would be destroyed.
 
 ## What it does
 

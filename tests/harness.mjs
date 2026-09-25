@@ -62,6 +62,9 @@ export function fakeGitHub(opts = {}) {
         default_branch: 'main', private: true },
     ],
     files: opts.files || { 'todo.md': '# Today\n\n- [ ] one\n' },
+    // Paths whose string is raw bytes (latin1), not UTF-8 text: for files
+    // that are not valid UTF-8.
+    raw: opts.raw || {},
     expiresIn: opts.expiresIn ?? 28800,
     codes: new Map(),        // code -> { challenge, used }
     access: new Map(),       // token -> { expired }
@@ -248,7 +251,7 @@ export async function context(gh, opts = {}) {
       if (req.method() === 'GET') {
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         return json({ path, sha: gh.sha(path),
-          content: Buffer.from(gh.files[path], 'utf-8').toString('base64') });
+          content: Buffer.from(gh.files[path], gh.raw[path] ? 'latin1' : 'utf-8').toString('base64') });
       }
       if (req.method() === 'PUT') {
         const b = JSON.parse(req.postData() || '{}');

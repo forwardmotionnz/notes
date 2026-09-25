@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 5 / 30
+Iterations: 6 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -10,10 +10,11 @@ Iterations: 5 / 30
 | C3 | 3 | done | `tests/switching.test.mjs` 33/33 (no dialog on switch, New or change of repository; commit on leaving; offline and conflict keep a draft; save in flight; untouched template leaves nothing; right repository; reopening during a commit; failed open; two-tab draft; lost reply across repositories); rewritten drafts/autosave tests listed below; commit ec26502 |
 | G2 | 4 | done | `tests/hostile.test.mjs` 28/28: source scan for HTML sinks (incl. bracket and split spellings); payloads in file, folder, pin and new-note names, note text, task lines, headings, branch, login, a GitHub error message, a pin read error and the sign-in error in the URL; folders and pins named `constructor`, `__proto__`, `toString`, `valueOf`, `hasOwnProperty`; tripwire never set and no payload element created. Screens `tests/screens/g2-{desktop,phone}-{light,dark}.png`; commit 981fd4d |
 | G1 | 5 | done | `tests/csp.test.mjs` 26/26 (runs first in `npm test`): two policies present and shaped as intended; inline script hash listed; no inline handlers; fetch, image, beacon, WebSocket, form, injected `<script>` and `<base>` to a third party all blocked and nothing reached it; a copy filled in exactly as the README says signs in end to end with nothing injected; the broker check agrees with the browser on 13 cases; a mismatched broker is reported and sign-in withheld. All 10 suites pass under the policy. Screens `tests/screens/g1-{desktop,phone}-{light,dark}.png`; commit 3290031 |
-| N1 | 5a | todo | From G2 review: a note with CRLF line endings opens as an "unsaved draft" nobody made (the editor normalises to LF), Discard cannot clear it, and any edit rewrites every line ending. Must open clean and save with the file's own line endings. |
+| N1 | 5a | done | `tests/eol.test.mjs` 31/31: CRLF, CR and mixed files open clean (no draft, no autosave, not "restored" after reload); edits keep the file's endings and every untouched line's own ending (ties, lone CRs inside and at the end, two edits plus an insertion in one save, a moved line, a second save); pinned CRLF task lists read, tick and capture with CRLF; a BOM is kept; non-UTF-8 text is refused and never written; a lost reply is matched byte for byte; the reviewer's counterexamples; 20,000 seeded random files and edits all read back exactly as typed; a 30,000-line rewrite takes ~25 ms. Commit COMMIT |
 | N2 | 5b | todo | From G2 review: signing in with "Forget me" ticked, then "Choose repositories" (opens a new tab, returns with `setup_action`) starts a remembered sign-in there and writes a 6-month refresh token to localStorage. Session-only must survive that round trip. |
 | N3 | 5c | todo | From G2 review: Save in Settings (or signing in) in one tab fires a storage event with no value first, and every other tab drops to the sign-in view with no way back but a new sign-in. |
 | N4 | 5d | todo | From G2 review: a crafted `?error=…&error_description=…` link shows attacker-worded text as a sign-in error and hides a signed-in user's notes. Only honour it when a sign-in from this tab is pending; never show arbitrary text. |
+| N5 | 5e | todo | From N1 review: GitHub's contents API returns no content for files between 1 and 100 MB, so such a note opens empty with a valid sha, and the first save (or autosave) replaces the whole file. Must refuse, or read through the blob API, instead. Check the behaviour against GitHub's documentation before faking it. |
 | B1 | 6 | todo | |
 | B3 | 7 | todo | |
 | A1 | 8 | todo | |
@@ -54,6 +55,10 @@ Iterations: 5 / 30
 ### G1: plan
 - Done looks like: a `<meta>` Content Security Policy (GitHub Pages cannot set headers) with `default-src 'none'`; scripts only from the inline script's own hash and the pinned CodeMirror path on cdnjs; `connect-src` only api.github.com and the broker; `img-src` only the app, GitHub avatars and `data:`; `form-action`, `base-uri` and `object-src` none. A copy whose broker is missing from the policy says so instead of failing silently. README tells forks to update the policy with the broker.
 - Proof: `tests/csp.test.mjs`: fetch, image, beacon, WebSocket, form post and injected `<script>`/`<base>` towards a third-party host are all blocked and never reach the network; the inline script's hash is in the policy; the rest of the suite passes with the policy on.
+
+### N1: plan
+- Done looks like: notes are read into the editor with line endings normalised, remembering which ending the file uses (the most common one if mixed), and written back with that ending. A CRLF or CR file opens clean (no draft, Save off, nothing autosaved), an edit changes only the edited lines, and pinned task lists read and tick CRLF files correctly.
+- Proof: `tests/eol.test.mjs` comparing the committed bytes.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -97,6 +102,13 @@ Iterations: 5 / 30
 - G-3 findings: (1) BLOCKER: filling in `DEPLOYMENT` as the README said changed the hashed script, so a real fork got a dead page. The tests missed it because they injected settings instead of editing the file. Fixed: settings live in a `<script type="application/json">` data block, which is not code and not hashed. The policy is split in two: the app's own (hash, images, forms, base) and the copy's own (connect-src only). A fork edits only the second, so merging upstream never conflicts with the hash. New test: a page filled in exactly as the README says, with nothing injected, signs in end to end. (2) A fork's `npm test` stayed red and never printed the hash: the harness now rewrites the copy's policy whatever broker it holds, and the CSP suite runs first. (3) Windows line endings would print a hash that does not match the served file: `.gitattributes` pins `index.html` to LF. (4) The broker check rejected trailing slash, upper case, wildcard, no scheme, port and path forms the browser accepts: now matched per the CSP source grammar, 13 cases tested (it also caught a gap in my first version: a scheme-less source on an http page also allows https). (5) With a wrong broker entry, users already signed in are signed out at the next refresh: this is the "unreachable broker signs you out" bug already noted for G3, and fixing it there covers this. (6) "Nowhere else" overclaimed: navigation (location, window.open, links, meta refresh) and DNS prefetch cannot be stopped by any CSP. The policy comment, the test and README Known limits now say so. The WebSocket result is now asserted through the violation report. Writes through GitHub itself (e.g. into a public repository) cannot be stopped by CSP either; that is what G2's "nothing gets in" is for. No integrity hashes on the CodeMirror tags: cdnjs is unreachable from here, so steps are in Needs the owner.
 - G-4: the new "broker not allowed" notice is legible at 1280 and 390 px, light and dark. G-5: no new dependency, no new request; `index.html` about 70 KB. G-6: README step 4 rewritten for the data block and the copy's policy; Known limits says what CSP cannot stop.
 
+### N1: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught: normalise on read, restore on write, CR detection, majority ending, pins using the file's endings, positional pairing, the line diff (LCS), the size cap (removing it runs a 30,000² table out of memory), BOM kept, non-UTF-8 refused, base refreshed after a save, lost-reply compared by bytes, blank-after-CR fix. The final "reads back as typed" check is a deliberate backstop that cannot fire while the CR fix holds: removing it alone is invisible, removing both makes the fuzz fail after 96 cases.
+- G-3, first review: (1) a mixed file had untouched lines rewritten to the majority ending, against the item's own rule; my first version asserted that behaviour. Replaced by per-line endings. (2) A lone CR became a line break on save, now silently: kept, since each line carries its own ending. (3) The lost-reply check compared normalised text, so a commit differing only in endings was taken for ours: now compared byte for byte, test. (4) A UTF-8 BOM was dropped on save, and (5) a Windows-1252 file was destroyed on save. Both are older, but N1 would have made them silent. The BOM is now kept; non-UTF-8 files are refused like attachments; tests. (6) Files over 1 MB open empty and a save overwrites them: older and separate, now ledger item N5.
+- G-3, second review (a fuzzer, about 1.2 million cases): (1) a typed blank line after a line ending in a lone CR merged into one CRLF, so the line was lost: fixed, the empty line ends in CR, with a reads-back-as-typed backstop; tests with the exact counterexamples. (2) Greedy matching let a blank line jump ahead, giving untouched lines new endings: replaced by a longest-common-subsequence diff (capped); tests. (3) After a save the next save still compared with the file as first opened: the base is refreshed. I had removed that line in G-2 as unobservable; the reviewer showed a case, and it is now tested. My own seeded fuzz first used a broken generator (float overflow, so almost no variety) and passed without the fix; it now uses `Math.imul`, and fails in 223 cases without the fix.
+- G-4: nothing new on screen; a refused non-UTF-8 file uses the existing status line. G-5: no dependency or request; `index.html` about 75 KB. G-6: README (Obsidian section) describes line endings, the BOM, and non-UTF-8 files.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -107,6 +119,7 @@ Iterations: 5 / 30
 - 2026-09-25: No `innerHTML` at all, rather than "only with static strings": a rule a test can enforce beats a judgement each reader must repeat.
 - 2026-09-25: Review findings outside the current item become ledger items (N1–N4) rather than widening the item. They go straight after G1 because three of them touch data or sign-in.
 - 2026-09-25: The policy is a `<meta>` tag because GitHub Pages cannot send headers, and it comes in two parts. The app's part pins its one inline script by sha256 rather than allowing `'unsafe-inline'`. Deployment settings moved into a JSON data block so that a fork's edits never touch the hash.
+- 2026-09-25: Line endings are kept per line, by diffing the editor text against the text as read, rather than by picking one ending per file. A notes app must never change bytes the user did not touch.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -116,3 +129,4 @@ Iterations: 5 / 30
 - 2026-09-25 · C3 · done · ec26502 (pushed once the owner granted access)
 - 2026-09-25 · G2 · done · 981fd4d
 - 2026-09-25 · G1 · done · 3290031
+- 2026-09-25 · N1 · done · COMMIT

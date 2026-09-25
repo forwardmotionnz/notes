@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-2FF+HRBj+Hgwy/RmtG8i9+yq+8b+kRFrjKjOFVi17rY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Xi/e3674P2LjNs+Xd6+UJD1uUPMSGsBpv/Ua1yCYKiE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -1115,7 +1115,15 @@ function readFile(path) {
   return request(url, { allow404: true }).then(function (data) {
     if (!data) return { text: "", sha: null };              // file does not exist yet
     if (Array.isArray(data)) throw new Error("That path is a folder.");
-    return { text: fromBase64(data.content || ""), sha: data.sha };
+    var text;
+    try { text = fromBase64(data.content || ""); }
+    catch (e) {
+      // Not UTF-8 (an old Windows or Latin-1 file). Shown as text it would
+      // be garbled, and saved back it would be destroyed, so it is refused
+      // like an attachment.
+      throw new Error(path.split("/").pop() + " is not UTF-8 text, so it is left alone.");
+    }
+    return { text: text, sha: data.sha };
   });
 }
 
@@ -1151,7 +1159,103 @@ function fromBase64(b64) {
   var bin = atob(b64.replace(/\s/g, ""));
   var bytes = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
+  // fatal: refuse bytes that are not UTF-8 rather than guess at them.
+  // ignoreBOM: keep a byte-order mark, so saving can put it back.
+  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+}
+
+/* ---- line endings and byte-order mark ------------------------
+   The editor works in "\n" (CodeMirror and a textarea both turn "\r\n"
+   and a lone "\r" into "\n"), so a Windows file would look edited the
+   moment it opened, and saving would rewrite every line. Instead a note
+   keeps the exact text it was read as (its `base`), and on writing each
+   line the user did not touch gets its own original ending back; only
+   new or changed lines take the file's usual ending. A byte-order mark is
+   kept off the editor and put back. Not host-specific, so it sits outside
+   PROVIDER. */
+
+function eolOf(text) {
+  var crlf = (text.match(/\r\n/g) || []).length;
+  var cr = (text.match(/\r/g) || []).length - crlf;
+  var lf = (text.match(/\n/g) || []).length - crlf;
+  if (crlf > lf && crlf >= cr) return "\r\n";
+  if (cr > lf && cr > crlf) return "\r";
+  return "\n";
+}
+
+function baseOf(raw) {
+  var bom = raw.charAt(0) === "\uFEFF";
+  var body = bom ? raw.slice(1) : raw;
+  return { body: body, bom: bom, eol: eolOf(body) };
+}
+
+// [{ text, end }] per line; the last line's end is "".
+function splitLines(body) {
+  var out = [], re = /([^\r\n]*)(\r\n|\r|\n|$)/g, m;
+  while ((m = re.exec(body))) {
+    out.push({ text: m[1], end: m[2] });
+    if (!m[2]) break;
+  }
+  return out;
+}
+
+function readNote(path) {
+  return readFile(path).then(function (r) {
+    var base = baseOf(r.text);
+    return { text: base.body.replace(/\r\n?/g, "\n"), sha: r.sha, base: base };
+  });
+}
+
+// The exact text to commit for editor text `text`, given what was read.
+function rawFor(text, base) {
+  if (!base) return text;
+  var old = splitLines(base.body), neu = text.split("\n");
+  var n = neu.length, o = old.length, ends = [];
+  var i = 0, j = 0;
+  while (i < n && i < o && neu[i] === old[i].text) { ends[i] = old[i].end; i++; }
+  while (j < n - i && j < o - i && neu[n - 1 - j] === old[o - 1 - j].text) {
+    ends[n - 1 - j] = old[o - 1 - j].end; j++;
+  }
+  // Between the unchanged top and bottom: the longest run of lines that
+  // still appear in order keep their endings (a line-level diff); in each
+  // gap between those, lines are paired up by position, so an edited line
+  // keeps the ending it had. The table is quadratic, so past a million
+  // cells (replacing most of a very large note) positions alone are used.
+  var anchors = [[i - 1, i - 1]];
+  var M = n - j - i, N = o - j - i, W = N + 1;
+  if (M * N <= 1e6) {
+    var L = new Int32Array((M + 1) * W);
+    for (var a = M - 1; a >= 0; a--) {
+      for (var b = N - 1; b >= 0; b--) {
+        L[a * W + b] = neu[i + a] === old[i + b].text ? L[(a + 1) * W + b + 1] + 1
+          : Math.max(L[(a + 1) * W + b], L[a * W + b + 1]);
+      }
+    }
+    for (var x = 0, y = 0; x < M && y < N;) {
+      if (neu[i + x] === old[i + y].text && L[x * W + y] === L[(x + 1) * W + y + 1] + 1) {
+        ends[i + x] = old[i + y].end;
+        anchors.push([i + x, i + y]);
+        x++; y++;
+      } else if (L[(x + 1) * W + y] >= L[x * W + y + 1]) x++;
+      else y++;
+    }
+  }
+  anchors.push([n - j, o - j]);
+  for (var g = 1; g < anchors.length; g++) {
+    var nx = anchors[g - 1][0] + 1, oy = anchors[g - 1][1] + 1;
+    for (; nx < anchors[g][0] && oy < anchors[g][1]; nx++, oy++) ends[nx] = old[oy].end;
+  }
+  var k, out = "";
+  for (k = 0; k < n - 1; k++) if (!ends[k]) ends[k] = base.eol;
+  // "\r" then an empty line ending "\n" would read back as one "\r\n",
+  // swallowing a line the user typed: that empty line ends "\r" too.
+  for (k = 0; k < n - 2; k++) {
+    if (ends[k] === "\r" && neu[k + 1] === "" && ends[k + 1].charAt(0) === "\n") ends[k + 1] = "\r";
+  }
+  for (k = 0; k < n; k++) out += neu[k] + (k === n - 1 ? "" : ends[k]);
+  // Whatever happens above, what is saved must read back as what was typed.
+  if (out.replace(/\r\n?/g, "\n") !== text) out = text.replace(/\n/g, base.eol);
+  return (base.bom ? "\uFEFF" : "") + out;
 }
 
 /* ================================================================
@@ -1447,7 +1551,7 @@ function openFile(path, discarding) {
   // Read it only once that has settled, so the editor starts from what
   // GitHub really holds and never from the version before it.
   var ahead = inflight && inflight.key === draftKey(path) ? inflight.done : Promise.resolve();
-  ahead.then(function () { return readFile(path); }).then(function (r) {
+  ahead.then(function () { return readNote(path); }).then(function (r) {
     ensureEditor();
     if (discarding) dropDraft(path);
     var draft = readDraft(path);
@@ -1457,8 +1561,8 @@ function openFile(path, discarding) {
     // the file moved on since, saving is a conflict rather than an overwrite.
     // A file that does not exist yet is always saveable, like a new note.
     current = draft
-      ? { path: path, sha: draft.sha || null, saved: r.sha ? r.text : "\u0000" }
-      : { path: path, sha: r.sha, saved: r.text };
+      ? { path: path, sha: draft.sha || null, saved: r.sha ? r.text : "\u0000", base: r.base }
+      : { path: path, sha: r.sha, saved: r.text, base: r.base };
     editor.setValue(draft ? draft.text : r.text);
     editor.clearHistory();
     editor.refresh();
@@ -1536,8 +1640,9 @@ function saveCurrent(auto) {
   $("btn-save").disabled = true;
   saving = true;
   doc.pending = text;
+  var raw = rawFor(text, doc.base);
 
-  var done = writeFile(path, text, doc.sha).catch(function (err) {
+  var done = writeFile(path, raw, doc.sha).catch(function (err) {
     // A commit whose reply was lost (a dropped connection, a page suspended
     // mid-request) leaves us on the old sha, and the next save looks like a
     // conflict with ourselves. If GitHub holds exactly what we last sent,
@@ -1548,12 +1653,13 @@ function saveCurrent(auto) {
     // read, and write, the wrong one.
     if (draftKey(path) !== key) throw err;
     return readFile(path).then(function (r) {
-      if (r.text !== own) throw err;
+      if (r.text !== own) throw err;       // byte for byte, endings included
       doc.sha = r.sha;
-      return writeFile(path, text, r.sha);
+      return writeFile(path, raw, r.sha);
     });
   }).then(function (r) {
     doc.unsure = null;
+    doc.base = baseOf(raw);              // the next save compares with what this wrote
     if (current === doc) {
       current.sha = r.sha;
       current.saved = text;
@@ -1585,7 +1691,7 @@ function saveCurrent(auto) {
     flash("Saved");
   }).catch(function (err) {
     $("btn-save").disabled = false;
-    if (!err.status) doc.unsure = text;  // may or may not have landed
+    if (!err.status) doc.unsure = raw;  // may or may not have landed
     if (err.status === 409 || err.status === 422) {
       if (current === doc) {
         current.conflict = true;
@@ -1700,7 +1806,7 @@ function renderPins() {
   var cached = pinCache[path];
   if (!cached) {
     host.appendChild(emptyNote("Loading..."));
-    readFile(path).then(function (r) {
+    readNote(path).then(function (r) {
       pinCache[path] = r;
       if (activePin() === path) renderPins();
     }).catch(function (err) {
@@ -1779,16 +1885,18 @@ function addTask() {
 function commitPin(path, text) {
   var cached = pinCache[path];
   var sha = cached ? cached.sha : null;
+  var raw = rawFor(text, cached && cached.base);
 
-  pinCache[path] = { text: text, sha: sha };   // optimistic: redraw immediately
+  pinCache[path] = { text: text, sha: sha, base: baseOf(raw) };   // optimistic: redraw immediately
   renderPins();
   flash("Saving...");
 
-  writeFile(path, text, sha).then(function (r) {
+  writeFile(path, raw, sha).then(function (r) {
     if (pinCache[path]) pinCache[path].sha = r.sha;
     if (current && current.path === path && !dirty()) {
       current.sha = r.sha;
       current.saved = text;
+      current.base = baseOf(raw);
       editor.setValue(text);
     }
     flash("Saved");

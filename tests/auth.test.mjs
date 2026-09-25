@@ -223,7 +223,7 @@ await H.start();
   gh.repos.push({ owner: { login: 'roldaof' }, name: 'a', full_name: 'roldaof/a', default_branch: 'main', private: true },
                 { owner: { login: 'roldaof' }, name: 'b', full_name: 'roldaof/b', default_branch: 'main', private: true });
   let lists = 0;
-  ctx.on('request', r => { if (r.url().endsWith('/user/installations?per_page=100')) lists++; });
+  ctx.on('request', r => { if (/\/user\/installations\?per_page=100&page=1$/.test(r.url())) lists++; });
   const q = await H.page(ctx, H.APP() + '?code=install_code3&installation_id=77&setup_action=install');
   await q.waitForTimeout(800);
   t.check('a remembered sign-in carries on without signing in again', gh.log.authorize.length === 1 &&
@@ -246,7 +246,7 @@ await H.start();
   await p.click('#f-save');
   await p.waitForTimeout(400);
   let first = true;
-  await p.route('**/user/installations?per_page=100', async r => {
+  await p.route(/\/user\/installations\?per_page=100&page=1$/, async r => {
     if (first) { first = false; await new Promise(res => setTimeout(res, 1500)); }
     return r.fallback();
   });

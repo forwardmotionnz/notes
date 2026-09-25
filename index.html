@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-y/zfDnJ5MHuPQmlKZ0ED3R7cHKrOjnuc9YcYfYvfESI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fxyq2h7JGI16AJ7Lcuft+2ONqfeyESi0gtp3yDUQKkY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -1121,20 +1121,42 @@ function fetchUser() {
 
 // Every repository the signed-in user can reach through the app's
 // installations. Each installation is one account the app is installed on.
+// Installations are asked a few at a time (GitHub asks for requests in
+// series, not bursts), and one that fails (suspended, SAML, a hiccup) does
+// not take the others with it: the list carries `failed`, how many did.
 function listRepos() {
-  return request("/user/installations?per_page=100").then(function (data) {
-    var installs = (data && data.installations) || [];
-    return Promise.all(installs.map(function (inst) {
-      return request("/user/installations/" + inst.id + "/repositories?per_page=100")
-        .then(function (d) { return (d && d.repositories) || []; });
-    }));
+  var failed = 0;
+  return allPages("/user/installations", "installations").then(function (installs) {
+    return fewAtATime(installs, 4, function (inst) {
+      return allPages("/user/installations/" + inst.id + "/repositories", "repositories")
+        .catch(function (err) {
+          if (err.signedOut) throw err;
+          failed++;
+          return [];
+        });
+    });
   }).then(function (lists) {
     var all = [].concat.apply([], lists);
-    return all.map(function (r) {
+    var repos = all.map(function (r) {
       return { owner: r.owner.login, repo: r.name, branch: r.default_branch || "main",
                full: r.full_name, private: !!r.private };
     }).sort(function (a, b) { return a.full.localeCompare(b.full); });
+    repos.failed = failed;
+    return repos;
   });
+}
+
+// fn over items, at most n at once; results in the items' order.
+function fewAtATime(items, n, fn) {
+  var results = [], next = 0;
+  function worker() {
+    if (next >= items.length) return Promise.resolve();
+    var i = next++;
+    return fn(items[i]).then(function (r) { results[i] = r; return worker(); });
+  }
+  var workers = [];
+  for (var k = 0; k < Math.min(n, items.length); k++) workers.push(worker());
+  return Promise.all(workers).then(function () { return results; });
 }
 
 /* Whether this person may change the repository at all. Both facts are on
@@ -1150,6 +1172,25 @@ function repoAccess() {
     }
     return "";
   });
+}
+
+// Every page of a list GitHub hands out in pages
+// (https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api).
+// Asks for 100 a page, but does not rely on getting them: it stops when
+// total_count is reached, or at an empty page when there is no total.
+// A cap stops a runaway loop.
+function allPages(path, key) {
+  var out = [];
+  function page(n) {
+    return request(path + "?per_page=100&page=" + n).then(function (d) {
+      var items = (d && d[key]) || [];
+      out = out.concat(items);
+      var total = d && typeof d.total_count === "number" ? d.total_count : null;
+      var more = items.length > 0 && (total === null || out.length < total);
+      return more && n < 100 ? page(n + 1) : out;
+    });
+  }
+  return page(1);
 }
 
 function repoPath() {
@@ -1429,7 +1470,7 @@ function applyAccess(reason) {
 
 var treeState = "ok";
 var treeError = "";            // shown in the list when it failed for a reason worth keeping          // "loading" | "failed" | "ok": what an empty tree means
-var branchNote = "";           // said once the list from a newly followed branch is in
+var loadNote = "";             // said once the next file list is in (it clears the status line)
 
 /* Asked on every load, alongside the file list: a repository can be
    archived, or access taken away, while the app is open. Until the answer
@@ -1463,15 +1504,15 @@ function refreshTree() {
       var changed = pointAt(cfg.owner, cfg.repo, list.movedTo, cfg.pins);
       saveCfg();
       persist(UI_KEY, ui);
-      branchNote = "This repository's main branch is now " + list.movedTo + "; following it.";
+      loadNote = "This repository's main branch is now " + list.movedTo + "; following it.";
       showPointed(changed);
       return;
     }
     files = list;
     treeState = "ok";
     renderTree();
-    flash(branchNote);
-    branchNote = "";
+    flash(loadNote);
+    loadNote = "";
   }).catch(function (err) {
     treeState = "failed";
     treeError = err.unreachable ? err.message : "";
@@ -2196,9 +2237,18 @@ function openSettings() {
 
   var sel = $("f-repo");
   sel.textContent = "";
-  sel.appendChild(new Option("Loading…", ""));
-  sel.disabled = true;
-  $("f-save").disabled = true;
+  if (configured()) {
+    // The repository in use is always there to keep, so pins and "Forget
+    // me" can be saved before a long list has arrived.
+    repoChoices = [currentChoice()];
+    sel.appendChild(new Option(currentChoice().full, "0"));
+    sel.disabled = false;
+    $("f-save").disabled = false;
+  } else {
+    sel.appendChild(new Option("Loading…", ""));
+    sel.disabled = true;
+    $("f-save").disabled = true;
+  }
   openDialog();
   loadRepoList();
 
@@ -2214,6 +2264,11 @@ function openSettings() {
 
 }
 
+function currentChoice() {
+  return { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
+           full: cfg.owner + "/" + cfg.repo, private: true };
+}
+
 /* The repository list, fetched afresh: when the dialog opens, and when the
    person comes back to this tab from choosing repositories on GitHub, which
    does not send them back itself. Only the newest answer is used, so a slow
@@ -2226,9 +2281,19 @@ function loadRepoList() {
   var picked = repoChoices[Number(sel.value)];    // keep what they chose, if anything
   listRepos().then(function (repos) {
     if (seq !== repoListSeq) return;
+    var failed = repos.failed;
+    // The repository in use stays on offer even if the list left it out (it
+    // shifted between pages, or its installation did not answer): choosing
+    // it by default must never quietly become another repository.
+    if (configured() && !repos.some(function (r) { return r.owner === cfg.owner && r.repo === cfg.repo; })) {
+      repos = [currentChoice()].concat(repos);
+    }
     repoChoices = repos;
     sel.textContent = "";
-    $("repo-hint-text").textContent = repos.length
+    $("repo-hint-text").textContent = failed
+      ? "Some repositories could not be listed (" + failed + (failed === 1 ? " account" : " accounts") +
+        " did not answer); open settings again to retry."
+      : repos.length
       ? "Only repositories the app is installed on are listed."
       : "The app is not installed on any repository yet.";
     if (!repos.length) {
@@ -2249,9 +2314,11 @@ function loadRepoList() {
     if (!configured() && repos.length === 1) saveSettings();
   }).catch(function (err) {
     if (seq !== repoListSeq) return;
+    if (err.signedOut) { showSignIn(err.message); return; }
+    $("repo-hint-text").textContent = "Could not load the list of repositories; open settings again to retry.";
+    if (configured()) return;          // the one in use is still there to keep
     sel.textContent = "";
     sel.appendChild(new Option("Could not load repositories", ""));
-    if (err.signedOut) showSignIn(err.message);
   });
 }
 
@@ -2454,6 +2521,19 @@ function start() {
     } else {
       showSignInAgain(ORPHAN_SIGNIN);
     }
+    return;
+  }
+  // An organisation member asked for the app; an owner must approve it.
+  // (Whether GitHub adds a code to this return is not documented; either way
+  // it is handled here, never as a sign-in.)
+  if (params.get("setup_action") === "request") {
+    history.replaceState(null, "", redirectUri());
+    try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
+    var ask = "The organisation's owners have been asked to approve the app. Its repositories " +
+              "appear in settings once they do.";
+    loadNote = ask;
+    start();
+    if (!signedIn()) showSignIn("", ask);
     return;
   }
   if (!params.get("code")) { start(); return; }

@@ -67,6 +67,9 @@ export function fakeGitHub(opts = {}) {
     raw: opts.raw || {},
     expiresIn: opts.expiresIn ?? 28800,
     empty: !!opts.empty,
+    // [{ id, account: { login, type }, repos: [...] }]; default: one
+    // personal installation holding `repos`.
+    installations: opts.installations || null,
     // The repository's real default branch. Names that do not exist 404:
     // https://docs.github.com/en/rest/git/trees#get-a-tree ,
     // https://docs.github.com/en/rest/repos/contents (GET ref, PUT branch: 404),
@@ -246,22 +249,47 @@ export async function context(gh, opts = {}) {
 
     const p = decodeURIComponent(new URL(req.url()).pathname);
     if (p === '/user') return json(gh.user);
+    // Both lists are paged: per_page (default 30, max 100), page, total_count
+    // and a Link header. https://docs.github.com/en/rest/apps/installations#list-app-installations-accessible-to-the-user-access-token
+    // https://docs.github.com/en/rest/apps/installations#list-repositories-accessible-to-the-user-access-token
+    // https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api
+    const paged = (items, key, extra = {}) => {
+      const q = new URL(req.url()).searchParams;
+      // gh.maxPerPage: a server that serves fewer than asked for.
+      const per = Math.min(gh.maxPerPage || 100, Math.max(1, Number(q.get('per_page')) || 30));
+      const pg = Math.max(1, Number(q.get('page')) || 1);
+      const last = Math.max(1, Math.ceil(items.length / per));
+      const link = n => { const u = new URL(req.url()); u.searchParams.set('page', n); return `<${u}>`; };
+      const rels = [];
+      if (pg < last) rels.push(link(pg + 1) + '; rel="next"', link(last) + '; rel="last"');
+      if (pg > 1) rels.push(link(1) + '; rel="first"', link(pg - 1) + '; rel="prev"');
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        headers: rels.length ? { Link: rels.join(', ') } : {},
+        body: JSON.stringify({ ...(gh.noTotal ? {} : { total_count: items.length }), ...extra,
+          [key]: items.slice((pg - 1) * per, pg * per) }) }).catch(() => {});
+    };
+    const installs = gh.installations || (gh.repos.length ? [{ id: 77, account: { login: 'roldaof', type: 'User' }, repos: gh.repos }] : []);
     if (p === '/user/installations') {
-      return json({ total_count: 1, installations: gh.repos.length ? [{ id: 77 }] : [] });
+      return paged(installs.map(({ repos, ...i }) => i), 'installations');
     }
-    if (p === '/user/installations/77/repositories') {
-      return json({ total_count: gh.repos.length, repositories: gh.repos });
+    const im = p.match(/^\/user\/installations\/(\d+)\/repositories$/);
+    if (im) {
+      const inst = installs.find(i => String(i.id) === im[1]);
+      if (!inst) return json({ message: 'Not Found' }, 404);
+      return paged(inst.repos, 'repositories', { repository_selection: 'selected' });
     }
     // An empty repository (no commits): the Git database API answers 409,
     // contents reads 404, and a contents PUT creates the first commit on
     // the default branch.
     // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
     const full = (p.match(/^\/repos\/([^/]+\/[^/]+)/) || [])[1];
-    const branchOf = f => gh.branch || (gh.repos.find(r => r.full_name === f) || {}).default_branch || 'main';
+    const branchOf = f => gh.branch || ((gh.installations ? gh.installations.flatMap(i => i.repos) : gh.repos)
+      .find(r => r.full_name === f) || {}).default_branch || 'main';
     const repoMatch = p.match(/^\/repos\/([^/]+)\/([^/]+)$/);
     // archived and permissions are documented on the repository object:
     // https://docs.github.com/en/rest/repos/repos#get-a-repository
-    const entry = gh.repos.find(r => r.full_name === full) || {};
+    const allRepos = gh.installations ? gh.installations.flatMap(i => i.repos) : gh.repos;
+    const entry = allRepos.find(r => r.full_name === full) || {};
     if (gh.gone && repoMatch) return json({ message: 'Not Found', status: '404' }, 404);
     if (repoMatch) return json({ full_name: full, default_branch: branchOf(full), archived: !!entry.archived,
       permissions: entry.permissions || { admin: true, maintain: true, push: true, triage: true, pull: true } });

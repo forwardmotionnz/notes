@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 12 / 30
+Iterations: 13 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -17,7 +17,7 @@ Iterations: 12 / 30
 | N5 | 5e | done | `tests/large.test.mjs` 20/20: a file over 1 MB is listed but marked, clicking says why, opening it directly or as a pin is refused and nothing is written; GitHub's `too_large` refusal gets its own message; a draft whose file grew past 1 MB opens as `name (unsaved copy).md` and saves there; a note or a pinned task is never saved past 1 MB (the task text stays in the box); a lost reply followed by an unreadable file is a conflict with Discard; a Git LFS pointer is refused and never written. The fake answers large files as GitHub's docs describe (URLs in the harness). Screens `tests/screens/n5-*.png`; commit 42315db |
 | B1 | 6 | done | `tests/empty.test.mjs` 19/19: an empty repository is named as such with how to start, no error; the first note and the first pinned task create it (without naming a branch that does not exist yet), and later saves name the branch; the tree updates after a first task; a 409 that is not "empty" is not called empty; a list that failed to load says so and never shows another repository's files; a vanished branch is followed to the default branch, with a note, and saves go there; a pinned task that fails to save goes back in the box. The fake models empty repositories, branches and the repository's default branch per GitHub's docs (URLs in the harness). Screens `tests/screens/b1-*.png`; commit 800e3ed |
 | B3 | 7 | done | `tests/access.test.mjs` 30/30: archived and read-only repositories show a badge with the reason, keep notes readable, lock the editor, hide Save and New, disable the pinned capture and checkboxes, and send nothing (no draft either); a repository archived while someone types locks the open note and sends neither Save nor autosave, keeping the text as a draft; nothing (task or save) is sent before access is known; a late answer about one repository is not applied to another; a repository that is gone locks and says so with what to do; tapping the badge on a phone says why; a writable repository is unaffected. The fake's repository object carries `archived` and `permissions` per GitHub's docs. Screens `tests/screens/b3-*.png`; commit d32c97f |
-| A1 | 8 | todo | |
+| A1 | 8 | done | `tests/shared.test.mjs` 18/18: someone else signs in to the same deployment and is offered every repository across a personal and 101 organisation installations (253, over several pages of installations and of repositories) and writes a note in an organisation repository; paging survives smaller pages than asked for and a missing total; one installation failing leaves the rest listed, with a note; installations are asked at most four at a time; the repository in use is never swapped silently; Save works before a long list arrives; an install waiting for an organisation owner's approval says so. The fake pages both endpoints as GitHub documents. Owner step (make the App public) under Needs the owner. Commit COMMIT |
 | D1 | 9 | todo | |
 | D2 | 10 | todo | |
 | E1 | 11 | todo | |
@@ -84,8 +84,13 @@ Iterations: 12 / 30
 - Done looks like: on loading a repository the app reads its `archived` flag and the person's `push` permission (both documented on the repository object). A read-only repository opens read-only: a visible "read-only" badge with the reason, the editor locked, Save and the pinned capture disabled, and nothing is ever sent. A repository that no longer exists (deleted, renamed, app removed) says so in the file list, with what to do, rather than "Not Found".
 - Proof: `tests/access.test.mjs`, with the fake's repository object carrying `archived` and `permissions` per GitHub's docs.
 
+### A1: plan
+- Done looks like: someone who is not the owner signs in to the owner's deployment, installs the app on their own personal account or an organisation (several installations at once), and every repository across all of them is offered, however many pages GitHub splits them into; they pick one and write a note there. What only the owner can do (making the App installable by anyone) goes under Needs the owner, and the README's App settings say so.
+- Proof: `tests/shared.test.mjs` against a fake that pages both installation endpoints as GitHub documents (`per_page`, `page`, `total_count`, `Link`), with URLs in the harness.
+
 ## Needs the owner
 (exact steps for human-only actions)
+- **Make the GitHub App installable by anyone (A1).** github.com → Settings → Developer settings → GitHub Apps → your app → *Advanced* → **Make public** (or, when creating it, "Where can this GitHub App be installed?" → *Any account*). Until then only your own account can install it, and nobody else can use your deployment.
 - **Optional, hardening: pin the CodeMirror files by hash (Subresource Integrity).** This container cannot reach cdnjs, so the hashes could not be computed here. Open https://cdnjs.com/libraries/codemirror/5.65.16, and for each of `codemirror.min.css`, `codemirror.min.js`, `mode/xml/xml.min.js` and `mode/markdown/markdown.min.js` use "Copy SRI". Add `integrity="sha512-…" crossorigin="anonymous" referrerpolicy="no-referrer"` to the matching `<link>` and `<script>` tags in `index.html`. The app script's hash does not change (those tags are outside it). If a hash is wrong, the editor falls back to the plain text box with its `plain` badge, which is how you would notice.
 - ~~Give Claude push access to `forwardmotionnz/notes`.~~ Done by the owner on 2026-09-25; branch pushed.
 
@@ -175,6 +180,14 @@ Iterations: 12 / 30
 - G-3 findings: (1) pinned capture, checkboxes and saves could write before the access answer arrived (the check ran after the tree): it now runs alongside, and writes wait for it; test. (2) A late answer about one repository was applied to the one switched to, locking a writable one or unlocking an archived one: ignored now; test. (3) A repository that is gone left the open note editable and failed the save: locked with its reason; test. (4) On a phone the reason vanished after 7 s (touch shows no titles): tapping the badge says it again, and a draft restored in a read-only repository says to copy it out; test for the badge. Noted for G3: branch protection and rulesets refuse writes with 409/422, shown as "Conflict". Unverified: whether a user token's `permissions.push` also reflects the app installation's rights; if the owner granted the app only read, writes fail with the old 403 message, which README step 2 prevents.
 - G-4: the badge and reason are legible at 1280 and 390 px, light and dark; Save and New are hidden. G-5: no dependency or request beyond GitHub's API; `index.html` about 91 KB. G-6: README has a section on repositories you cannot change.
 
+### A1: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each change reverted alone and caught: paging at all, not stopping at a short page, not needing a total, one failure isolated, at most four at a time, the repository in use kept, Save before the list, the approval note, the "could not be listed" note. G-2 also found a fault before the review: requesting pages of 30 (as if GitHub served fewer than asked) stopped after the first page, because a short page was taken as the last. Paging now ends at `total_count`, or at an empty page, and both cases are tested.
+- Two auth tests matched the old list URL exactly; one would have passed without testing anything (its slowing route no longer matched). Both now match the paged URL; the stale-list test was reverted and shown to fail again.
+- Rule 6: both installation endpoints are documented with `per_page` (default 30, max 100), `page`, `total_count` and `Link`; the fake pages accordingly, with URLs in the harness.
+- G-3 findings: (1) one failing installation (suspended, SAML, a 5xx) emptied the whole list and locked a first-time user out: the rest are listed, with a note; test. (2) Hundreds of installations meant hundreds of simultaneous requests, against GitHub's guidance: at most four at a time; test. Not changed: each Settings open still costs about one request per 100 repositories per installation plus one per installation; recorded here as the known cost. (3) A repository shifting between pages dropped the one in use, and Save then silently switched to the first: the repository in use is always kept and selected; test. (4) An install awaiting an organisation owner's approval was described as done: it now says the owners have been asked; test. Not verified: whether GitHub puts a code on that return; handled either way. (5) SAML SSO hides an organisation's repositories silently; the app cannot tell, so README explains the fix. (6) A slow list locked pins and "Forget me": Save works at once with the repository in use; test. Older, not changed: `redirectUri()` is the page's own path, so a link to `/notes/index.html` would not match a callback of `/notes/`; noted for H1's "Try it" link.
+- G-4: nothing new on screen but the hint's wording. G-5: no dependency or request beyond GitHub's API; `index.html` about 94 KB. G-6: README step 2 says *Any account*, and a new "Sharing your copy" section covers others signing in, organisations, approvals and SAML.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -204,3 +217,4 @@ Iterations: 12 / 30
 - 2026-09-25 · N5 · done · 42315db
 - 2026-09-25 · B1 · done · 800e3ed
 - 2026-09-25 · B3 · done · d32c97f
+- 2026-09-25 · A1 · done · COMMIT

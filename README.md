@@ -57,7 +57,7 @@ github.com → Settings → Developer settings → GitHub Apps → **New GitHub 
 | Enable Device Flow | off |
 | Webhook → Active | ❌ **off** |
 | Repository permissions → **Contents** | **Read and write** |
-| Where can this GitHub App be installed? | Only on this account |
+| Where can this GitHub App be installed? | **Any account**, so other people can use your copy (choose *Only on this account* if it is just for you) |
 
 Leave every other permission at *No access*. Metadata (read) is added
 automatically.
@@ -145,6 +145,20 @@ read-only: a red `read-only` badge says why, the editor is locked and there
 is nothing to save, so nothing is ever sent. If a repository is deleted,
 renamed or the app is removed from it, the file list says so and points you
 to settings.
+
+## Sharing your copy
+
+One deployment serves everyone: other people open your link, sign in with
+their own GitHub account, and install your GitHub App on their own
+repositories, personal or in an organisation. They never register an App
+or run a broker. For that the App must be installable by *any account*
+(step 2). Every repository the App can reach for them is offered, across
+all their installations, however many there are. An organisation may ask
+an owner to approve the install first (the app tells you when it has been
+asked); that is GitHub's rule, not the app's. If an organisation uses SAML
+single sign-on and its repositories do not appear, start an SSO session for
+it on github.com, revoke the app under Settings → Applications, and sign in
+again: GitHub only shows them to a sign-in made during an SSO session.
 
 ## Using it on several computers
 

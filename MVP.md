@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 16 / 30
+Iterations: 17 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -21,7 +21,7 @@ Iterations: 16 / 30
 | D1 | 9 | done | `tests/rename.test.mjs` 49/49: one commit moves the file to a new path or folder, the editor, tree and pins follow, later saves go there; a failure at each of the five requests leaves the repository as it was and says so; a file changed elsewhere is not moved in its old form; an existing target (known or appeared since) is never overwritten; another commit meanwhile is built on, never forced over; unsaved words go with the file; the note is locked while it moves (a refresh cannot unlock it) and is the same note at its new path at once; another tab follows; a lost reply is recognised; a name without an extension keeps the note's own; unopenable targets, a path through a file, and links are refused; every GitHub request skips the browser cache; no Rename in a read-only repository. The fake Git database is modelled on GitHub's docs (trees built from their base, fast-forward-only refs). Screens `tests/screens/d1-*.png`; commit c77ef15 |
 | D2 | 10 | done | `tests/delete.test.mjs` 37/37: Delete asks first, saying how to recover from the history (and that unsaved changes go too); saying no deletes nothing; one commit; the note closes and the list updates; a file changed elsewhere, a failure, a stale draft are not deleted and say why (pointing to Discard); a lost reply and an already-deleted file count as done; a double tap changes nothing; a slow delete is not raced by autosave or by switching apps; it waits for a pinned task being saved; the empty editor takes no typing; a pinned note is unpinned; other tabs close it, and one with unsaved words keeps them as a new, unsaved note (and a draft, even if it never heard); no Delete when read-only. Screens `tests/screens/d2-*.png` (incl. 320 px); commit d762495 |
 | E1 | 11 | done | `tests/wikilinks.test.mjs` 47/47, in CodeMirror and the plain editor: Ctrl-click, Cmd-click and a tap open `[[Note]]`, `[[Note|alias]]`, `[[folder/Note]]`, `[[Note#Heading]]`, any case; shortest path wins (by depth, then length), dot-folders ignored; a plain click and a tap at a link's edge only place the cursor; an unresolved link asks to create `<name>.md` (no means nothing, yes then Save creates it) in the folder's existing spelling; no offer before the list loads, from a partial or stale list, when read-only, or outside the repository. Screens `tests/screens/e1-*.png`; commit 918ad02 |
-| B2 | 12 | todo | |
+| B2 | 12 | done | `tests/firstrun.test.mjs` 32/32: with the app on no repository, only the two steps, Check now and Sign out are on screen (step 1 focused); step 1 opens github.com/new with `notes` and Private filled in, step 2 the app's install page, both in a new tab; coming back, one repository is chosen by itself and its first note commits; with several, the usual choice; before one is in use nothing public is chosen for anyone, a private `notes` is preferred, a public one is named as public; failed or partly failed lists say so with Try again, on the steps or not; a slow list shows "looking"; Check now shows it is checking; fits a 390 px phone. Screens `tests/screens/b2-*.png`; commit 5bf6436 |
 | A2 | 13 | todo | |
 | A3 | 14 | todo | |
 | F2 | 15 | todo | |
@@ -100,7 +100,10 @@ Iterations: 16 / 30
 - Done looks like: Ctrl/Cmd-click (desktop) or a tap (phone) on `[[Note]]`, `[[Note|alias]]`, `[[folder/Note]]` or `[[Note#Heading]]` opens the note, resolved as Obsidian does: by file name, case-insensitive, `.md` implied, shortest path winning, dot-folders ignored. A plain click still just places the cursor. An unresolved link asks whether to create the note, and creates nothing if not.
 - Proof: `tests/wikilinks.test.mjs` on an Obsidian-shaped vault, in the CodeMirror stub and in the plain-textarea fallback.
 
-## Needs the owner
+### B2: plan
+- Done looks like: signed in with the app on no repository, the dialog shows only two numbered steps: create a repository on GitHub (name and "Private" pre-filled) and let Notes use it, each opening GitHub in a new tab. Coming back (or "Check now") picks up the new repository: one is chosen by itself and its empty state explains the first note; several show the usual picker. Nothing else (repository menu, pins, Save) is on screen until then. A list that failed to load is not mistaken for "no repositories".
+- Proof: `tests/firstrun.test.mjs` walks it end to end in the simulated GitHub, down to the first note's commit, and counts what is on screen.
+
 (exact steps for human-only actions)
 - **Make the GitHub App installable by anyone (A1).** github.com → Settings → Developer settings → GitHub Apps → your app → *Advanced* → **Make public** (or, when creating it, "Where can this GitHub App be installed?" → *Any account*). Until then only your own account can install it, and nobody else can use your deployment.
 - **Optional, hardening: pin the CodeMirror files by hash (Subresource Integrity).** This container cannot reach cdnjs, so the hashes could not be computed here. Open https://cdnjs.com/libraries/codemirror/5.65.16, and for each of `codemirror.min.css`, `codemirror.min.js`, `mode/xml/xml.min.js` and `mode/markdown/markdown.min.js` use "Copy SRI". Add `integrity="sha512-…" crossorigin="anonymous" referrerpolicy="no-referrer"` to the matching `<link>` and `<script>` tags in `index.html`. The app script's hash does not change (those tags are outside it). If a hash is wrong, the editor falls back to the plain text box with its `plain` badge, which is how you would notice.
@@ -221,6 +224,13 @@ Iterations: 16 / 30
 - G-3 findings: (1) `[[Release 1.2]]` or `[[Node.js]]` created a file with no `.md`, which the app then refused to open, stranding any draft: a link always makes `<name>.md`, as Obsidian does, and + adds `.md` to a name that is not a text file; tests. (2) A tap just after a link at the end of a line followed it, so there was no way to tap in to carry on typing: the edges no longer count; test. (3) A tap inside a link follows it, so a phone user cannot tap in to fix a typo in a link: by design (the criterion), stated in the README with the way round it (tap just before or after). (4) `[[projects/Q4]]` created a second folder beside `Projects/`: a new note uses the folder's existing spelling; test. (5) A partial (truncated) or stale list offered to create a note that might exist, ending in an alarming conflict: no offer unless the list is freshly and fully loaded; tests. (6) The stub has no `coordsChar`: noted above; the edge fix in (2) covers the end-of-line case real CodeMirror would hit.
 - G-4: `tests/screens/e1-{desktop,phone}-{light,dark}-{refused,followed}.png`. The message fits on a phone; no overflow. G-5: no dependency or request added; `index.html` about 112 KB. G-6: README describes following and creating links, and no longer lists wikilink navigation as something the app does not do.
 
+### B2: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught (21 mutations), each by the test written for it: steps only for a list that came back whole and empty; a partly failed or failed list named where it can be seen, with Try again, on the steps or not; the steps kept through a failed check; the form back once repositories exist; Save and the form hidden while the steps show; a neutral "looking" view while the first list loads; the "still" and "checking" messages, and Check now disabled while it runs; Check now and Try again wired; step 2's link; before a repository is in use, a private `notes` preferred, otherwise a private one, otherwise nothing chosen (Save waits); a public repository named as such when chosen, and never chosen by itself even when it is the only one. Two mutations first left a dangling `else` and so broke the whole script; rewritten so each removes only its own rule.
+- Rule 6: the pre-filled form is `https://github.com/new?name=notes&visibility=private`, parameters as GitHub documents them (URL in the test; invalid ones are ignored).
+- G-3 findings: (1) After the steps, with GitHub's default "All repositories", the first repository alphabetically was preselected, which could be public, and a single public repository was chosen without asking: before a repository is in use, nothing public is chosen for anyone; the private `notes` is preferred; choosing a public one says anyone can read it; tests. (2) A list with an account that did not answer (SAML, suspended) left the steps saying nothing had happened: that is now said on the steps; test. (3) A first list that failed was a dead end (the dialog cannot be closed then, and "open settings again" was impossible): it now says so with Try again; test. (4) On a slow network the old form showed first: a neutral "Looking for your repositories" until the answer; test. (5) Check now gave no sign of working: "Checking…", disabled until the answer; test.
+- G-4: `tests/screens/b2-{desktop,phone,small}-{light,dark}{,-still}.png`. The dialog fits at 320 px; no overflow. "Check now" looked like text: it is now a button. The screenshots also showed Sign out holding the focus (the dialog opens on "looking", where it is the only control), so Enter would sign out: step 1 now takes the focus; test, and reverting it is caught. G-5: no dependency, no request beyond GitHub's API; links to github.com only; `index.html` about 118 KB. G-6: README has "No notes repository yet".
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -236,6 +246,7 @@ Iterations: 16 / 30
 - 2026-09-25: Remembered tabs share one set of settings and follow each other; session-only tabs keep their own. Two remembered tabs on different repositories cannot be kept apart without per-tab storage, and the last writer silently winning was worse.
 - 2026-09-25: Rename uses the Git Data API in one commit and a fast-forward-only branch update, rather than the contents API's create-then-delete, so there is no moment with both copies or neither. All GitHub requests skip the browser cache, since GitHub marks answers cacheable for 60 seconds.
 - 2026-09-25: A link that names no existing note is only offered for creation when the whole list of notes is loaded and fresh. Otherwise "not found" may be wrong, and creating would end in a conflict at best.
+- 2026-09-25: Before a repository is in use, a public one is never chosen for anyone, even when it is the only one: notes are private by default, and the other mistake cannot be undone.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -256,3 +267,4 @@ Iterations: 16 / 30
 - 2026-09-25 · D1 · done · c77ef15
 - 2026-09-25 · D2 · done · d762495
 - 2026-09-25 · E1 · done · 918ad02
+- 2026-09-25 · B2 · done · 5bf6436

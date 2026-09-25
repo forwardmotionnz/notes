@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-jIFrrZECEU2228mm08q9ItxYHymyhtRqcXeAnfjb5kM=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KZs+dmdhjN4imS6LCUUWrVRLX9FoRuewO6FXLSNFR8Q=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -1257,6 +1257,7 @@ function listTree() {
       return { path: n.path, type: n.type, size: n.size, mode: n.mode };
     });
     list.movedTo = data.movedTo;
+    list.truncated = !!data.truncated;
     return list;
   });
 }
@@ -1788,7 +1789,9 @@ function textareaEditor(host) {
     refresh: function () {},
     focus: function () { ta.focus(); },
     on: function (ev, fn) { if (ev === "change") handlers.push(fn); },
-    setOption: function (k, v) { if (k === "readOnly") ta.readOnly = !!v; }
+    setOption: function (k, v) { if (k === "readOnly") ta.readOnly = !!v; },
+    getWrapperElement: function () { return ta; },
+    caret: function () { return ta.selectionStart; }
   };
 }
 
@@ -1809,6 +1812,8 @@ function ensureEditor() {
       viewportMargin: 30,
       inputStyle: "contenteditable",
       spellcheck: true,
+      // Ctrl/Cmd-click follows a wikilink; it must not add a second cursor.
+      configureMouse: function () { return { addNew: false }; },
       extraKeys: {
         "Cmd-S": function () { saveCurrent(); },
         "Ctrl-S": function () { saveCurrent(); }
@@ -1833,7 +1838,115 @@ function ensureEditor() {
       scheduleAutosave();
     }
   });
+  followLinks(editor.getWrapperElement());
   return editor;
+}
+
+/* ================================================================
+   WIKILINKS
+   ================================================================ */
+
+// [[Note]], [[Note|alias]], [[folder/Note#Heading]]: Ctrl/Cmd-click on a
+// desktop, a tap on a phone. A plain click with a mouse only places the
+// cursor, so the link's own text can still be edited there.
+function followLinks(el) {
+  var touch = false;
+  el.addEventListener("pointerdown", function (e) { touch = e.pointerType === "touch"; }, true);
+  el.addEventListener("click", function (e) {
+    if (!current || !(touch || e.ctrlKey || e.metaKey)) return;
+    var target = linkAt(editor.getValue(), clickOffset(e));
+    if (target === null) return;
+    e.preventDefault();
+    openLink(target);
+  }, true);
+}
+
+// Where in the text the click landed. CodeMirror can say from the pointer
+// itself; otherwise the caret the click has just placed.
+function clickOffset(e) {
+  if (editor.caret) return editor.caret();
+  if (editor.coordsChar && (e.clientX || e.clientY)) {
+    return editor.indexFromPos(editor.coordsChar({ left: e.clientX, top: e.clientY }, "window"));
+  }
+  return editor.indexFromPos(editor.getCursor());
+}
+
+// The link target under `at`, without its alias, heading or block, or null.
+// A link never spans lines.
+function linkAt(text, at) {
+  var start = text.lastIndexOf("\n", at - 1) + 1;
+  var end = text.indexOf("\n", at);
+  var line = text.slice(start, end === -1 ? text.length : end);
+  var re = /\[\[([^\[\]\n]+)\]\]/g, m;
+  while ((m = re.exec(line))) {
+    // Strictly inside: a tap just after a link at the end of a line is
+    // somewhere to carry on typing, not a way to leave the note.
+    if (at - start <= m.index || at - start >= m.index + m[0].length) continue;
+    // In a table the alias bar is written \| so it does not end the cell.
+    var target = m[1].split("|")[0].replace(/\\$/, "").split("#")[0].split("^")[0].trim();
+    return target ? target.replace(/^\/+/, "") : null;
+  }
+  return null;
+}
+
+// As Obsidian does: by file name (or the end of the path, if the link has
+// folders), any case, ".md" implied, and the shortest path wins. Dot-folders
+// (.trash, .obsidian) are not notes.
+function resolveLink(target) {
+  var want = target.toLowerCase();
+  var best = null;
+  files.forEach(function (f) {
+    if (f.type !== "blob" || isHidden(f.path)) return;
+    var p = f.path.toLowerCase();
+    var hit = [want, want + ".md"].some(function (w) {
+      return p === w || p.slice(-w.length - 1) === "/" + w;
+    });
+    if (hit && (!best || depth(f.path) < depth(best) ||
+                (depth(f.path) === depth(best) && f.path.length < best.length))) best = f.path;
+  });
+  return best;
+}
+
+function depth(path) { return path.split("/").length; }
+
+function openLink(target) {
+  var path = resolveLink(target);
+  if (path) { openFile(path); return; }
+  var name = target.split("/").pop();
+  // Unresolved against a list not (or not freshly) loaded is not "missing".
+  if (treeState !== "ok") {
+    flash("The list of notes is not loaded, so " + name + " cannot be looked up yet. " +
+          "Try again in a moment, or press \u21bb.", true);
+    return;
+  }
+  if (files.truncated) {
+    flash(name + " is not in the part of this large repository's list that loaded, so it " +
+          "cannot be created from a link. Use + to create or open it.", true);
+    return;
+  }
+  if (readOnly) { flash("There is no note called " + name + ". " + readOnly, true); return; }
+  if (target.split("/").some(function (seg) { return seg === ".." || seg === "."; })) {
+    flash(target + " is not a place a note can be.", true);
+    return;
+  }
+  if (!confirm("There is no note called \u201c" + name + "\u201d yet. Create it?")) return;
+  // As Obsidian does, a link makes a note: [[Release 1.2]] is Release 1.2.md.
+  startNote(spelledLikeFolders(/\.md$/i.test(target) ? target : target + ".md"));
+}
+
+// Folders are matched in any case when a link resolves, so a note created
+// from [[projects/Q4]] goes in the Projects folder that is already there,
+// not a second one that only differs in case.
+function spelledLikeFolders(path) {
+  var segs = path.split("/"), out = "";
+  for (var i = 0; i < segs.length - 1; i++) {
+    var want = (out ? out + "/" : "") + segs[i];
+    var have = files.filter(function (f) {
+      return f.type === "tree" && f.path.toLowerCase() === want.toLowerCase();
+    })[0];
+    out = have ? have.path : want;
+  }
+  return (out ? out + "/" : "") + segs[segs.length - 1];
 }
 
 function dirty() {
@@ -2096,8 +2209,12 @@ function newFile() {
   if (!path) return;
   path = path.replace(/^\/+/, "").trim();
   if (!path) return;
-  if (!/\.[a-z0-9]+$/i.test(path)) path += ".md";
+  // "Release 1.2" is a note, not a file this app could never open again.
+  if (!/\.[a-z0-9]+$/i.test(path) || !isTextFile(path)) path += ".md";
+  startNote(path);
+}
 
+function startNote(path) {
   // A note already there, or one typed but never committed: open it, never
   // replace its draft with a fresh template.
   if (readDraft(path) || files.some(function (f) { return f.path === path; })) {

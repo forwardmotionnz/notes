@@ -187,8 +187,20 @@ Obsidian would not understand, so both can work on the same repository.
   state, not notes.
 - Attachments (images, PDFs) are shown but cannot be opened: decoding them as
   text and saving would corrupt them, so the app refuses.
-- `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are. They
-  are not rendered or followed, just preserved.
+- `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are.
+- A wikilink opens the note it names: `Ctrl`+click (`Cmd`+click on a Mac),
+  or tap it on a phone. `[[Note]]`, `[[Note|shown text]]`,
+  `[[folder/Note]]` and `[[Note#Heading]]` all work (the heading is not
+  scrolled to). As in Obsidian, the name is matched against file names in
+  any case, `.md` is implied, and if two notes share a name the one with
+  the shortest path wins. A link to a note that does not exist yet asks
+  whether to create it (at the top of the repository, or in the link's
+  folder, spelt as the folder already is), always as a `.md` note, so
+  `[[Release 1.2]]` makes `Release 1.2.md`. Nothing is written until you
+  save it. If the list of notes has not loaded, or GitHub sent only part of
+  it (a very large repository), it does not offer to create one: the note
+  may exist already. On a phone a tap inside a link follows it; tap just
+  before or after it to type there.
 - Filenames with spaces and accents work.
 - Line endings are kept: a note written on Windows (CRLF) is saved with
   CRLF, and an edit changes only the lines you touched, even in a file that
@@ -243,7 +255,7 @@ overwriting. Signing out deletes every draft in that browser.
 
 ## What it deliberately does not do
 
-No offline queue, no wikilink navigation, no backlinks, no graph, no plugins,
+No offline queue, no backlinks, no graph, no plugins,
 no attachment upload, no merge tool. Each of those is a common reason a notes
 app becomes unmaintainable.
 

@@ -204,6 +204,17 @@ window.CodeMirror = function (host, opts) {
   return cm = { getValue: function () { return ta.value; },
     setValue: function (v) { ta.value = v; fire('setValue'); },
     setOption: function (k, v) { if (k === 'readOnly') { readOnly = !!v; ta.readOnly = !!v; } },
+    // CodeMirror 5's cursor API: {line, ch} positions, and their offset.
+    getCursor: function () {
+      var before = ta.value.slice(0, ta.selectionStart).split('\\n');
+      return { line: before.length - 1, ch: before[before.length - 1].length };
+    },
+    indexFromPos: function (pos) {
+      var lines = ta.value.split('\\n'), i = 0;
+      for (var k = 0; k < pos.line; k++) i += lines[k].length + 1;
+      return i + pos.ch;
+    },
+    getWrapperElement: function () { return ta; },
     clearHistory: function () {}, refresh: function () {}, focus: function () { ta.focus(); },
     on: function (e, f) { if (e === 'change') hs.push(f); } };
 };
@@ -384,11 +395,16 @@ export async function context(gh, opts = {}) {
         const s = k.split('/');
         for (let i = 1; i < s.length; i++) dirs.add(s.slice(0, i).join('/'));
       });
-      return json({ truncated: false, tree: [
+      // gh.truncate: paths left out, as when a tree is over GitHub's limit.
+      // "If truncated is true in the response then the number of items in
+      // the tree array exceeded our maximum limit."
+      // https://docs.github.com/en/rest/git/trees#get-a-tree
+      const shown = Object.keys(gh.files).filter(k => !(gh.truncate || []).includes(k));
+      return json({ truncated: !!(gh.truncate && gh.truncate.length), tree: [
         ...[...dirs].map(d => ({ path: d, type: 'tree' })),
         // Tree entries carry the blob's size in bytes:
         // https://docs.github.com/en/rest/git/trees#get-a-tree
-        ...Object.keys(gh.files).map(k => ({ path: k, mode: (gh.modes || {})[k] || '100644', type: 'blob', sha: gh.sha(k),
+        ...shown.map(k => ({ path: k, mode: (gh.modes || {})[k] || '100644', type: 'blob', sha: gh.sha(k),
           size: Buffer.byteLength(gh.files[k], gh.raw[k] ? 'latin1' : 'utf-8') })),
       ]});
     }

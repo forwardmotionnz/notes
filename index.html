@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-T82c0d1kJ5YFmYFoctmcxsvkPMc1wZnkK0wdfbtQpVk=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QrHx4BGew5cJW/snsF59N/0jKGMxcpm7Uqg9mpJYDEM=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -1060,6 +1060,7 @@ window.addEventListener("storage", function (e) {
      readFile(path)             -> { text, sha }      sha is null if absent
      writeFile(path, text, sha) -> { sha }            the new sha
      describe()                 -> "owner/repo@branch"
+     isEmptyRepo()              -> true while the repository has no commits
    ================================================================ */
 
 var API = "https://api.github.com";
@@ -1097,6 +1098,7 @@ function request(path, options, retried) {
         if (res.status === 409) msg = "Conflict. The file changed on the server.";
         var err = new Error(msg);
         err.status = res.status;
+        err.detail = body.message || "";     // GitHub's own words, for telling 409s apart
         err.refused = tooBig;
         throw err;
       });
@@ -1139,13 +1141,43 @@ function encodePath(p) {
   return p.split("/").map(encodeURIComponent).join("/");
 }
 
+// A repository with no commits yet. GitHub's Git database API answers 409
+// for one, and a contents PUT creates its first commit on the default
+// branch: https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
+var repoEmpty = false;
+
+function isEmptyRepo() { return repoEmpty; }
+
+// The list may carry `movedTo`: the configured branch is gone (renamed, or
+// a first push from elsewhere created another), and this is the
+// repository's default branch now.
 function listTree() {
   var url = repoPath() + "/git/trees/" + encodeURIComponent(cfg.branch) + "?recursive=1";
-  return request(url).then(function (data) {
+  return request(url).catch(function (err) {
+    // 409 means empty, or unavailable (still being created, for one); only
+    // GitHub's own words tell them apart.
+    if (err.status === 409 && /empty/i.test(err.detail)) return { tree: [], empty: true };
+    if (err.status === 409) {
+      throw new Error("GitHub says this repository is not available right now; it may still " +
+                      "be being set up. Try again in a minute.");
+    }
+    if (err.status === 404) {
+      return request(repoPath()).then(function (repo) {
+        if (repo && repo.default_branch && repo.default_branch !== cfg.branch) {
+          return { tree: [], movedTo: repo.default_branch };
+        }
+        throw err;
+      }, function () { throw err; });
+    }
+    throw err;
+  }).then(function (data) {
+    repoEmpty = !!data.empty;
     if (data.truncated) flash("Repository is large; the file list is partial.", true);
-    return (data.tree || []).map(function (n) {
+    var list = (data.tree || []).map(function (n) {
       return { path: n.path, type: n.type, size: n.size };
     });
+    list.movedTo = data.movedTo;
+    return list;
   });
 }
 
@@ -1189,6 +1221,9 @@ function writeFile(path, text, sha) {
     content: toBase64(text),
     branch: cfg.branch
   };
+  // No branch exists yet in an empty repository; left out, GitHub uses the
+  // default one and creates it with this commit.
+  if (repoEmpty) delete body.branch;
   if (sha) body.sha = sha;                                  // optimistic concurrency
   var url = repoPath() + "/contents/" + encodePath(path);
   return request(url, { method: "PUT", body: body }).then(function (data) {
@@ -1352,14 +1387,34 @@ function fail(err) {
    TREE
    ================================================================ */
 
+var treeState = "ok";          // "loading" | "failed" | "ok": what an empty tree means
+var branchNote = "";           // said once the list from a newly followed branch is in
+
 function refreshTree() {
   if (!configured()) return Promise.resolve();
   flash("Loading...");
+  treeState = "loading";
+  if (!files.length) renderTree();
   return listTree().then(function (list) {
+    if (list.movedTo) {
+      // Follow the repository to its default branch, as if chosen in settings.
+      var changed = pointAt(cfg.owner, cfg.repo, list.movedTo, cfg.pins);
+      saveCfg();
+      persist(UI_KEY, ui);
+      branchNote = "This repository's main branch is now " + list.movedTo + "; following it.";
+      showPointed(changed);
+      return;
+    }
     files = list;
+    treeState = "ok";
     renderTree();
-    flash("");
-  }).catch(fail);
+    flash(branchNote);
+    branchNote = "";
+  }).catch(function (err) {
+    treeState = "failed";
+    renderTree();
+    fail(err);
+  });
 }
 
 /* Files the editor can open safely. Anything else is binary as far as this
@@ -1416,7 +1471,10 @@ function renderTree() {
   if (!blobs.length) {
     var e = document.createElement("div");
     e.className = "empty";
-    e.textContent = configured() ? "No files." :
+    e.textContent = configured()
+      ? (treeState === "loading" ? "Loading..." :
+         treeState === "failed" ? "Could not load the files. Press \u21bb to try again." :
+         isEmptyRepo() ? "This repository is empty. Press + to write the first note." : "No files.") :
       (signedIn() ? "Choose a repository in settings." : "Sign in to see your notes.");
     host.appendChild(e);
     return;
@@ -1982,10 +2040,12 @@ function addTask() {
   var body = cached.text.replace(/\s*$/, "");
   var next = (body ? body + "\n" : "") + "- [ ] " + text + "\n";
 
-  if (commitPin(path, next) !== false) input.value = "";   // refused: keep what they typed
+  // Refused, or failed to save: the task goes back in the box.
+  var ok = commitPin(path, next, function () { if (!input.value) input.value = text; });
+  if (ok !== false) input.value = "";
 }
 
-function commitPin(path, text) {
+function commitPin(path, text, onFail) {
   var cached = pinCache[path];
   var sha = cached ? cached.sha : null;
   var raw = rawFor(text, cached && cached.base);
@@ -2003,10 +2063,12 @@ function commitPin(path, text) {
       current.base = baseOf(raw);
       editor.setValue(text);
     }
+    if (!files.some(function (f) { return f.path === path; })) refreshTree();   // a new file
     flash("Saved");
   }).catch(function (err) {
     delete pinCache[path];     // drop bad state and reload from the server
     renderPins();
+    if (onFail) onFail();
     fail(err);
   });
 }
@@ -2130,6 +2192,7 @@ function showPointed(changedRepo) {
   pinCache = pathMap();
   ui.pin = 0;
   if (changedRepo) {
+    files = [];                  // the old repository's list is not this one's
     current = null;
     if (editor) editor.setValue("");
     showDiscard(false);

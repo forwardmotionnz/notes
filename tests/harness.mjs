@@ -66,6 +66,16 @@ export function fakeGitHub(opts = {}) {
     // that are not valid UTF-8.
     raw: opts.raw || {},
     expiresIn: opts.expiresIn ?? 28800,
+    empty: !!opts.empty,
+    // The repository's real default branch. Names that do not exist 404:
+    // https://docs.github.com/en/rest/git/trees#get-a-tree ,
+    // https://docs.github.com/en/rest/repos/contents (GET ref, PUT branch: 404),
+    // https://docs.github.com/en/rest/repos/repos#get-a-repository (default_branch).
+    // Given, it overrides every repository's listed default (a rename the
+    // repository list has not caught up with); otherwise each repository's
+    // own default_branch applies.
+    branch: opts.branch || null,
+    unavailable: false,          // 409 that is not "empty": still being created
     codes: new Map(),        // code -> { challenge, used }
     access: new Map(),       // token -> { expired }
     refresh: new Map(),      // token -> { used }
@@ -238,6 +248,22 @@ export async function context(gh, opts = {}) {
     if (p === '/user/installations/77/repositories') {
       return json({ total_count: gh.repos.length, repositories: gh.repos });
     }
+    // An empty repository (no commits): the Git database API answers 409,
+    // contents reads 404, and a contents PUT creates the first commit on
+    // the default branch.
+    // https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-your-git-database
+    const full = (p.match(/^\/repos\/([^/]+\/[^/]+)/) || [])[1];
+    const branchOf = f => gh.branch || (gh.repos.find(r => r.full_name === f) || {}).default_branch || 'main';
+    const repoMatch = p.match(/^\/repos\/([^/]+)\/([^/]+)$/);
+    if (repoMatch) return json({ full_name: full, default_branch: branchOf(full) });
+    if (gh.unavailable && /\/git\/trees\//.test(p)) {
+      return json({ message: 'Repository access blocked', status: '409' }, 409);
+    }
+    const treeRef = (p.match(/\/git\/trees\/(.+)$/) || [])[1];
+    if (!gh.empty && treeRef && treeRef !== branchOf(full)) return json({ message: 'Not Found', status: '404' }, 404);
+    if (gh.empty && /\/git\/trees\//.test(p)) {
+      return json({ message: 'Git Repository is empty.', status: '409' }, 409);
+    }
     if (/\/git\/trees\//.test(p)) {
       const dirs = new Set();
       Object.keys(gh.files).forEach(k => {
@@ -256,6 +282,9 @@ export async function context(gh, opts = {}) {
     if (m) {
       const path = m[2];
       if (req.method() === 'GET') {
+        if (gh.empty) return json({ message: 'This repository is empty.', status: '404' }, 404);
+        const ref = new URL(req.url()).searchParams.get('ref');
+        if (ref && ref !== branchOf(full)) return json({ message: 'No commit found for the ref ' + ref, status: '404' }, 404);
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         // Files between 1 and 100 MB come back with an empty content and
         // encoding "none": https://docs.github.com/en/rest/repos/contents#get-repository-content
@@ -267,11 +296,16 @@ export async function context(gh, opts = {}) {
       }
       if (req.method() === 'PUT') {
         const b = JSON.parse(req.postData() || '{}');
+        if (!gh.empty && b.branch && b.branch !== branchOf(full)) {
+          return json({ message: 'Branch ' + b.branch + ' not found', status: '404' }, 404);
+        }
         const exists = path in gh.files;
         if (exists && b.sha !== gh.sha(path)) return json({ message: 'does not match' }, 409);
         if (!exists && b.sha) return json({ message: 'sha given for new file' }, 422);
         gh.files[path] = Buffer.from(b.content, 'base64').toString('utf-8');
+        gh.empty = false;
         gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth });
+        gh.log.lastPutHadBranch = 'branch' in b;
         return json({ content: { path, sha: gh.sha(path) } });
       }
     }

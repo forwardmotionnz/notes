@@ -131,6 +131,13 @@ install.) Arriving from a GitHub install never signs you in by itself: you
 are asked to sign in, with *Forget me* ticked, since the app cannot tell
 whether this is your own computer.
 
+## A brand new, empty repository
+
+A repository with no commits works: the file list says it is empty, and the
+first note you save (or the first task you add) creates its main branch. If
+the repository's main branch is later renamed, or your first push from
+elsewhere creates a differently named one, the app follows it and says so.
+
 ## Using it on several computers
 
 It is a web page, so any browser works: home, work, phone. Sign in once per

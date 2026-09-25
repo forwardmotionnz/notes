@@ -45,7 +45,7 @@ async function reloadUnsaved(p) {
   p.holdPuts.on = false;
   // The refused commit is reported by the page on its way out; expected here.
   p.errors.splice(before, p.errors.length - before,
-    ...p.errors.slice(before).filter(e => !/Failed to fetch/.test(e)));
+    ...p.errors.slice(before).filter(e => !H.networkFailure.test(e)));
 }
 
 async function type(p, text) {

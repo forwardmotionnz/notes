@@ -30,6 +30,11 @@ const PAGE = () => pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
 export const ENGINES = ['chromium', 'webkit'];
 const ENGINE = process.env.NOTES_TEST_ENGINE || 'chromium';
 export const engine = () => ENGINE;
+// A request a test deliberately failed (route.abort), as each engine words it
+// in the console: Chromium "Failed to fetch", WebKit "Load failed", or, for a
+// request cut off as the page unloads, "... due to access control checks".
+// Only for filtering failures a test injected itself.
+export const networkFailure = /Failed to fetch|Load failed|due to access control checks/;
 // The engine really running, as Playwright reports it.
 export const launched = () => browser?.browserType().name();
 

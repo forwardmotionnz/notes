@@ -273,7 +273,7 @@ async function run(label, ctxOpts) {
   t.check('a failed refresh: an unresolved link does not offer to create', p.asked.length === 0 &&
     /not loaded/i.test(await H.status(p)), await H.status(p));
   // Only the outage injected above may be logged (fail() logs every error).
-  const unexpected = p.errors.filter(e => !/^console: TypeError: Failed to fetch/.test(e));
+  const unexpected = p.errors.filter(e => !(/^console: /.test(e) && H.networkFailure.test(e)));
   t.check('findings: no page errors but the injected outage', unexpected.length === 0, unexpected.join(' | '));
   await ctx.close();
 }

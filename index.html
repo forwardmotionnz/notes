@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Xi/e3674P2LjNs+Xd6+UJD1uUPMSGsBpv/Ua1yCYKiE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QDMvkgE39UlFvyHv6N8tQKdt0hY1D418EIQYwthjpbI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -523,6 +523,7 @@
         <span>Forget me when I close the browser<em>For a work or shared computer. Nothing is kept on disk.</em></span>
       </label>
 
+      <div id="signin-info" class="note" hidden></div>
       <div id="signin-error" class="note err" hidden></div>
       <div id="not-deployed" class="note" hidden>
         <span id="why-setup">This copy has not been set up yet. Fill in <code>DEPLOYMENT</code> near
@@ -548,8 +549,9 @@
         <select id="f-repo"></select>
       </label>
       <p class="hint" id="repo-hint">
-        Only repositories the app is installed on are listed.
+        <span id="repo-hint-text">Only repositories the app is installed on are listed.</span>
         <a id="f-install" target="_blank" rel="noopener">Choose repositories</a>
+        (on GitHub, in a new tab; this list updates when you come back here)
       </p>
 
       <label><span>Pinned files (comma separated)</span><input id="f-pins" placeholder="todo.md, scratch.md" autocomplete="off"></label>
@@ -860,11 +862,13 @@ function completeSignIn(params) {
   var code = params.get("code");
   var state = params.get("state");
 
-  // Arriving straight from installing the app on github.com carries a code
-  // but none of our state. Rather than trust a code we did not ask for,
-  // start a proper sign-in; GitHub approves it without asking again.
+  // Back from installing the app on github.com: a code we did not ask for
+  // and none of our state. The code is not used, and nobody is signed in by
+  // it: a tab already signed in just carries on, and anyone else signs in
+  // themselves, choosing "Forget me" or not. (Signing in automatically here
+  // once wrote a remembered sign-in to disk for a session-only user.)
   if (!pending && params.get("setup_action")) {
-    return signIn(true);
+    return Promise.resolve({ installed: true });
   }
 
   if (!pending || !state || state !== pending.state) {
@@ -1918,7 +1922,7 @@ function openDialog() {
   if (!d.open) d.showModal();
 }
 
-function showSignIn(message) {
+function showSignIn(message, info) {
   $("view-signin").hidden = false;
   $("view-account").hidden = true;
   $("f-signin").disabled = !deployed();
@@ -1926,6 +1930,8 @@ function showSignIn(message) {
   $("why-setup").hidden = filledIn();
   $("why-csp").hidden = !filledIn() || brokerAllowed();
   $("f-session-in").checked = sessionOnly;
+  $("signin-info").hidden = !info;
+  $("signin-info").textContent = info || "";
   var err = $("signin-error");
   err.hidden = !message;
   err.textContent = message || "";          // may come from the address bar: text
@@ -1951,6 +1957,7 @@ function openSettings() {
   sel.disabled = true;
   $("f-save").disabled = true;
   openDialog();
+  loadRepoList();
 
   // Who, and which repositories, are fetched fresh each time the dialog opens:
   // installing the app on another repository should show up without a reload.
@@ -1962,18 +1969,34 @@ function openSettings() {
     if (cfg.avatar) $("who-avatar").src = cfg.avatar;
   }).catch(function () {});
 
+}
+
+/* The repository list, fetched afresh: when the dialog opens, and when the
+   person comes back to this tab from choosing repositories on GitHub, which
+   does not send them back itself. Only the newest answer is used, so a slow
+   older one cannot undo a choice made since. */
+var repoListSeq = 0;
+
+function loadRepoList() {
+  var sel = $("f-repo");
+  var seq = ++repoListSeq;
+  var picked = repoChoices[Number(sel.value)];    // keep what they chose, if anything
   listRepos().then(function (repos) {
+    if (seq !== repoListSeq) return;
     repoChoices = repos;
     sel.textContent = "";
+    $("repo-hint-text").textContent = repos.length
+      ? "Only repositories the app is installed on are listed."
+      : "The app is not installed on any repository yet.";
     if (!repos.length) {
       sel.appendChild(new Option("No repositories yet: choose some below", ""));
-      $("repo-hint").firstChild.textContent =
-        "The app is not installed on any repository yet. ";
+      sel.disabled = true;
+      $("f-save").disabled = true;
       return;
     }
     repos.forEach(function (r, i) {
       var o = new Option(r.full + (r.private ? "" : "  (public)"), String(i));   // Option label is text
-      if (r.owner === cfg.owner && r.repo === cfg.repo) o.selected = true;
+      if (picked ? r.full === picked.full : (r.owner === cfg.owner && r.repo === cfg.repo)) o.selected = true;
       sel.appendChild(o);
     });
     sel.disabled = false;
@@ -1982,6 +2005,7 @@ function openSettings() {
     // First sign-in with the app on a single repository: nothing to choose.
     if (!configured() && repos.length === 1) saveSettings();
   }).catch(function (err) {
+    if (seq !== repoListSeq) return;
     sel.textContent = "";
     sel.appendChild(new Option("Could not load repositories", ""));
     if (err.signedOut) showSignIn(err.message);
@@ -2105,6 +2129,8 @@ document.addEventListener("keydown", function (e) {
 // A phone may never bring a hidden page back; commit what is there now.
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState === "hidden") saveCurrent(true);
+  // Back from GitHub's repository settings in the other tab.
+  else if ($("settings").open && !$("view-account").hidden && signedIn()) loadRepoList();
 });
 
 window.addEventListener("beforeunload", function (e) {
@@ -2150,7 +2176,17 @@ function start() {
   }
   if (!params.get("code")) { start(); return; }
 
-  completeSignIn(params).then(start, function (err) {
+  completeSignIn(params).then(function (r) {
+    start();
+    if (!r || !r.installed) return;
+    // start() has already opened settings when no repository is chosen yet.
+    if (signedIn()) { if (configured()) openSettings(); return; }
+    showSignIn("", "Back from GitHub. If you started in another Notes tab, close this one and " +
+               "carry on there. Otherwise sign in to use the repositories you chose.");
+    // Nothing here says whether they wanted to be remembered on this
+    // computer, so start from the choice that leaves nothing behind.
+    $("f-session-in").checked = true;
+  }, function (err) {
     start();
     showSignIn(err.message);
   });

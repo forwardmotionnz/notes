@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 6 / 30
+Iterations: 7 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -11,7 +11,7 @@ Iterations: 6 / 30
 | G2 | 4 | done | `tests/hostile.test.mjs` 28/28: source scan for HTML sinks (incl. bracket and split spellings); payloads in file, folder, pin and new-note names, note text, task lines, headings, branch, login, a GitHub error message, a pin read error and the sign-in error in the URL; folders and pins named `constructor`, `__proto__`, `toString`, `valueOf`, `hasOwnProperty`; tripwire never set and no payload element created. Screens `tests/screens/g2-{desktop,phone}-{light,dark}.png`; commit 981fd4d |
 | G1 | 5 | done | `tests/csp.test.mjs` 26/26 (runs first in `npm test`): two policies present and shaped as intended; inline script hash listed; no inline handlers; fetch, image, beacon, WebSocket, form, injected `<script>` and `<base>` to a third party all blocked and nothing reached it; a copy filled in exactly as the README says signs in end to end with nothing injected; the broker check agrees with the browser on 13 cases; a mismatched broker is reported and sign-in withheld. All 10 suites pass under the policy. Screens `tests/screens/g1-{desktop,phone}-{light,dark}.png`; commit 3290031 |
 | N1 | 5a | done | `tests/eol.test.mjs` 31/31: CRLF, CR and mixed files open clean (no draft, no autosave, not "restored" after reload); edits keep the file's endings and every untouched line's own ending (ties, lone CRs inside and at the end, two edits plus an insertion in one save, a moved line, a second save); pinned CRLF task lists read, tick and capture with CRLF; a BOM is kept; non-UTF-8 text is refused and never written; a lost reply is matched byte for byte; the reviewer's counterexamples; 20,000 seeded random files and edits all read back exactly as typed; a 30,000-line rewrite takes ~25 ms. Commit 4dec41f |
-| N2 | 5b | todo | From G2 review: signing in with "Forget me" ticked, then "Choose repositories" (opens a new tab, returns with `setup_action`) starts a remembered sign-in there and writes a 6-month refresh token to localStorage. Session-only must survive that round trip. |
+| N2 | 5b | done | `tests/auth.test.mjs` 78/78, new cases: a return from installing signs nobody in, uses no code, shows a note with "Forget me" ticked, one click signs in session-only; "Choose repositories" opens a new tab and the tab refreshes its list on return, staying session-only; a remembered tab carries on and fetches the list once; an older, slower list never overrides a newer one; a refresh keeps an unsaved pick. Screens `tests/screens/n2-{desktop,phone}-{light,dark}.png`, `tests/screens/n2-settings-*.png`; commit COMMIT |
 | N3 | 5c | todo | From G2 review: Save in Settings (or signing in) in one tab fires a storage event with no value first, and every other tab drops to the sign-in view with no way back but a new sign-in. |
 | N4 | 5d | todo | From G2 review: a crafted `?error=…&error_description=…` link shows attacker-worded text as a sign-in error and hides a signed-in user's notes. Only honour it when a sign-in from this tab is pending; never show arbitrary text. |
 | N5 | 5e | todo | From N1 review: GitHub's contents API returns no content for files between 1 and 100 MB, so such a note opens empty with a valid sha, and the first save (or autosave) replaces the whole file. Must refuse, or read through the blob API, instead. Check the behaviour against GitHub's documentation before faking it. |
@@ -59,6 +59,10 @@ Iterations: 6 / 30
 ### N1: plan
 - Done looks like: notes are read into the editor with line endings normalised, remembering which ending the file uses (the most common one if mixed), and written back with that ending. A CRLF or CR file opens clean (no draft, Save off, nothing autosaved), an edit changes only the edited lines, and pinned task lists read and tick CRLF files correctly.
 - Proof: `tests/eol.test.mjs` comparing the committed bytes.
+
+### N2: plan
+- (Revised after review, see below.) First version: "Choose repositories" opens in the same tab, so a session-only tab keeps its session through GitHub and back. A return from installing the app never signs anyone in by itself: a tab already signed in keeps its sign-in and shows the updated repository list, and a tab that is not signed in shows the sign-in view with a short note, so the person chooses "Forget me" themselves. The unsolicited code is never used.
+- Proof: new cases in `tests/auth.test.mjs`; the old "install redirect restarts a proper sign-in … and you end up signed in" is rewritten, because an automatic remembered sign-in is exactly the defect.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -109,6 +113,13 @@ Iterations: 6 / 30
 - G-3, second review (a fuzzer, about 1.2 million cases): (1) a typed blank line after a line ending in a lone CR merged into one CRLF, so the line was lost: fixed, the empty line ends in CR, with a reads-back-as-typed backstop; tests with the exact counterexamples. (2) Greedy matching let a blank line jump ahead, giving untouched lines new endings: replaced by a longest-common-subsequence diff (capped); tests. (3) After a save the next save still compared with the file as first opened: the base is refreshed. I had removed that line in G-2 as unobservable; the reviewer showed a case, and it is now tested. My own seeded fuzz first used a broken generator (float overflow, so almost no variety) and passed without the fix; it now uses `Math.imul`, and fails in 223 cases without the fix.
 - G-4: nothing new on screen; a refused non-UTF-8 file uses the existing status line. G-5: no dependency or request; `index.html` about 75 KB. G-6: README (Obsidian section) describes line endings, the BOM, and non-UTF-8 files.
 
+### N2: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each change reverted alone and caught: automatic sign-in on return, "Forget me" pre-ticked, new-tab link, refresh on coming back, stale list ignored, list fetched once on return, unsaved pick kept on refresh.
+- Rewritten test: the old "install redirect restarts a proper sign-in … and you end up signed in" asserted the defect itself (an automatic, remembered sign-in nobody chose). It now asserts that nobody is signed in by a return, and that one click signs in with the person's own choice.
+- G-3 (checked against GitHub's docs source, since docs.github.com was blocked): with "Request user authorization during installation" on, as the README asks, GitHub returns the browser only after a first install; changing repositories later never comes back. (1) My first fix (same-tab link) would therefore strand people on github.com, and Back could show the stale list. Reverted to a new tab, and the Notes tab refreshes its list when it becomes visible again; the hint says so. (2) After a first install in a signed-in tab with no repository yet, the list was fetched twice, and a slow second answer could reset the person's pick so Save committed notes to the wrong repository (reproduced): only the newest list is used, the return opens settings once, and a refresh keeps an unsaved pick; tests. (3) A session-only person whose return lands in a fresh tab could still be remembered by clicking "Sign in" as the note invited: "Forget me" starts ticked there and the note points them back to their Notes tab. Not verified: whether an organisation member's install *request* returns with a code; it only affects apps registered under an organisation, not the README's setup.
+- G-4: the return note and the new hint are legible at 1280 and 390 px, light and dark. G-5: no dependency or request, `index.html` about 77 KB. G-6: README step 5 describes the new-tab flow, the refresh on return, and "Forget me" on a return.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -120,6 +131,7 @@ Iterations: 6 / 30
 - 2026-09-25: Review findings outside the current item become ledger items (N1–N4) rather than widening the item. They go straight after G1 because three of them touch data or sign-in.
 - 2026-09-25: The policy is a `<meta>` tag because GitHub Pages cannot send headers, and it comes in two parts. The app's part pins its one inline script by sha256 rather than allowing `'unsafe-inline'`. Deployment settings moved into a JSON data block so that a fork's edits never touch the hash.
 - 2026-09-25: Line endings are kept per line, by diffing the editor text against the text as read, rather than by picking one ending per file. A notes app must never change bytes the user did not touch.
+- 2026-09-25: A return from GitHub's install flow never signs anyone in. Where the app cannot know whether the computer is shared, it defaults to "Forget me": the cost is signing in again, while the other mistake leaves a six-month token on someone else's disk.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -130,3 +142,4 @@ Iterations: 6 / 30
 - 2026-09-25 · G2 · done · 981fd4d
 - 2026-09-25 · G1 · done · 3290031
 - 2026-09-25 · N1 · done · 4dec41f
+- 2026-09-25 · N2 · done · COMMIT

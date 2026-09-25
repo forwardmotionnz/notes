@@ -141,16 +141,123 @@ await H.start();
 }
 
 /* ===== returning from installing the app on github.com ===== */
+// Only a first install sends the browser back (with a code we did not ask
+// for, no state, and setup_action); changing repositories later does not
+// come back at all. Nobody is signed in by a return alone, and where we
+// cannot know whether they wanted to be remembered, "Forget me" starts on.
 {
   const gh = H.fakeGitHub();
   gh.codes.set('install_code', { challenge: 'x', used: false });
   const ctx = await H.context(gh);
   const p = await H.page(ctx, H.APP() + '?code=install_code&installation_id=77&setup_action=install');
+  await p.waitForTimeout(600);
+  t.check('install redirect leaves a clean address', !p.url().includes('code='), p.url());
+  t.check('install redirect does not sign anyone in by itself', gh.log.authorize.length === 0 &&
+    (await H.stored(p)).local === null);
+  t.check('the unsolicited install code is not used', gh.codes.get('install_code').used === false);
+  t.check('it shows the sign-in view with a note, not an error', await H.dialogOpen(p) &&
+    /another Notes tab/i.test(await p.textContent('#signin-info')) && await p.isHidden('#signin-error'),
+    await p.textContent('#signin-info'));
+  t.check('"Forget me" starts ticked there', await p.isChecked('#f-session-in'));
+  await p.click('#f-signin');
   await p.waitForURL(u => !u.search.includes('code='), { timeout: 5000 });
   await p.waitForTimeout(600);
-  t.check('install redirect restarts a proper sign-in', gh.log.authorize.length === 1);
-  t.check('the unsolicited install code is not used', gh.codes.get('install_code').used === false);
-  t.check('and you end up signed in', !(await H.dialogOpen(p)) && (await H.rows(p)).includes('todo.md'));
+  t.check('one click signs in, session-only unless they untick it', (await H.rows(p)).includes('todo.md') &&
+    (await H.stored(p)).local === null && !!(await H.stored(p)).session);
+  await ctx.close();
+}
+
+/* ===== choosing repositories from a session-only tab ===== */
+{
+  const gh = H.fakeGitHub({ repos: [] });
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p, { remember: false });
+  await p.waitForSelector('#view-account:not([hidden])');
+  t.check('"Choose repositories" opens GitHub in a new tab, leaving this one as it is',
+    (await p.getAttribute('#f-install', 'target')) === '_blank');
+  // The person adds a repository on GitHub, then comes back to this tab.
+  gh.repos.push({ owner: { login: 'roldaof' }, name: 'fresh', full_name: 'roldaof/fresh',
+                  default_branch: 'main', private: true });
+  await p.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await p.waitForTimeout(600);
+  const opts = await p.$$eval('#f-repo option', o => o.map(x => x.textContent));
+  // One repository is picked for you, so the dialog may already have closed on it.
+  t.check('coming back to the tab refreshes the list', opts.some(o => o.includes('roldaof/fresh')) ||
+    (!(await H.dialogOpen(p)) && (await p.textContent('#crumb')).includes('roldaof/fresh')), JSON.stringify(opts));
+  const s = await H.stored(p);
+  t.check('still session-only, nothing on disk', s.local === null && !!s.session);
+  await ctx.close();
+}
+
+/* ===== a refresh on coming back keeps the repository they had picked ===== */
+{
+  const two = [
+    { owner: { login: 'roldaof' }, name: 'a', full_name: 'roldaof/a', default_branch: 'main', private: true },
+    { owner: { login: 'roldaof' }, name: 'b', full_name: 'roldaof/b', default_branch: 'main', private: true },
+  ];
+  const gh = H.fakeGitHub({ repos: two });
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await p.waitForSelector('#f-save:not([disabled])');
+  await p.selectOption('#f-repo', { label: 'roldaof/b' });        // picked, not saved yet
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await p.waitForTimeout(600);
+  t.check('a refresh keeps the unsaved pick',
+    (await p.$eval('#f-repo', s => s.options[s.selectedIndex].textContent)).includes('roldaof/b'));
+  await ctx.close();
+}
+
+/* ===== a remembered sign-in returning from a first install in a new tab ===== */
+{
+  const gh = H.fakeGitHub({ repos: [] });
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  gh.repos.push({ owner: { login: 'roldaof' }, name: 'a', full_name: 'roldaof/a', default_branch: 'main', private: true },
+                { owner: { login: 'roldaof' }, name: 'b', full_name: 'roldaof/b', default_branch: 'main', private: true });
+  let lists = 0;
+  ctx.on('request', r => { if (r.url().endsWith('/user/installations?per_page=100')) lists++; });
+  const q = await H.page(ctx, H.APP() + '?code=install_code3&installation_id=77&setup_action=install');
+  await q.waitForTimeout(800);
+  t.check('a remembered sign-in carries on without signing in again', gh.log.authorize.length === 1 &&
+    await q.isVisible('#view-account'));
+  t.check('and fetches the repository list once', lists === 1, String(lists));
+  await ctx.close();
+}
+
+/* ===== a slow, older repository list never overrides a newer one ===== */
+{
+  const gh = H.fakeGitHub({ repos: [
+    { owner: { login: 'roldaof' }, name: 'a', full_name: 'roldaof/a', default_branch: 'main', private: true },
+    { owner: { login: 'roldaof' }, name: 'b', full_name: 'roldaof/b', default_branch: 'main', private: true },
+  ] });
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await p.waitForSelector('#f-save:not([disabled])');
+  await p.selectOption('#f-repo', { label: 'roldaof/a' });
+  await p.click('#f-save');
+  await p.waitForTimeout(400);
+  let first = true;
+  await p.route('**/user/installations?per_page=100', async r => {
+    if (first) { first = false; await new Promise(res => setTimeout(res, 1500)); }
+    return r.fallback();
+  });
+  await p.click('#btn-settings');                  // slow list
+  await p.keyboard.press('Escape');
+  await p.click('#btn-settings');                  // fast list
+  await p.waitForSelector('#f-save:not([disabled])');
+  await p.selectOption('#f-repo', { label: 'roldaof/b' });
+  await p.waitForTimeout(1800);                    // the slow one arrives
+  t.check("an older list arriving late does not undo the person's choice",
+    (await p.$eval('#f-repo', s => s.options[s.selectedIndex].textContent)).includes('roldaof/b'));
   await ctx.close();
 }
 

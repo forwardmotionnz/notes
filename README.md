@@ -124,7 +124,12 @@ Commit and push. Pages redeploys on its own.
 Open the app, **Sign in with GitHub**, and install the app on your notes
 repository when GitHub asks. If it is installed on one repository you go
 straight in; with several you choose. To add or remove repositories later,
-use *Choose repositories* in the app's settings.
+use *Choose repositories* in the app's settings. It opens GitHub in a new
+tab; save your choice there, come back to the Notes tab, and the list has
+updated. (GitHub does not send you back after a change, only after a first
+install.) Arriving from a GitHub install never signs you in by itself: you
+are asked to sign in, with *Forget me* ticked, since the app cannot tell
+whether this is your own computer.
 
 ## Using it on several computers
 

@@ -40,7 +40,10 @@ for (const m of page.matchAll(/Content-Security-Policy" content="([^"]+)"/g)) {
   for (const h of m[1].matchAll(/https:\/\/([a-z0-9.-]+\.[a-z]+)/g)) hosts.add(h[1]);
 }
 hosts.add('github.com');                               // where sign-in and settings happen
-const unnamed = [...hosts].filter(h => !said(h) && !h.includes('REPLACE_ME'));
+// The broker's host is each copy's own (the DEPLOYMENT block); the note
+// names it by what it is, "the broker", in a section of its own.
+const brokerHost = new URL(JSON.parse(page.match(/<script type="application\/json" id="deployment">([\s\S]*?)<\/script>/)[1]).broker).hostname;
+const unnamed = [...hosts].filter(h => !said(h) && !(h === brokerHost && /^## What the broker sees/m.test(doc)));
 t.check('every host in the page\'s policies is named in the note', hosts.size >= 4 && unnamed.length === 0,
   JSON.stringify(unnamed));
 

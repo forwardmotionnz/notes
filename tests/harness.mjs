@@ -24,11 +24,14 @@ const PAGE = () => pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
   /(<meta http-equiv="Content-Security-Policy" content=")connect-src [^"]*(">)/,
   '$1connect-src https://api.github.com https://broker.test$2'));
 
-// Which engine: BROWSER=chromium (the default) or webkit, which is what
-// Safari and every browser on iOS use. tests/run.mjs runs the suite in both.
+// Which engine: NOTES_TEST_ENGINE=chromium (the default) or webkit, which is
+// what Safari and every browser on iOS use. tests/run.mjs runs the suite in
+// both. (Not BROWSER: other tools already use that for something else.)
 export const ENGINES = ['chromium', 'webkit'];
-const ENGINE = process.env.BROWSER || 'chromium';
+const ENGINE = process.env.NOTES_TEST_ENGINE || 'chromium';
 export const engine = () => ENGINE;
+// The engine really running, as Playwright reports it.
+export const launched = () => browser?.browserType().name();
 
 export const DEPLOY = {
   clientId: 'Iv23liTESTCLIENT',
@@ -184,7 +187,7 @@ export async function start() {
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   origin = `http://127.0.0.1:${server.address().port}`;
-  if (!ENGINES.includes(ENGINE)) throw new Error(`Unknown engine BROWSER=${ENGINE}: use ${ENGINES.join(' or ')}.`);
+  if (!ENGINES.includes(ENGINE)) throw new Error(`Unknown engine NOTES_TEST_ENGINE=${ENGINE}: use ${ENGINES.join(' or ')}.`);
   browser = await playwright[ENGINE].launch();
   return { origin: origin + '/notes/' };
 }
@@ -260,6 +263,14 @@ export async function context(gh, opts = {}) {
       gh.codes.set(code, { challenge: q.get('code_challenge'), used: false });
       back.searchParams.set('code', code);
       back.searchParams.set('state', opts.tamperState ? 'forged' : q.get('state'));
+    }
+    // GitHub answers with a 302. Playwright's WebKit cannot fulfil a
+    // redirect ("Cannot fulfill with redirect status"), so there the page
+    // replaces itself with the same address instead: the same navigation,
+    // with the authorize page left out of history, as a redirect leaves it.
+    if (ENGINE === 'webkit') {
+      return route.fulfill({ status: 200, contentType: 'text/html',
+        body: `<script>location.replace(${JSON.stringify(back.toString())})</script>` });
     }
     return route.fulfill({ status: 302, headers: { Location: back.toString() } });
   });

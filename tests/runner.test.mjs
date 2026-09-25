@@ -18,6 +18,10 @@ t.check('the policy suite runs first (it prints the hash to fix)', got[0] === 'c
 const both = run(['--engines']);
 t.check('with no engine named, both run', both.stdout.trim() === 'chromium webkit', both.stdout + both.stderr);
 
+const flag = run(['webkit', '--list']);
+t.check('an option it does not understand is refused, not ignored', flag.status === 2 &&
+  run(['--webkit']).status === 2, flag.stdout + flag.stderr);
+
 const bad = run(['firefoxx']);
 t.check('an unknown engine is refused, not ignored', bad.status !== 0 && /unknown engine/i.test(bad.stdout + bad.stderr),
   bad.stdout + bad.stderr);
@@ -29,15 +33,23 @@ t.check('a missing engine fails the run', missing.status !== 0, said);
 t.check('naming the fix', /npx playwright install --with-deps webkit/.test(said), said);
 t.check('and running nothing that could look like a pass', !/passed/.test(said), said);
 
-// The harness launches the engine it is told to.
-for (const engine of ['chromium', 'webkit']) {
-  if (engine !== (process.env.BROWSER || 'chromium')) continue;   // the engine this run has
-  await H.start();
-  t.check(`the harness launches ${engine} when told to`, H.engine() === engine, H.engine());
-  await H.stop();
-}
+// A suite that fails, or dies before reporting, fails the whole run, and
+// every suite still runs.
+const fx = run(['chromium', '--dir', 'tests/fixtures/runner']);
+const fxOut = fx.stdout + fx.stderr;
+t.check('a failing suite fails the run', fx.status === 1 && /FAILED: .*bad\.test\.mjs \[chromium\]/.test(fxOut), fxOut);
+t.check('so does one that crashes before reporting', /FAILED: .*crash\.test\.mjs \[chromium\]/.test(fxOut), fxOut);
+t.check('and the rest still run', /ok \[chromium\]: 1\/1 passed/.test(fxOut), fxOut);
+t.check('the fixtures are not part of the real suite', !run(['--list']).stdout.includes('bad.test.mjs'));
+
+// The harness launches the engine it is told to: in the WebKit run this is
+// what proves the suite really ran in WebKit.
+await H.start();
+t.check(`the harness launches ${H.engine()} when told to`, H.launched() === (process.env.NOTES_TEST_ENGINE || 'chromium'),
+  `${process.env.NOTES_TEST_ENGINE} -> ${H.launched()}`);
+await H.stop();
 const wrong = spawnSync(process.execPath, ['-e', "import('./tests/harness.mjs').then(H => H.start()).then(() => process.exit(0), e => { console.log(String(e)); process.exit(3); })"],
-  { cwd: root, env: { ...process.env, BROWSER: 'netscape' }, encoding: 'utf-8', timeout: 60000 });
+  { cwd: root, env: { ...process.env, NOTES_TEST_ENGINE: 'netscape' }, encoding: 'utf-8', timeout: 60000 });
 t.check('and refuses one it does not know', wrong.status === 3 && /netscape/.test(wrong.stdout), wrong.stdout + wrong.stderr);
 
 t.finish();

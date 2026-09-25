@@ -126,7 +126,10 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   await H.clickRow(p, 'inbox.md');
   gh.gone = true;
   await p.click('#btn-refresh');
-  await p.waitForTimeout(500);
+  // Several requests settle "gone" (the tree, then the repository); a slow
+  // machine needs longer than a fixed pause. The check is unchanged.
+  await p.waitForFunction(() => document.querySelector('#cm-stub').readOnly &&
+    !document.getElementById('readonly').hidden, null, { timeout: 5000 }).catch(() => {});
   t.check('the open note locks when its repository is gone',
     await p.evaluate(() => document.querySelector('#cm-stub').readOnly) && await p.isVisible('#readonly'));
   await ctx.close();

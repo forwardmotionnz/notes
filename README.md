@@ -299,7 +299,9 @@ npm test
 ```
 
 Runs every suite twice: in Chromium, and in WebKit, the engine of Safari and
-of every browser on iOS. `npm run test:chromium` or `npm run test:webkit`
+of every browser on iOS. (That is Playwright's WebKit build on Linux, which
+catches engine differences; it is not an iPhone, so iOS-only behaviour such
+as Safari's storage limits is not covered.) `npm run test:chromium` or `npm run test:webkit`
 runs one on purpose; a missing engine fails the run rather than being
 skipped. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
 

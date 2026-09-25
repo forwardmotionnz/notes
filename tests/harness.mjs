@@ -163,10 +163,14 @@ window.CodeMirror = function (host, opts) {
   var hs = [], cm;
   // Like CodeMirror 5, "change" fires for setValue too, tagged with its origin.
   var fire = function (origin) { hs.forEach(function (h) { h(cm, { origin: origin }); }); };
-  ta.addEventListener('input', function () { fire('+input'); });
+  var readOnly = false;
+  // Like CodeMirror, a read-only editor takes no input at all.
+  ta.addEventListener('beforeinput', function (e) { if (readOnly) e.preventDefault(); });
+  ta.addEventListener('input', function () { if (!readOnly) fire('+input'); });
   ta.value = (opts && opts.value) || '';
   return cm = { getValue: function () { return ta.value; },
     setValue: function (v) { ta.value = v; fire('setValue'); },
+    setOption: function (k, v) { if (k === 'readOnly') { readOnly = !!v; ta.readOnly = !!v; } },
     clearHistory: function () {}, refresh: function () {}, focus: function () { ta.focus(); },
     on: function (e, f) { if (e === 'change') hs.push(f); } };
 };
@@ -255,7 +259,13 @@ export async function context(gh, opts = {}) {
     const full = (p.match(/^\/repos\/([^/]+\/[^/]+)/) || [])[1];
     const branchOf = f => gh.branch || (gh.repos.find(r => r.full_name === f) || {}).default_branch || 'main';
     const repoMatch = p.match(/^\/repos\/([^/]+)\/([^/]+)$/);
-    if (repoMatch) return json({ full_name: full, default_branch: branchOf(full) });
+    // archived and permissions are documented on the repository object:
+    // https://docs.github.com/en/rest/repos/repos#get-a-repository
+    const entry = gh.repos.find(r => r.full_name === full) || {};
+    if (gh.gone && repoMatch) return json({ message: 'Not Found', status: '404' }, 404);
+    if (repoMatch) return json({ full_name: full, default_branch: branchOf(full), archived: !!entry.archived,
+      permissions: entry.permissions || { admin: true, maintain: true, push: true, triage: true, pull: true } });
+    if (gh.gone) return json({ message: 'Not Found', status: '404' }, 404);
     if (gh.unavailable && /\/git\/trees\//.test(p)) {
       return json({ message: 'Repository access blocked', status: '409' }, 409);
     }
@@ -296,6 +306,12 @@ export async function context(gh, opts = {}) {
       }
       if (req.method() === 'PUT') {
         const b = JSON.parse(req.postData() || '{}');
+        // What GitHub answers here is not documented; any write the app
+        // should never have sent is refused and counted.
+        if (entry.archived || (entry.permissions && !entry.permissions.push)) {
+          gh.log.refusedWrites = (gh.log.refusedWrites || 0) + 1;
+          return json({ message: 'Forbidden', status: '403' }, 403);
+        }
         if (!gh.empty && b.branch && b.branch !== branchOf(full)) {
           return json({ message: 'Branch ' + b.branch + ' not found', status: '404' }, 404);
         }

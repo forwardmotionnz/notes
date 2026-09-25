@@ -138,6 +138,14 @@ first note you save (or the first task you add) creates its main branch. If
 the repository's main branch is later renamed, or your first push from
 elsewhere creates a differently named one, the app follows it and says so.
 
+## Repositories you cannot change
+
+An archived repository, or one your GitHub account can only read, opens
+read-only: a red `read-only` badge says why, the editor is locked and there
+is nothing to save, so nothing is ever sent. If a repository is deleted,
+renamed or the app is removed from it, the file list says so and points you
+to settings.
+
 ## Using it on several computers
 
 It is a web page, so any browser works: home, work, phone. Sign in once per

@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 11 / 30
+Iterations: 12 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -16,7 +16,7 @@ Iterations: 11 / 30
 | N4 | 5d | done | `tests/auth.test.mjs` 111/111, new cases: a crafted `?error=` or `?code=` link neither hides a signed-in person's notes nor puts its words anywhere on screen; signed out, it shows only fixed wording; an error whose state is not this tab's is not taken for a cancel; a real cancel is reported in the app's own words; a sign-in that lost its state says so; the "Forget me" choice survives a cancel and a failed exchange (and defaults to ticked when unknown); a signed-in tab ignores a mismatched code. `tests/hostile.test.mjs`: text from the address is never shown. The fake's access_denied redirect now carries `state` and `error_uri`, per GitHub's docs (URL in the harness). Commit 045b181 |
 | N5 | 5e | done | `tests/large.test.mjs` 20/20: a file over 1 MB is listed but marked, clicking says why, opening it directly or as a pin is refused and nothing is written; GitHub's `too_large` refusal gets its own message; a draft whose file grew past 1 MB opens as `name (unsaved copy).md` and saves there; a note or a pinned task is never saved past 1 MB (the task text stays in the box); a lost reply followed by an unreadable file is a conflict with Discard; a Git LFS pointer is refused and never written. The fake answers large files as GitHub's docs describe (URLs in the harness). Screens `tests/screens/n5-*.png`; commit 42315db |
 | B1 | 6 | done | `tests/empty.test.mjs` 19/19: an empty repository is named as such with how to start, no error; the first note and the first pinned task create it (without naming a branch that does not exist yet), and later saves name the branch; the tree updates after a first task; a 409 that is not "empty" is not called empty; a list that failed to load says so and never shows another repository's files; a vanished branch is followed to the default branch, with a note, and saves go there; a pinned task that fails to save goes back in the box. The fake models empty repositories, branches and the repository's default branch per GitHub's docs (URLs in the harness). Screens `tests/screens/b1-*.png`; commit 800e3ed |
-| B3 | 7 | todo | |
+| B3 | 7 | done | `tests/access.test.mjs` 30/30: archived and read-only repositories show a badge with the reason, keep notes readable, lock the editor, hide Save and New, disable the pinned capture and checkboxes, and send nothing (no draft either); a repository archived while someone types locks the open note and sends neither Save nor autosave, keeping the text as a draft; nothing (task or save) is sent before access is known; a late answer about one repository is not applied to another; a repository that is gone locks and says so with what to do; tapping the badge on a phone says why; a writable repository is unaffected. The fake's repository object carries `archived` and `permissions` per GitHub's docs. Screens `tests/screens/b3-*.png`; commit COMMIT |
 | A1 | 8 | todo | |
 | D1 | 9 | todo | |
 | D2 | 10 | todo | |
@@ -27,7 +27,7 @@ Iterations: 11 / 30
 | F2 | 15 | todo | |
 | F1 | 16 | todo | |
 | F3 | 17 | todo | |
-| G3 | 18 | todo | Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
+| G3 | 18 | todo | Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
@@ -79,6 +79,10 @@ Iterations: 11 / 30
 ### B1: plan
 - Done looks like: an empty repository (no commits) shows "This repository is empty" and how to start, not an error; the first note (from + or the pinned capture) is created with the contents API, which initialises the default branch, and the tree then shows it.
 - Proof: `tests/empty.test.mjs` against a fake whose empty repository answers as GitHub's docs describe (409 from the Git database API, 404 from contents, PUT initialises), with the URL in the harness.
+
+### B3: plan
+- Done looks like: on loading a repository the app reads its `archived` flag and the person's `push` permission (both documented on the repository object). A read-only repository opens read-only: a visible "read-only" badge with the reason, the editor locked, Save and the pinned capture disabled, and nothing is ever sent. A repository that no longer exists (deleted, renamed, app removed) says so in the file list, with what to do, rather than "Not Found".
+- Proof: `tests/access.test.mjs`, with the fake's repository object carrying `archived` and `permissions` per GitHub's docs.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -164,6 +168,13 @@ Iterations: 11 / 30
 - G-3 findings: (1) any 409 was called empty, including a repository still being created: now only when GitHub's message says empty; others get their own message; test. (2) The "empty" message outlived the empty repository after a first pinned task, and after switching to a repository whose list failed: the tree refreshes after a first task, and a failed load says "Could not load the files"; tests. (3) After a first push from elsewhere created "master", saves and reads diverged; together with the older problem of a renamed default branch, the app now follows the repository's default branch when its branch has gone, and says so; test. (4) Not verifiable: with a failed first load the app does not know the repository is empty, and names the branch on the first save; GitHub does not document the result. The app now says the list could not load rather than looking empty, so the person retries first. Older (B): a pinned task whose save failed was lost from the box: put back; test.
 - G-4: the empty-repository message is legible at 1280 and 390 px, light and dark. G-5: no dependency or request beyond GitHub's API; `index.html` about 87 KB. G-6: README has a short section on empty repositories and a followed branch.
 
+### B3: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught: `archived`, `push:false`, asking at all, the editor locked on open and when created later, Save guarded, the capture and checkboxes disabled, a gone repository locked and its list cleared, nothing sent before access is known (task and save), a late answer ignored, the badge tappable. Removed as unobservable: guards in `commitPin` and `newFile` behind controls that are already disabled or hidden, and comparing the repository name when the sequence number already discards a late answer.
+- Rule 6: `archived` and `permissions` (incl. `push`) are documented on the repository object, also in the installation's repository list. What a contents PUT answers for an archived or read-only repository is not documented (only 404/409/422 are listed), so the app decides before writing, and the fake refuses and counts any write it should never have received.
+- G-3 findings: (1) pinned capture, checkboxes and saves could write before the access answer arrived (the check ran after the tree): it now runs alongside, and writes wait for it; test. (2) A late answer about one repository was applied to the one switched to, locking a writable one or unlocking an archived one: ignored now; test. (3) A repository that is gone left the open note editable and failed the save: locked with its reason; test. (4) On a phone the reason vanished after 7 s (touch shows no titles): tapping the badge says it again, and a draft restored in a read-only repository says to copy it out; test for the badge. Noted for G3: branch protection and rulesets refuse writes with 409/422, shown as "Conflict". Unverified: whether a user token's `permissions.push` also reflects the app installation's rights; if the owner granted the app only read, writes fail with the old 403 message, which README step 2 prevents.
+- G-4: the badge and reason are legible at 1280 and 390 px, light and dark; Save and New are hidden. G-5: no dependency or request beyond GitHub's API; `index.html` about 91 KB. G-6: README has a section on repositories you cannot change.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -192,3 +203,4 @@ Iterations: 11 / 30
 - 2026-09-25 · N4 · done · 045b181
 - 2026-09-25 · N5 · done · 42315db
 - 2026-09-25 · B1 · done · 800e3ed
+- 2026-09-25 · B3 · done · COMMIT

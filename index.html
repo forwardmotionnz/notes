@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QrHx4BGew5cJW/snsF59N/0jKGMxcpm7Uqg9mpJYDEM=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-y/zfDnJ5MHuPQmlKZ0ED3R7cHKrOjnuc9YcYfYvfESI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -170,7 +170,7 @@
   #btn-discard[hidden] { display: none; }
   /* Header badges: the editor fell back to a textarea, and settings are
      session-only. Both are states you want to notice without being told. */
-  #degraded, #ephemeral {
+  #degraded, #ephemeral, #readonly {
     display: none;
     flex: none;
     font-size: 10.5px;
@@ -184,6 +184,9 @@
     cursor: help;
   }
   body.plain-editor #degraded { display: inline-block; }
+  /* Read-only: said once in the header, and nothing on screen offers to save. */
+  body.read-only #readonly { display: inline-block; color: var(--danger); border-color: var(--danger); cursor: pointer; }
+  body.read-only #btn-save, body.read-only #btn-new { display: none; }
   body.session-only #ephemeral {
     display: inline-block;
     color: var(--accent);
@@ -471,6 +474,7 @@
     <button class="plain only-narrow" id="btn-tree" title="Files">&#9776;</button>
     <div id="crumb">no file open</div>
     <span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
+    <span id="readonly" title="">read-only</span>
     <span id="ephemeral" title="Session only: you are not remembered on this computer and will be signed out when the browser closes.">session</span>
     <span id="status"></span>
     <button id="btn-discard" hidden title="Throw away your unsaved changes and load the version on GitHub">Discard</button>
@@ -1061,6 +1065,7 @@ window.addEventListener("storage", function (e) {
      writeFile(path, text, sha) -> { sha }            the new sha
      describe()                 -> "owner/repo@branch"
      isEmptyRepo()              -> true while the repository has no commits
+     repoAccess()               -> "" if writable, else why not
    ================================================================ */
 
 var API = "https://api.github.com";
@@ -1132,6 +1137,21 @@ function listRepos() {
   });
 }
 
+/* Whether this person may change the repository at all. Both facts are on
+   the repository object: https://docs.github.com/en/rest/repos/repos#get-a-repository
+   Resolves to "" when writable, or the reason it is not. */
+function repoAccess() {
+  return request(repoPath()).then(function (r) {
+    if (r && r.archived) {
+      return "This repository is archived, so it is read-only. Unarchive it on GitHub to edit it here.";
+    }
+    if (r && r.permissions && r.permissions.push === false) {
+      return "You can read this repository but not change it: your GitHub account has read access only.";
+    }
+    return "";
+  });
+}
+
 function repoPath() {
   return "/repos/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo);
 }
@@ -1167,7 +1187,13 @@ function listTree() {
           return { tree: [], movedTo: repo.default_branch };
         }
         throw err;
-      }, function () { throw err; });
+      }, function (e) {
+        if (e.status !== 404) throw err;
+        var gone = new Error("This repository can no longer be reached: it may have been deleted or " +
+                             "renamed, or the app removed from it. Choose another in settings (\u2699).");
+        gone.unreachable = true;
+        throw gone;
+      });
     }
     throw err;
   }).then(function (data) {
@@ -1387,12 +1413,48 @@ function fail(err) {
    TREE
    ================================================================ */
 
-var treeState = "ok";          // "loading" | "failed" | "ok": what an empty tree means
+var readOnly = "";            // why this repository cannot be changed, or ""
+
+function applyAccess(reason) {
+  var was = readOnly;
+  readOnly = reason;
+  document.body.classList.toggle("read-only", !!reason);
+  $("readonly").title = reason;
+  if (editor && editor.setOption) editor.setOption("readOnly", !!reason);
+  $("pin-input").disabled = !!reason;
+  $("pin-go").disabled = !!reason;
+  if (was !== reason) renderPins();
+  if (reason && reason !== was) flash(reason, true);
+}
+
+var treeState = "ok";
+var treeError = "";            // shown in the list when it failed for a reason worth keeping          // "loading" | "failed" | "ok": what an empty tree means
 var branchNote = "";           // said once the list from a newly followed branch is in
+
+/* Asked on every load, alongside the file list: a repository can be
+   archived, or access taken away, while the app is open. Until the answer
+   is in, nothing is written; an answer about a repository no longer shown
+   is ignored; no answer at all (offline) blocks nothing, since writes
+   would fail anyway and drafts keep the text. */
+var accessSeq = 0;
+var accessPending = false;
+
+function checkAccess() {
+  var seq = ++accessSeq;
+  accessPending = true;
+  repoAccess().then(function (reason) {
+    if (seq !== accessSeq) return;
+    accessPending = false;
+    applyAccess(reason);
+  }, function () {
+    if (seq === accessSeq) accessPending = false;
+  });
+}
 
 function refreshTree() {
   if (!configured()) return Promise.resolve();
   flash("Loading...");
+  checkAccess();
   treeState = "loading";
   if (!files.length) renderTree();
   return listTree().then(function (list) {
@@ -1412,6 +1474,13 @@ function refreshTree() {
     branchNote = "";
   }).catch(function (err) {
     treeState = "failed";
+    treeError = err.unreachable ? err.message : "";
+    if (err.unreachable) {
+      files = [];                        // nothing listed may look as if it were still there
+      accessSeq++;                       // and nothing is written to it
+      accessPending = false;
+      applyAccess(err.message);
+    }
     renderTree();
     fail(err);
   });
@@ -1473,7 +1542,7 @@ function renderTree() {
     e.className = "empty";
     e.textContent = configured()
       ? (treeState === "loading" ? "Loading..." :
-         treeState === "failed" ? "Could not load the files. Press \u21bb to try again." :
+         treeState === "failed" ? (treeError || "Could not load the files. Press \u21bb to try again.") :
          isEmptyRepo() ? "This repository is empty. Press + to write the first note." : "No files.") :
       (signedIn() ? "Choose a repository in settings." : "Sign in to see your notes.");
     host.appendChild(e);
@@ -1586,7 +1655,8 @@ function textareaEditor(host) {
     clearHistory: function () {},
     refresh: function () {},
     focus: function () { ta.focus(); },
-    on: function (ev, fn) { if (ev === "change") handlers.push(fn); }
+    on: function (ev, fn) { if (ev === "change") handlers.push(fn); },
+    setOption: function (k, v) { if (k === "readOnly") ta.readOnly = !!v; }
   };
 }
 
@@ -1618,6 +1688,7 @@ function ensureEditor() {
     // gets cleared by whatever happens next.
     document.body.classList.add("plain-editor");
   }
+  if (readOnly && editor.setOption) editor.setOption("readOnly", true);
 
   // CodeMirror reports setValue (opening a file, a restored draft) as a
   // change too; only typing counts towards an autosave.
@@ -1713,7 +1784,10 @@ function openFile(path, discarding) {
       flash("Restored your unsaved changes. " + path.split("/").pop() +
             " has also changed on GitHub, so saving will report a conflict.", true);
     } else {
-      flash("Restored your unsaved changes to " + path.split("/").pop() + ".");
+      flash(readOnly
+        ? "Restored your unsaved changes to " + path.split("/").pop() + ". " + readOnly +
+          " Copy the text out if you need it."
+        : "Restored your unsaved changes to " + path.split("/").pop() + ".");
     }
   }).catch(function (err) {
     // Unsaved text for a file that can no longer be opened here (it grew
@@ -1779,6 +1853,11 @@ function scheduleAutosave() {
 // `auto` is true only for autosave; a click passes an event.
 function saveCurrent(auto) {
   auto = auto === true;
+  if (readOnly) { if (!auto) flash(readOnly, true); return; }
+  if (accessPending) {
+    if (auto) scheduleAutosave(); else flash("Checking whether this repository can be changed...");
+    return;
+  }
   if (auto && (!current || !current.touched || current.conflict)) return;
   clearTimeout(autosaveTimer);
   if (!current || current.leaving || !dirty()) return;
@@ -1994,6 +2073,7 @@ function renderPins() {
       var box = document.createElement("input");
       box.type = "checkbox";
       box.checked = done;
+      box.disabled = !!readOnly;
       box.onchange = function () { toggleTask(path, index, box.checked); };
       var txt = document.createElement("span");
       txt.textContent = task[3];             // a line of the note: text, never markup
@@ -2025,7 +2105,7 @@ function toggleTask(path, index, checked) {
   if (!cached) return;
   var lines = cached.text.split("\n");
   lines[index] = lines[index].replace(/\[([ xX])\]/, checked ? "[x]" : "[ ]");
-  commitPin(path, lines.join("\n"));
+  if (commitPin(path, lines.join("\n")) === false) renderPins();   // not saved: show it as it is
 }
 
 function addTask() {
@@ -2046,6 +2126,7 @@ function addTask() {
 }
 
 function commitPin(path, text, onFail) {
+  if (accessPending) { flash("Checking whether this repository can be changed...", true); return false; }
   var cached = pinCache[path];
   var sha = cached ? cached.sha : null;
   var raw = rawFor(text, cached && cached.base);
@@ -2193,6 +2274,7 @@ function showPointed(changedRepo) {
   ui.pin = 0;
   if (changedRepo) {
     files = [];                  // the old repository's list is not this one's
+    applyAccess("");             // until this one's access is known
     current = null;
     if (editor) editor.setValue("");
     showDiscard(false);
@@ -2258,6 +2340,9 @@ function forget() {
 /* ================================================================
    WIRING
    ================================================================ */
+
+// Phones never show a title: tapping the badge says why, again.
+$("readonly").onclick = function () { flash(readOnly, true); };
 
 // Not an onerror attribute: the policy allows no inline handlers.
 $("who-avatar").addEventListener("error", function () { this.style.visibility = "hidden"; });

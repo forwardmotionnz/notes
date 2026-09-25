@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 17 / 30
+Iterations: 18 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -22,8 +22,8 @@ Iterations: 17 / 30
 | D2 | 10 | done | `tests/delete.test.mjs` 37/37: Delete asks first, saying how to recover from the history (and that unsaved changes go too); saying no deletes nothing; one commit; the note closes and the list updates; a file changed elsewhere, a failure, a stale draft are not deleted and say why (pointing to Discard); a lost reply and an already-deleted file count as done; a double tap changes nothing; a slow delete is not raced by autosave or by switching apps; it waits for a pinned task being saved; the empty editor takes no typing; a pinned note is unpinned; other tabs close it, and one with unsaved words keeps them as a new, unsaved note (and a draft, even if it never heard); no Delete when read-only. Screens `tests/screens/d2-*.png` (incl. 320 px); commit d762495 |
 | E1 | 11 | done | `tests/wikilinks.test.mjs` 47/47, in CodeMirror and the plain editor: Ctrl-click, Cmd-click and a tap open `[[Note]]`, `[[Note|alias]]`, `[[folder/Note]]`, `[[Note#Heading]]`, any case; shortest path wins (by depth, then length), dot-folders ignored; a plain click and a tap at a link's edge only place the cursor; an unresolved link asks to create `<name>.md` (no means nothing, yes then Save creates it) in the folder's existing spelling; no offer before the list loads, from a partial or stale list, when read-only, or outside the repository. Screens `tests/screens/e1-*.png`; commit 918ad02 |
 | B2 | 12 | done | `tests/firstrun.test.mjs` 32/32: with the app on no repository, only the two steps, Check now and Sign out are on screen (step 1 focused); step 1 opens github.com/new with `notes` and Private filled in, step 2 the app's install page, both in a new tab; coming back, one repository is chosen by itself and its first note commits; with several, the usual choice; before one is in use nothing public is chosen for anyone, a private `notes` is preferred, a public one is named as public; failed or partly failed lists say so with Try again, on the steps or not; a slow list shows "looking"; Check now shows it is checking; fits a 390 px phone. Screens `tests/screens/b2-*.png`; commit 5bf6436 |
-| A2 | 13 | todo | |
-| A3 | 14 | todo | |
+| A2 | 14 | todo | |
+| A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | todo | |
 | F1 | 16 | todo | |
 | F3 | 17 | todo | |
@@ -104,6 +104,11 @@ Iterations: 17 / 30
 - Done looks like: signed in with the app on no repository, the dialog shows only two numbered steps: create a repository on GitHub (name and "Private" pre-filled) and let Notes use it, each opening GitHub in a new tab. Coming back (or "Check now") picks up the new repository: one is chosen by itself and its empty state explains the first note; several show the usual picker. Nothing else (repository menu, pins, Save) is on screen until then. A list that failed to load is not mistaken for "no repositories".
 - Proof: `tests/firstrun.test.mjs` walks it end to end in the simulated GitHub, down to the first note's commit, and counts what is on screen.
 
+### A3: plan
+- Done looks like: `PRIVACY.md` says in plain language what the broker sees (sign-in codes and tokens in transit, never stored or logged), what the browser stores and where (each key, local or session storage, and when it goes), every other host the page talks to, who else a person is trusting on a shared copy, how to revoke access on GitHub (both the authorisation and the installation), and how to self-host instead.
+- Proof: `tests/privacy.test.mjs` holds the note to the code: every storage key a real session writes is named in it, and nothing is left after sign-out; every host in the page's policies is named; the broker's source keeps and logs nothing and only receives the fields the note lists; the GitHub settings pages it names are the documented ones.
+
+## Needs the owner
 (exact steps for human-only actions)
 - **Make the GitHub App installable by anyone (A1).** github.com → Settings → Developer settings → GitHub Apps → your app → *Advanced* → **Make public** (or, when creating it, "Where can this GitHub App be installed?" → *Any account*). Until then only your own account can install it, and nobody else can use your deployment.
 - **Optional, hardening: pin the CodeMirror files by hash (Subresource Integrity).** This container cannot reach cdnjs, so the hashes could not be computed here. Open https://cdnjs.com/libraries/codemirror/5.65.16, and for each of `codemirror.min.css`, `codemirror.min.js`, `mode/xml/xml.min.js` and `mode/markdown/markdown.min.js` use "Copy SRI". Add `integrity="sha512-…" crossorigin="anonymous" referrerpolicy="no-referrer"` to the matching `<link>` and `<script>` tags in `index.html`. The app script's hash does not change (those tags are outside it). If a hash is wrong, the editor falls back to the plain text box with its `plain` badge, which is how you would notice.
@@ -231,6 +236,13 @@ Iterations: 17 / 30
 - G-3 findings: (1) After the steps, with GitHub's default "All repositories", the first repository alphabetically was preselected, which could be public, and a single public repository was chosen without asking: before a repository is in use, nothing public is chosen for anyone; the private `notes` is preferred; choosing a public one says anyone can read it; tests. (2) A list with an account that did not answer (SAML, suspended) left the steps saying nothing had happened: that is now said on the steps; test. (3) A first list that failed was a dead end (the dialog cannot be closed then, and "open settings again" was impossible): it now says so with Try again; test. (4) On a slow network the old form showed first: a neutral "Looking for your repositories" until the answer; test. (5) Check now gave no sign of working: "Checking…", disabled until the answer; test.
 - G-4: `tests/screens/b2-{desktop,phone,small}-{light,dark}{,-still}.png`. The dialog fits at 320 px; no overflow. "Check now" looked like text: it is now a button. The screenshots also showed Sign out holding the focus (the dialog opens on "looking", where it is the only control), so Enter would sign out: step 1 now takes the focus; test, and reverting it is caught. G-5: no dependency, no request beyond GitHub's API; links to github.com only; `index.html` about 118 KB. G-6: README has "No notes repository yet".
 
+### A3: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: the note is held to the code, so each check was broken from both sides and caught: the app writing a new storage key; the broker logging, storing, reading a new field, or its deployment switching logs on; a new host in the page's policy; the app wiping drafts on an automatic sign-out; and each claim removed from the note (the key table rows, "logs nothing" in both places, the CDN host, the revoke link, the eight-hour and six-month honesty, the app owner's own access and Uninstall, control of the page, CDN code running in the page, restored tabs, duplicated tabs, drafts kept on automatic sign-out, repositories others installed on). Three note mutations first went unnoticed because the words also appeared elsewhere; the checks now look at the table row or the exact sentence.
+- G-3 findings, all taken: (1) It left out that whoever owns a shared copy's GitHub App can use the app's access to installed repositories directly, without the person, and that Revoke does not stop that but Uninstall does; and that they control the page: a new "Who you are trusting" section; tests. (2) "At most eight hours" was false for a copied sign-in: the refresh token lasts six months and the broker renews it for anyone holding it: the note and the README now say so; test. (3) "Nothing is written to disk" with Forget me is not true where the browser restores tabs: now a warning to Sign out; test. (4) A duplicated tab keeps its own session copy: said; test. (5) An automatic sign-out (revoked, expired) keeps drafts on purpose: the note says so, and a test shows it happens. (6) CDN code runs inside the page with full access: said (integrity pinning is already under Needs the owner). (7) The sign-in reaches every repository the app is installed on that the person can use, not only ones they chose, and public repositories: corrected; test. (8) Self-hosting still involves GitHub and the hosts; "twenty minutes" as in the README. (9) The table's details corrected: what `notes.signin` holds and when it goes, the branch and time in draft keys, what the config keeps. Not done here, noted for later: revoking the token on GitHub at sign-out would need the broker (GitHub's token-revocation endpoint takes the client secret), so the owner would have to redeploy it; the note says what sign-out does and does not do instead.
+- Ledger: the `## Needs the owner` heading was lost in B2's ledger commit (a plan was inserted in its place); restored here, with nothing else missing.
+- G-4: nothing in the app changed. G-5: no code, dependency or request changed. G-6: README's known limits corrected and linked to PRIVACY.md.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -247,6 +259,7 @@ Iterations: 17 / 30
 - 2026-09-25: Rename uses the Git Data API in one commit and a fast-forward-only branch update, rather than the contents API's create-then-delete, so there is no moment with both copies or neither. All GitHub requests skip the browser cache, since GitHub marks answers cacheable for 60 seconds.
 - 2026-09-25: A link that names no existing note is only offered for creation when the whole list of notes is loaded and fresh. Otherwise "not found" may be wrong, and creating would end in a conflict at best.
 - 2026-09-25: Before a repository is in use, a public one is never chosen for anyone, even when it is the only one: notes are private by default, and the other mistake cannot be undone.
+- 2026-09-25: A3 goes before A2: the signed-out screen links to the privacy note, so the note has to exist first.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -268,3 +281,4 @@ Iterations: 17 / 30
 - 2026-09-25 · D2 · done · d762495
 - 2026-09-25 · E1 · done · 918ad02
 - 2026-09-25 · B2 · done · 5bf6436
+- 2026-09-25 · A3 · done · 211e75b (taken before A2, which links to it)

@@ -307,9 +307,13 @@ network.
 - Notes over 1 MB cannot be opened here (see above); edit them elsewhere.
 - CodeMirror loads from a CDN. If it fails, the editor falls back to a plain
   text box (a `plain` badge appears) and everything still works.
-- Signing out forgets the sign-in in that browser. The token itself stays
-  valid until it expires, at most eight hours. To cut access everywhere
-  immediately, revoke the app under GitHub → Settings → Applications.
+- Signing out forgets the sign-in in that browser but does not cancel it on
+  GitHub: a copied token would work until it expires (at most eight hours),
+  and a copied refresh token could renew it for up to six months. To cut
+  access everywhere immediately, revoke the app under GitHub → Settings →
+  Applications.
+  [PRIVACY.md](PRIVACY.md) says what the broker, GitHub and your browser
+  each see and keep, and how to take access back.
 
 ## Licence
 

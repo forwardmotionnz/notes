@@ -234,9 +234,9 @@ export async function context(gh, opts = {}) {
         ...Object.keys(gh.files).map(k => ({ path: k, type: 'blob', sha: gh.sha(k) })),
       ]});
     }
-    const m = p.match(/^\/repos\/[^/]+\/[^/]+\/contents\/(.*)$/);
+    const m = p.match(/^\/repos\/([^/]+\/[^/]+)\/contents\/(.*)$/);
     if (m) {
-      const path = m[1];
+      const path = m[2];
       if (req.method() === 'GET') {
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         return json({ path, sha: gh.sha(path),
@@ -248,7 +248,7 @@ export async function context(gh, opts = {}) {
         if (exists && b.sha !== gh.sha(path)) return json({ message: 'does not match' }, 409);
         if (!exists && b.sha) return json({ message: 'sha given for new file' }, 422);
         gh.files[path] = Buffer.from(b.content, 'base64').toString('utf-8');
-        gh.commits.push({ path, message: b.message, branch: b.branch, token: auth });
+        gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth });
         return json({ content: { path, sha: gh.sha(path) } });
       }
     }

@@ -173,30 +173,36 @@ async function slowGet(p, name, ms) {
   });
 }
 
-/* ===== review: text discarded by switching files is never autosaved ===== */
+/* ===== review: a file being left is committed once, and nothing else is ===== */
 {
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
   await slowGet(p, 'todo.md', IDLE + 800);
-  await type(p, 'DISCARD ME');
+  await type(p, 'left behind');
   await p.waitForTimeout(100);
-  await H.clickRow(p, 'todo.md');                  // confirm accepted
+  await H.clickRow(p, 'todo.md');                  // commits inbox on the way out
+  await type(p, 'typed while todo loads');         // lands on the file being left
   await p.waitForTimeout(IDLE + 1200);
-  t.check('discarded text not committed while the next file loads', p.puts === 0 &&
-    gh.files['inbox.md'] === FILES()['inbox.md'], String(p.puts));
+  t.check('while the next file loads, the one left is committed exactly once',
+    p.puts === 1 && gh.files['inbox.md'] === 'left behind' && gh.files['todo.md'] === FILES()['todo.md'],
+    p.puts + ' ' + JSON.stringify(gh.files['inbox.md']));
+  await H.clickRow(p, 'inbox.md');
+  t.check('and what was typed during the load comes back as a draft',
+    (await H.editorValue(p)) === 'typed while todo loads', JSON.stringify(await H.editorValue(p)));
   await ctx.close();
 }
 {
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
   await slowGet(p, 'todo.md', 1500);
-  await type(p, 'DISCARD ME');
+  await type(p, 'left behind');
   await p.waitForTimeout(100);
   await H.clickRow(p, 'todo.md');
+  await type(p, 'typed while todo loads');
   await hide(p);                                   // switched apps while it loads
   await p.waitForTimeout(2000);
-  t.check('nor when the page is hidden meanwhile', p.puts === 0 &&
-    gh.files['inbox.md'] === FILES()['inbox.md'], String(p.puts));
+  t.check('and hiding the page meanwhile adds nothing', p.puts === 1 &&
+    gh.files['inbox.md'] === 'left behind' && gh.files['todo.md'] === FILES()['todo.md'], String(p.puts));
   await ctx.close();
 }
 
@@ -233,7 +239,7 @@ async function slowGet(p, name, ms) {
   await p.waitForTimeout(100);
   await type(p, '# Inbox\n\none two');
   await p.keyboard.press('Control+s');             // queued behind the first
-  await H.clickRow(p, 'todo.md');                  // confirm accepted; todo has an untouched draft
+  await H.clickRow(p, 'todo.md');                  // todo has an untouched draft
   await p.waitForTimeout(2500);
   t.check("a queued save does not commit the next file's untouched draft",
     !gh.commits.some(c => c.path === 'todo.md') && gh.files['todo.md'] === FILES()['todo.md'],

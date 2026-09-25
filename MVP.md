@@ -1,13 +1,13 @@
 # MVP ledger
 
-Iterations: 2 / 30
+Iterations: 3 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
 |----|----------|--------|----------|
 | C1 | 1 | done | `tests/drafts.test.mjs` 44/44 (written before unload, reload, closed tab, new file, stale draft → conflict + Discard, session-only, mode switch, sign-out, plus six review regressions); screens `tests/screens/c1-{desktop,phone}-{light,dark}.png`; commit daa2754 |
 | C2 | 2 | done | `tests/autosave.test.mjs` 36/36 (pause commits, steady typing does not, hide commits, Save kept, in-flight save not raced, conflict stops autosave and keeps the draft, restored draft and New wait for typing, plus seven review regressions); screens `tests/screens/c2-{desktop,phone}-{light,dark}.png`; commit 493850a |
-| C3 | 3 | todo | |
+| C3 | 3 | done | `tests/switching.test.mjs` 33/33 (no dialog on switch, New or change of repository; commit on leaving; offline and conflict keep a draft; save in flight; untouched template leaves nothing; right repository; reopening during a commit; failed open; two-tab draft; lost reply across repositories); rewritten drafts/autosave tests listed below; commit COMMIT |
 | G2 | 4 | todo | |
 | G1 | 5 | todo | |
 | B1 | 6 | todo | |
@@ -22,7 +22,7 @@ Iterations: 2 / 30
 | F2 | 15 | todo | |
 | F1 | 16 | todo | |
 | F3 | 17 | todo | |
-| G3 | 18 | todo | |
+| G3 | 18 | todo | Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
@@ -38,6 +38,10 @@ Iterations: 2 / 30
 ### C2: plan
 - Done looks like: after a short pause in typing (2 s) the open file commits by itself, and at once when the page is hidden; typing steadily makes no commits until the pause; a conflict stops autosave for that file, keeps the draft and says so; Save still works; a save already in flight is never raced by a second one on the same sha; opening a file or restoring a draft commits nothing until the user types.
 - Proof: `tests/autosave.test.mjs` counting PUT requests against the fake GitHub.
+
+### C3: plan
+- Done looks like: opening another file, creating a note or changing repository never shows a `confirm()`; whatever was typed in the file being left is committed straight away if it can be, and otherwise stays as a draft that is restored with a notice when the file is opened again (conflict, offline, a save already in flight). An untouched New template leaves nothing behind.
+- Proof: `tests/switching.test.mjs` recording every dialog; the tests in earlier suites that relied on the confirm are rewritten to the new behaviour, with the reason here.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -60,15 +64,25 @@ Iterations: 2 / 30
 - Test fixes, not weakening: the CodeMirror stub now fires `change` on `setValue` with its origin, as CodeMirror 5 does. The drafts suite's reloads now refuse commits during the reload (`reloadUnsaved`), because a reload hides the page and autosaves; those tests model the page dying before that commit gets out. The harness no longer crashes answering a request that a navigation cancelled. Removing a page route while requests were in flight let them reach the real network (seen as `ERR_CERT_AUTHORITY_INVALID`), so the hold is a flag, not a route that is removed.
 - G-4: the conflict state is visible in the crumb ("conflict, not saved"), the status and the Discard button, with no overflow at 390 or 1280 px in light or dark. G-5: no new dependency or request, `index.html` 62 KB. G-6: README describes autosave and the conflict stop.
 
+### C3: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught: commit on leaving, untouched template dropped, draft moved onto the new commit only if this tab wrote it, leaving before a change of repository, reopening waits for a commit of that file, a failed open brings the old file back, lost-reply recovery confined to its repository, draft key captured before the repository changes.
+- First G-2 pass found three safeguards no test noticed (draft rebase, which document a commit updates, failed open); tests added. Working it through showed that tying the commit to "same path" gave a false conflict when a file was reopened mid-commit. The fix is the wait-for-commit, so the success handler updates only the document that saved.
+- G-3 findings: (1) a second tab's old draft was moved onto a commit it never saw, which let it overwrite that commit silently: fixed, since only text this tab wrote is moved; test. (2) Reopening a file during its commit showed the old text as an unsaved draft, and Discard then left the screen out of step with GitHub: fixed, since reopening waits for the commit; test. (3) A lost-reply retry after a change of repository could read, and write, the wrong repository: fixed, since recovery only runs in the repository the save began in; test. Gap: text typed while the next file loads had no assertion; one was added. Pre-existing offline sign-out noted under G3.
+- Tests rewritten because they encoded the removed `confirm()`, with nothing weakened (the reviewer checked each): drafts "declining the discard keeps the draft open" became "an untouched restored draft is not committed on leaving, and comes back"; drafts "a draft you chose to discard does not come back" became "text committed on leaving does not come back as a draft"; autosave "discarded text not committed while the next file loads" (and its hidden-page twin) became "the file left is committed exactly once and nothing else is", plus a check that text typed during the load comes back as a draft. The fake GitHub now records which repository each commit went to (logging only, no new API behaviour).
+- G-4: nothing new on screen. The change removes a dialog; the notices it relies on are C1's and C2's, already screenshotted. G-5: no new dependency or request, `index.html` 65 KB; the remaining `confirm()` calls are Discard and Sign out, which are deliberate destructive actions, not switching. G-6: README says switching never asks and what happens to the text.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
 - 2026-09-25: Drafts are written on every change, not on `pagehide`/`visibilitychange`: iOS can discard a background page without firing either.
 - 2026-09-25: A restored draft keeps the sha it was based on, so it goes through GitHub's conflict check; a **Discard** button appears for a restored draft or a conflict, as the way out.
 - 2026-09-25: Autosave waits 2 s after the last keystroke and commits at once on `visibilitychange` to hidden. It only saves text typed since the file was opened: restored drafts and New templates wait for a keystroke or Save.
+- 2026-09-25: Leaving a file commits it rather than asking. A person switching files wants their words kept, and the history holds anything they regret; offline or in conflict, the draft keeps it instead.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
 (one line per iteration: date, item, result, commit)
 - 2026-09-25 · C1 · done · daa2754
 - 2026-09-25 · C2 · done · 493850a (push still refused, 403)
+- 2026-09-25 · C3 · done · COMMIT (push still refused, 403)

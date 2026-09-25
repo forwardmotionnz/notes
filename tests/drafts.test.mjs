@@ -107,18 +107,18 @@ async function type(p, text) {
   await ctx.close();
 }
 
-/* ===== declining to discard keeps the draft and the file ===== */
+/* ===== a restored draft nobody touched survives visiting another file ===== */
 {
-  const { ctx, p } = await ready();
+  const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'plan.md');
   await type(p, '# Plan\n\nstep two\n');
   await reloadUnsaved(p);
   await p.waitForTimeout(700);
-  p.removeAllListeners('dialog');
-  p.on('dialog', d => d.dismiss());
-  await H.clickRow(p, 'inbox.md');
-  t.check('declining the discard keeps the draft open',
-    (await H.editorValue(p)) === '# Plan\n\nstep two\n' && (await drafts(p)).local.length === 1);
+  await H.clickRow(p, 'inbox.md');                 // leaves it untouched: not committed
+  t.check('an untouched restored draft is not committed on leaving', gh.commits.length === 0);
+  await H.clickRow(p, 'plan.md');
+  t.check('and comes back on return', (await H.editorValue(p)) === '# Plan\n\nstep two\n' &&
+    (await drafts(p)).local.length === 1);
   await ctx.close();
 }
 
@@ -246,15 +246,16 @@ async function type(p, text) {
   await ctx.close();
 }
 
-/* ===== review: discarding by switching files really discards ===== */
+/* ===== review: text left behind never lingers as a stale draft ===== */
 {
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
-  await type(p, 'OOPS deleted everything');
-  await H.clickRow(p, 'plan.md');                  // confirm accepted: discard
+  await type(p, 'typed then left');
+  await H.clickRow(p, 'plan.md');                  // commits it on the way out
   await H.clickRow(p, 'inbox.md');
-  t.check('a draft you chose to discard does not come back',
-    (await H.editorValue(p)) === gh.files['inbox.md'] && await p.isDisabled('#btn-save'));
+  t.check('text committed on leaving does not come back as a draft',
+    gh.files['inbox.md'] === 'typed then left' && (await H.editorValue(p)) === 'typed then left' &&
+    await p.isDisabled('#btn-save'));
   t.check('and leaves nothing in storage', (await drafts(p)).local.length === 0);
   await ctx.close();
 }

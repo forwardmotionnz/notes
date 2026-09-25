@@ -625,7 +625,7 @@ function forgetStored(key) {
 
 var DRAFT_PREFIX = "notes.draft.v1:";
 var draftWarned = false;
-var draftWritten = null;   // last text this tab stored as a draft
+var draftWritten = {};     // draft key -> last text this tab stored there
 
 function draftStore() { return sessionOnly ? sessionStorage : localStorage; }
 
@@ -655,13 +655,15 @@ function syncDraft() {
     // Another tab on the same file may have written the draft since; its
     // text is not ours to throw away.
     var d = readDraft(current.path);
-    if (d && (d.text === draftWritten || d.text === current.saved)) dropDraft(current.path);
+    if (d && (d.text === draftWritten[draftKey(current.path)] || d.text === current.saved)) {
+      dropDraft(current.path);
+    }
     return;
   }
   try {
-    draftWritten = editor.getValue();
+    var text = draftWritten[draftKey(current.path)] = editor.getValue();
     draftStore().setItem(draftKey(current.path), JSON.stringify({
-      text: draftWritten, sha: current.sha, at: Date.now()
+      text: text, sha: current.sha, at: Date.now()
     }));
     draftWarned = false;
   } catch (e) {
@@ -1328,20 +1330,20 @@ function openFile(path, discarding) {
     flash(path.split("/").pop() + " is not a text file.", true);
     return;
   }
-  // Text already on its way to GitHub is not unsaved: no question, and its
-  // draft stays until the commit is confirmed, in case it fails.
-  if (!discarding && dirty() && editor.getValue() !== current.pending) {
-    if (!confirm("Discard unsaved changes to " + current.path + "?")) return;
-    // They said discard: the draft must not come back the next time the
-    // file is opened, one Save away from being committed.
-    dropDraft(current.path);
+  var left = current;
+  if (discarding) {
+    // Nothing on screen may be committed while GitHub's version loads.
+    if (current) current.leaving = true;
+    clearTimeout(autosaveTimer);
+  } else {
+    leaveCurrent();
   }
-  // Whatever is on screen is being left behind; no autosave may commit it
-  // while the next file loads.
-  if (current) current.leaving = true;
-  clearTimeout(autosaveTimer);
   flash("Opening...");
-  readFile(path).then(function (r) {
+  // A commit of this very file may still be on its way (it was just left).
+  // Read it only once that has settled, so the editor starts from what
+  // GitHub really holds and never from the version before it.
+  var ahead = inflight && inflight.key === draftKey(path) ? inflight.done : Promise.resolve();
+  ahead.then(function () { return readFile(path); }).then(function (r) {
     ensureEditor();
     if (discarding) dropDraft(path);
     var draft = readDraft(path);
@@ -1369,7 +1371,23 @@ function openFile(path, discarding) {
     } else {
       flash("Restored your unsaved changes to " + path.split("/").pop() + ".");
     }
-  }).catch(fail);
+  }).catch(function (err) {
+    // Still on the old file after all: it is live again.
+    if (left && current === left) left.leaving = false;
+    fail(err);
+  });
+}
+
+/* Leaving a file never asks. What was typed is committed now if it can be;
+   otherwise (offline, a conflict, a save already in flight) it stays as a
+   draft and comes back, with a notice, when the file is opened again. A
+   New template nobody typed into leaves nothing behind. */
+function leaveCurrent() {
+  if (!current) return;
+  clearTimeout(autosaveTimer);
+  if (current.template && !current.touched) dropDraft(current.path);
+  else if (dirty() && current.touched && !current.conflict) saveCurrent(true);
+  current.leaving = true;
 }
 
 /* ---- autosave ------------------------------------------------------
@@ -1383,6 +1401,7 @@ function openFile(path, discarding) {
 var AUTOSAVE_MS = 2000;
 var autosaveTimer = null;
 var saving = false;        // a commit is in flight
+var inflight = null;       // { key, done }: that commit, settling either way
 var saveAgain = null;      // asked to save meanwhile: { doc, auto }
 
 function scheduleAutosave() {
@@ -1407,18 +1426,23 @@ function saveCurrent(auto) {
   var doc = current;
   var text = editor.getValue();
   var path = doc.path;
+  var key = draftKey(path);            // before a change of repository moves cfg on
+  var base = doc.sha;
   flash("Saving...");
   $("btn-save").disabled = true;
   saving = true;
   doc.pending = text;
 
-  writeFile(path, text, doc.sha).catch(function (err) {
+  var done = writeFile(path, text, doc.sha).catch(function (err) {
     // A commit whose reply was lost (a dropped connection, a page suspended
     // mid-request) leaves us on the old sha, and the next save looks like a
     // conflict with ourselves. If GitHub holds exactly what we last sent,
     // it was ours: carry on from there. Anything else is a real conflict.
     var own = doc.unsure;
     if ((err.status !== 409 && err.status !== 422) || typeof own !== "string") throw err;
+    // The check reads through cfg; after a change of repository it would
+    // read, and write, the wrong one.
+    if (draftKey(path) !== key) throw err;
     return readFile(path).then(function (r) {
       if (r.text !== own) throw err;
       doc.sha = r.sha;
@@ -1426,7 +1450,7 @@ function saveCurrent(auto) {
     });
   }).then(function (r) {
     doc.unsure = null;
-    if (current && current.path === path) {
+    if (current === doc) {
       current.sha = r.sha;
       current.saved = text;
       setCrumb(path);
@@ -1434,10 +1458,20 @@ function saveCurrent(auto) {
       $("btn-save").disabled = !dirty();
       syncDraft();                       // gone, or rebased if typed during the save
     } else {
-      // Committed and then switched away: the draft on disk is what was
-      // just saved, unless it had moved on.
-      var d = readDraft(path);
-      if (d && d.text === text) dropDraft(path);
+      // Committed after the file was left. The draft on disk is either what
+      // was just saved (done with) or text typed after it, which now sits
+      // on top of this commit rather than the one before.
+      try {
+        var store = draftStore();
+        var d = JSON.parse(store.getItem(key) || "null");
+        if (d && d.text === text) store.removeItem(key);
+        // Only text this tab typed after it; another tab's draft never saw
+        // this commit and must still meet the conflict check.
+        else if (d && (d.sha || null) === base && d.text === draftWritten[key]) {
+          d.sha = r.sha;
+          store.setItem(key, JSON.stringify(d));
+        }
+      } catch (e) {}
     }
     if (cfg.pins.indexOf(path) !== -1) {
       delete pinCache[path];
@@ -1449,7 +1483,7 @@ function saveCurrent(auto) {
     $("btn-save").disabled = false;
     if (!err.status) doc.unsure = text;  // may or may not have landed
     if (err.status === 409 || err.status === 422) {
-      if (current && current.path === path) {
+      if (current === doc) {
         current.conflict = true;
         setCrumb(path, "(conflict, not saved)");
         showDiscard(true);
@@ -1460,11 +1494,13 @@ function saveCurrent(auto) {
     }
   }).then(function () {
     saving = false;
+    inflight = null;
     doc.pending = null;
     var again = saveAgain;
     saveAgain = null;
     if (again && again.doc === current) saveCurrent(again.auto);
   });
+  inflight = { key: key, done: done };
 }
 
 function newFile() {
@@ -1482,7 +1518,8 @@ function newFile() {
   }
 
   ensureEditor();
-  current = { path: path, sha: null, saved: "\u0000" };   // sentinel: always dirty
+  leaveCurrent();
+  current = { path: path, sha: null, saved: "\u0000", template: true };   // sentinel: always dirty
   editor.setValue("# " + path.split("/").pop().replace(/\.md$/i, "") + "\n\n");
   editor.clearHistory();
   editor.refresh();
@@ -1735,6 +1772,9 @@ function saveSettings() {
   if (!pick) return;
 
   var changedRepo = pick.owner !== cfg.owner || pick.repo !== cfg.repo;
+  // Commit (or keep as a draft) the open file while cfg still names its
+  // repository.
+  if (changedRepo) leaveCurrent();
   cfg.owner  = pick.owner;
   cfg.repo   = pick.repo;
   cfg.branch = pick.branch;

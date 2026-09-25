@@ -144,6 +144,9 @@ Each save is one commit. Notes save themselves two seconds after you stop
 typing, and straight away when you switch to another app or tab; **Save** and
 `Ctrl`/`Cmd`+`S` still work any time. A file you have only opened, or a
 restored draft you have not typed into yet, is never saved on its own.
+Switching to another file never asks anything: what you typed is committed
+on the way out, or, if that cannot happen yet (offline, a conflict), kept as
+a draft for when you come back.
 
 A write carries the version it was based on, so if
 the file changed underneath you GitHub rejects it: you are told, your text

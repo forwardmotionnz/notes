@@ -8,7 +8,7 @@ Iterations: 4 / 30
 | C1 | 1 | done | `tests/drafts.test.mjs` 44/44 (written before unload, reload, closed tab, new file, stale draft → conflict + Discard, session-only, mode switch, sign-out, plus six review regressions); screens `tests/screens/c1-{desktop,phone}-{light,dark}.png`; commit daa2754 |
 | C2 | 2 | done | `tests/autosave.test.mjs` 36/36 (pause commits, steady typing does not, hide commits, Save kept, in-flight save not raced, conflict stops autosave and keeps the draft, restored draft and New wait for typing, plus seven review regressions); screens `tests/screens/c2-{desktop,phone}-{light,dark}.png`; commit 493850a |
 | C3 | 3 | done | `tests/switching.test.mjs` 33/33 (no dialog on switch, New or change of repository; commit on leaving; offline and conflict keep a draft; save in flight; untouched template leaves nothing; right repository; reopening during a commit; failed open; two-tab draft; lost reply across repositories); rewritten drafts/autosave tests listed below; commit ec26502 |
-| G2 | 4 | done | `tests/hostile.test.mjs` 28/28: source scan for HTML sinks (incl. bracket and split spellings); payloads in file, folder, pin and new-note names, note text, task lines, headings, branch, login, a GitHub error message, a pin read error and the sign-in error in the URL; folders and pins named `constructor`, `__proto__`, `toString`, `valueOf`, `hasOwnProperty`; tripwire never set and no payload element created. Screens `tests/screens/g2-{desktop,phone}-{light,dark}.png`; commit COMMIT |
+| G2 | 4 | done | `tests/hostile.test.mjs` 28/28: source scan for HTML sinks (incl. bracket and split spellings); payloads in file, folder, pin and new-note names, note text, task lines, headings, branch, login, a GitHub error message, a pin read error and the sign-in error in the URL; folders and pins named `constructor`, `__proto__`, `toString`, `valueOf`, `hasOwnProperty`; tripwire never set and no payload element created. Screens `tests/screens/g2-{desktop,phone}-{light,dark}.png`; commit 981fd4d |
 | G1 | 5 | todo | |
 | N1 | 5a | todo | From G2 review: a note with CRLF line endings opens as an "unsaved draft" nobody made (the editor normalises to LF), Discard cannot clear it, and any edit rewrites every line ending. Must open clean and save with the file's own line endings. |
 | N2 | 5b | todo | From G2 review: signing in with "Forget me" ticked, then "Choose repositories" (opens a new tab, returns with `setup_action`) starts a remembered sign-in there and writes a 6-month refresh token to localStorage. Session-only must survive that round trip. |
@@ -102,4 +102,4 @@ Iterations: 4 / 30
 - 2026-09-25 · C1 · done · daa2754
 - 2026-09-25 · C2 · done · 493850a
 - 2026-09-25 · C3 · done · ec26502 (pushed once the owner granted access)
-- 2026-09-25 · G2 · done · COMMIT
+- 2026-09-25 · G2 · done · 981fd4d

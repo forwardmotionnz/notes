@@ -131,6 +131,18 @@ install.) Arriving from a GitHub install never signs you in by itself: you
 are asked to sign in, with *Forget me* ticked, since the app cannot tell
 whether this is your own computer.
 
+## No notes repository yet
+
+Signed in, but Notes is on no repository? The app shows two steps and
+nothing else: **Create a repository** opens GitHub's form with the name
+`notes` and *Private* already filled in, and **Let Notes use it** opens the
+page where you choose that repository for the app. Both open in a new tab.
+Come back to the Notes tab and it notices by itself (or press *Check now*):
+with one private repository you go straight in, with several you choose
+(a private one called `notes` is offered first). A public repository is never
+chosen for you, and choosing one says that anyone can read what is saved
+there.
+
 ## A brand new, empty repository
 
 A repository with no commits works: the file list says it is empty, and the

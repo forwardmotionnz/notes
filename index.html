@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KZs+dmdhjN4imS6LCUUWrVRLX9FoRuewO6FXLSNFR8Q=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-24R+YAxU1fzdl0nuyfui09yEY8uS4VO92lsLlueFFms=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -399,6 +399,26 @@
   }
   button.signin:disabled { opacity: .6; }
 
+  /* First run: the app is on no repository yet. Two steps, nothing else. */
+  #firstrun ol { list-style: none; margin: 0 0 14px; padding: 0; }
+  #firstrun li { margin: 0 0 12px; }
+  #firstrun li em { display: block; margin-top: 5px; font-style: normal; font-size: 12.5px; color: var(--fg-soft); }
+  a.step {
+    display: block;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+    color: var(--fg);
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+  }
+  a.step.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  a.step:hover { opacity: .9; }
+  #fr-check { min-height: 36px; }
+
   select {
     font: inherit;
     font-size: 14px;
@@ -557,6 +577,26 @@
         </div>
       </div>
 
+      <p id="repos-loading" hidden>Looking for your repositories…</p>
+      <p id="repos-failed" class="note err" hidden><span id="repos-failed-text"></span>
+        <button id="f-retry">Try again</button></p>
+
+      <div id="firstrun" hidden>
+        <h2>Now, a place for your notes</h2>
+        <p>Your notes live in a GitHub repository of your own. Make one, then let Notes use it.</p>
+        <ol>
+          <li><a id="fr-create" class="step primary" target="_blank" rel="noopener"
+                 href="https://github.com/new?name=notes&amp;visibility=private">1. Create a repository</a>
+            <em>On GitHub, in a new tab. The name and Private are filled in: press Create repository.
+            Already have one to use? Go to step 2.</em></li>
+          <li><a id="fr-install" class="step" target="_blank" rel="noopener">2. Let Notes use it</a>
+            <em>Choose Only select repositories, pick yours, then press Install (or Save).</em></li>
+        </ol>
+        <p class="hint"><span id="fr-status">Then come back to this tab: it notices by itself.</span>
+          <button id="fr-check">Check now</button></p>
+      </div>
+
+      <div id="account-form">
       <label><span>Repository</span>
         <select id="f-repo"></select>
       </label>
@@ -572,6 +612,7 @@
         <input type="checkbox" id="f-session">
         <span>Forget me when I close the browser<em>For a work or shared computer. Nothing is kept on disk.</em></span>
       </label>
+      </div>
     </div>
     <div class="dlg-foot">
       <button id="f-forget">Sign out</button>
@@ -2611,8 +2652,8 @@ function openSettings() {
   $("view-account").hidden = false;
   $("f-pins").value = cfg.pins.join(", ");
   $("f-session").checked = sessionOnly;
-  $("f-install").href = "https://github.com/apps/" + encodeURIComponent(DEPLOYMENT.appSlug) +
-                        "/installations/new";
+  $("f-install").href = $("fr-install").href = "https://github.com/apps/" +
+    encodeURIComponent(DEPLOYMENT.appSlug) + "/installations/new";
   $("who-login").textContent = cfg.login ? "@" + cfg.login : "";
   // An image source loads a picture and never runs script.
   if (cfg.avatar) $("who-avatar").src = cfg.avatar;
@@ -2626,10 +2667,14 @@ function openSettings() {
     sel.appendChild(new Option(currentChoice().full, "0"));
     sel.disabled = false;
     $("f-save").disabled = false;
+    accountView("form");
   } else {
     sel.appendChild(new Option("Loading…", ""));
     sel.disabled = true;
     $("f-save").disabled = true;
+    // Nothing to fill in until we know whether there is anything to choose;
+    // the steps, once shown, stay while the list is checked again.
+    if (!firstRunShown) accountView("loading");
   }
   openDialog();
   loadRepoList();
@@ -2661,7 +2706,8 @@ function loadRepoList() {
   var sel = $("f-repo");
   var seq = ++repoListSeq;
   var picked = repoChoices[Number(sel.value)];    // keep what they chose, if anything
-  listRepos().then(function (repos) {
+  if (sel.value === "") picked = null;
+  return listRepos().then(function (repos) {
     if (seq !== repoListSeq) return;
     var failed = repos.failed;
     // The repository in use stays on offer even if the list left it out (it
@@ -2672,36 +2718,112 @@ function loadRepoList() {
     }
     repoChoices = repos;
     sel.textContent = "";
-    $("repo-hint-text").textContent = failed
+    var partly = failed
       ? "Some repositories could not be listed (" + failed + (failed === 1 ? " account" : " accounts") +
-        " did not answer); open settings again to retry."
-      : repos.length
-      ? "Only repositories the app is installed on are listed."
-      : "The app is not installed on any repository yet.";
+        " did not answer)."
+      : "";
+    $("repo-hint-text").textContent = partly ? partly.replace(/\.$/, "; open settings again to retry.") :
+      repos.length ? "Only repositories the app is installed on are listed."
+                   : "The app is not installed on any repository yet.";
     if (!repos.length) {
       sel.appendChild(new Option("No repositories yet: choose some below", ""));
       sel.disabled = true;
       $("f-save").disabled = true;
+      // Nothing came back. If every account answered, the app is on no
+      // repository: the first-run steps. If some did not, that is the news,
+      // with a way to ask again, and never "nothing happened".
+      if (!failed) firstRun();
+      else if (firstRunShown) $("fr-status").textContent = partly + " Press Check now to try again.";
+      else listFailed(partly);
       return;
     }
+    firstRunShown = false;
+    accountView("form");
+    // Before a repository is in use, nothing public is chosen for anyone:
+    // the one just made (named as step 1 suggests), else a private one,
+    // else they choose.
+    var choice = picked ? picked.full : configured() ? cfg.owner + "/" + cfg.repo : null;
+    if (!choice) {
+      var guess = repos.filter(function (r) { return r.private && r.repo.toLowerCase() === "notes"; })[0] ||
+                  repos.filter(function (r) { return r.private; })[0];
+      choice = guess ? guess.full : null;
+    }
+    if (!choice) sel.appendChild(new Option("Choose a repository", ""));
     repos.forEach(function (r, i) {
       var o = new Option(r.full + (r.private ? "" : "  (public)"), String(i));   // Option label is text
-      if (picked ? r.full === picked.full : (r.owner === cfg.owner && r.repo === cfg.repo)) o.selected = true;
+      if (r.full === choice) o.selected = true;
       sel.appendChild(o);
     });
     sel.disabled = false;
-    $("f-save").disabled = false;
+    repoPicked();
 
-    // First sign-in with the app on a single repository: nothing to choose.
-    if (!configured() && repos.length === 1) saveSettings();
+    // First sign-in with the app on a single private repository: nothing
+    // to choose. A public one is only ever chosen on purpose.
+    if (!configured() && repos.length === 1 && repos[0].private) saveSettings();
   }).catch(function (err) {
     if (seq !== repoListSeq) return;
     if (err.signedOut) { showSignIn(err.message); return; }
+    if (firstRunShown) {                // mid-way through the steps: stay on them
+      $("fr-status").textContent = "Could not check just now. Press Check now to try again.";
+      return;
+    }
     $("repo-hint-text").textContent = "Could not load the list of repositories; open settings again to retry.";
     if (configured()) return;          // the one in use is still there to keep
-    sel.textContent = "";
-    sel.appendChild(new Option("Could not load repositories", ""));
+    listFailed("Could not load the list of repositories.");
   });
+}
+
+// Before any repository is in use, a list that failed leaves nothing to
+// choose; the dialog cannot be closed either, so the way on is right here.
+function listFailed(why) {
+  $("f-repo").textContent = "";
+  $("f-repo").appendChild(new Option("Could not load repositories", ""));
+  $("repos-failed-text").textContent = why + " ";
+  accountView("failed");
+}
+
+// Save is for a real choice, and a public repository is named as such.
+function repoPicked() {
+  var pick = $("f-repo").value === "" ? null : repoChoices[Number($("f-repo").value)];
+  $("f-save").disabled = !pick;
+  if (pick && !pick.private) {
+    $("repo-hint-text").textContent = pick.full + " is public: anyone can read the notes saved there.";
+  } else if (/ is public: /.test($("repo-hint-text").textContent)) {
+    $("repo-hint-text").textContent = "Only repositories the app is installed on are listed.";
+  }
+}
+
+// The account view shows one of: the settings form, the first-run steps,
+// "looking", or a failed list with Try again. The steps and the others are
+// never on screen together, and Save is only there for the form.
+function accountView(mode) {
+  $("repos-loading").hidden = mode !== "loading";
+  $("repos-failed").hidden = mode !== "failed";
+  $("firstrun").hidden = mode !== "firstrun";
+  $("account-form").hidden = mode !== "form";
+  $("f-save").hidden = mode !== "form";
+}
+
+// The app is on no repository: the two steps, nothing else.
+var firstRunShown = false;
+function firstRun() {
+  $("fr-status").textContent = firstRunShown
+    ? "Still no repository Notes can use. Finish both steps on GitHub, then come back."
+    : "Then come back to this tab: it notices by itself.";
+  var first = !firstRunShown;
+  firstRunShown = true;
+  accountView("firstrun");
+  // The dialog opened on "looking", where Sign out was all there was to
+  // focus; Enter must not sign anyone out by accident.
+  if (first) $("fr-create").focus();
+}
+
+function checkRepos() {
+  var b = this;
+  b.disabled = true;
+  if (firstRunShown) $("fr-status").textContent = "Checking…";
+  else accountView("loading");
+  loadRepoList().then(function () { b.disabled = false; }, function () { b.disabled = false; });
 }
 
 /* Point this tab at a repository and pinned files. The open file is
@@ -2803,6 +2925,9 @@ $("btn-rename").onclick   = renameCurrent;
 $("btn-delete").onclick   = deleteCurrent;
 $("btn-new").onclick      = newFile;
 $("btn-refresh").onclick  = refreshTree;
+$("fr-check").onclick     = checkRepos;
+$("f-retry").onclick      = checkRepos;
+$("f-repo").onchange      = repoPicked;
 $("btn-settings").onclick = openSettings;
 $("f-save").onclick       = saveSettings;
 $("f-forget").onclick     = forget;

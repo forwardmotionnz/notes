@@ -272,7 +272,114 @@ await H.start();
   await p.waitForTimeout(700);
   t.check('cancelling on GitHub returns to sign-in with the reason',
     (await p.textContent('#signin-error')).includes('denied'), await p.textContent('#signin-error'));
+  t.check("in the app's own words, not GitHub's", !/your application/i.test(await p.textContent('#signin-error')),
+    await p.textContent('#signin-error'));
   t.check('button usable again', await p.isEnabled('#f-signin'));
+  await ctx.close();
+}
+
+/* ===== an abandoned sign-in, then a crafted error link in the same tab ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await p.waitForTimeout(300);
+  // As if Sign in was clicked and the person came Back from GitHub.
+  await p.evaluate(() => sessionStorage.setItem('notes.signin', JSON.stringify({ state: 'ours', verifier: 'v', session: false })));
+  await p.goto(H.APP() + '?error=access_denied&state=theirs', { waitUntil: 'load' });
+  await p.waitForTimeout(400);
+  t.check('an error whose state is not ours is not taken as our cancel',
+    /did not finish in this tab/i.test(await p.textContent('#signin-error')), await p.textContent('#signin-error'));
+  await ctx.close();
+}
+
+/* ===== crafted links: an error or code this tab did not ask for ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  const lie = 'Your GitHub session was revoked. Re-authorise at https://evil.example/login';
+  const q = await H.page(ctx, H.APP() + '?error=access_denied&error_description=' + encodeURIComponent(lie));
+  await q.waitForTimeout(700);
+  t.check('a crafted error link does not hide a signed-in person\'s notes',
+    !(await H.dialogOpen(q)) && (await H.rows(q)).includes('todo.md'));
+  t.check('its words appear nowhere', !(await q.evaluate(() => document.body.innerText)).includes('evil.example'));
+  t.check('and the address is clean', !q.url().includes('error'), q.url());
+  const r = await H.page(ctx, H.APP() + '?code=junk&state=junk');
+  await r.waitForTimeout(700);
+  t.check('a crafted code link does not interrupt a signed-in person either',
+    !(await H.dialogOpen(r)) && (await H.rows(r)).includes('todo.md'));
+  await ctx.close();
+}
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx, H.APP() + '?error=server_error&error_description=' + encodeURIComponent('Call 0800 FAKE now'));
+  await p.waitForTimeout(500);
+  t.check('signed out, a crafted error link shows only fixed words', await H.dialogOpen(p) &&
+    /did not finish in this tab/i.test(await p.textContent('#signin-error')) &&
+    !(await p.evaluate(() => document.body.innerText)).includes('0800'), await p.textContent('#signin-error'));
+  await ctx.close();
+}
+
+/* ===== a real sign-in coming back to a tab that lost its state ===== */
+// iOS can discard a tab while someone fetches a 2FA code. The code is not
+// used, but they are told, instead of landing back where they started.
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx, H.APP() + '?code=real_but_orphaned&state=lost');
+  await p.waitForTimeout(500);
+  t.check('a sign-in that lost its state says so', /did not finish in this tab/i.test(await p.textContent('#signin-error')),
+    await p.textContent('#signin-error'));
+  t.check('with "Forget me" ticked, since their choice is unknown', await p.isChecked('#f-session-in'));
+  await ctx.close();
+}
+
+/* ===== "Forget me" survives a cancel on GitHub ===== */
+{
+  const gh = H.fakeGitHub();
+  gh.denyNext = true;
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p, { remember: false }).catch(() => {});
+  await p.waitForTimeout(500);
+  t.check('after a cancel, "Forget me" is still ticked', await p.isChecked('#f-session-in'));
+  await p.click('#f-signin');
+  await p.waitForURL(u => !u.search.includes('code='), { timeout: 5000 });
+  await p.waitForTimeout(600);
+  const st = await H.stored(p);
+  t.check('so the retry leaves nothing on disk', st.local === null && !!st.session);
+  await ctx.close();
+}
+
+/* ===== the "Forget me" choice survives a failed code exchange ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await p.route(H.DEPLOY.broker + '**', r => r.fulfill({ status: 400, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': new URL(H.APP()).origin },
+    body: JSON.stringify({ error: 'bad_verification_code' }) }));
+  await H.signIn(p, { remember: true }).catch(() => {});
+  await p.waitForTimeout(500);
+  t.check('a failed exchange is reported', (await p.textContent('#signin-error')).length > 0);
+  t.check('and the retry keeps their choice (here: remembered)', !(await p.isChecked('#f-session-in')));
+  await ctx.close();
+}
+
+/* ===== a signed-in tab ignores a code that does not match its old sign-in ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await p.evaluate(() => sessionStorage.setItem('notes.signin', JSON.stringify({ state: 'old', verifier: 'v', session: false })));
+  await p.goto(H.APP() + '?code=junk&state=junk', { waitUntil: 'load' });
+  await p.waitForTimeout(600);
+  t.check('a signed-in tab is not interrupted by a mismatched code', !(await H.dialogOpen(p)) &&
+    (await H.rows(p)).includes('todo.md'));
   await ctx.close();
 }
 

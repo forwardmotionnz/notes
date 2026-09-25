@@ -161,12 +161,14 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
 }
 
 /* ===== a hostile sign-in error comes back in the address bar ===== */
+// Text from the address is never shown at all (N4), so it can neither run
+// nor put words in the app's mouth.
 {
   const gh = H.fakeGitHub();
   const ctx = await H.context(gh);
   const p = await H.page(ctx, H.APP() + '?error=access_denied&error_description=' + encodeURIComponent(IMG));
   await p.waitForTimeout(300);
-  t.check('error_description from the URL shown as text', (await p.textContent('#signin-error')) === IMG);
+  t.check('error_description from the URL is never shown', !(await p.evaluate(() => document.body.innerText)).includes('onerror'));
   t.check('and never runs', (await pwned(p)) === 0 && (await dangerous(p)) === 0);
   await ctx.close();
 }

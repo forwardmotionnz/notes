@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 8 / 30
+Iterations: 9 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -13,7 +13,7 @@ Iterations: 8 / 30
 | N1 | 5a | done | `tests/eol.test.mjs` 31/31: CRLF, CR and mixed files open clean (no draft, no autosave, not "restored" after reload); edits keep the file's endings and every untouched line's own ending (ties, lone CRs inside and at the end, two edits plus an insertion in one save, a moved line, a second save); pinned CRLF task lists read, tick and capture with CRLF; a BOM is kept; non-UTF-8 text is refused and never written; a lost reply is matched byte for byte; the reviewer's counterexamples; 20,000 seeded random files and edits all read back exactly as typed; a 30,000-line rewrite takes ~25 ms. Commit 4dec41f |
 | N2 | 5b | done | `tests/auth.test.mjs` 78/78, new cases: a return from installing signs nobody in, uses no code, shows a note with "Forget me" ticked, one click signs in session-only; "Choose repositories" opens a new tab and the tab refreshes its list on return, staying session-only; a remembered tab carries on and fetches the list once; an older, slower list never overrides a newer one; a refresh keeps an unsaved pick. Screens `tests/screens/n2-{desktop,phone}-{light,dark}.png`, `tests/screens/n2-settings-*.png`; commit 4f5062d |
 | N3 | 5c | done | `tests/auth.test.mjs` 97/97, new cases: saving settings, or signing in again, in one tab leaves the others signed in and saving (and they adopt the new token); choosing "Forget me" in one tab signs the others out and leaves nothing on disk; switching back to remembered sticks after a reload; other tabs follow a change of repository (committing their open file to the old one first) and of pins alone, and do not undo it later; a token refresh finishing after another tab signed out or chose "Forget me" writes nothing and sends no empty-token request. Commit f23b584 |
-| N4 | 5d | todo | From G2 review: a crafted `?error=…&error_description=…` link shows attacker-worded text as a sign-in error and hides a signed-in user's notes. Only honour it when a sign-in from this tab is pending; never show arbitrary text. |
+| N4 | 5d | done | `tests/auth.test.mjs` 111/111, new cases: a crafted `?error=` or `?code=` link neither hides a signed-in person's notes nor puts its words anywhere on screen; signed out, it shows only fixed wording; an error whose state is not this tab's is not taken for a cancel; a real cancel is reported in the app's own words; a sign-in that lost its state says so; the "Forget me" choice survives a cancel and a failed exchange (and defaults to ticked when unknown); a signed-in tab ignores a mismatched code. `tests/hostile.test.mjs`: text from the address is never shown. The fake's access_denied redirect now carries `state` and `error_uri`, per GitHub's docs (URL in the harness). Commit COMMIT |
 | N5 | 5e | todo | From N1 review: GitHub's contents API returns no content for files between 1 and 100 MB, so such a note opens empty with a valid sha, and the first save (or autosave) replaces the whole file. Must refuse, or read through the blob API, instead. Check the behaviour against GitHub's documentation before faking it. |
 | B1 | 6 | todo | |
 | B3 | 7 | todo | |
@@ -67,6 +67,10 @@ Iterations: 8 / 30
 ### N3: plan
 - Done looks like: settings and sign-in are written in place, and only then is the other store cleared, so other tabs see new values (and adopt them) rather than an empty one. Saving settings or signing in again in one tab never signs another out. Switching a tab to session-only still signs the others out, because otherwise they would write the sign-in back to disk.
 - Proof: two-tab cases in `tests/auth.test.mjs`.
+
+### N4: plan
+- Done looks like: an `?error=` or `?code=` in the address only counts when this tab started a sign-in (its pending state is there). Otherwise it is scrubbed and ignored: a signed-in person carries on with their notes, a signed-out one sees the plain sign-in view. When it does count, the message is the app's own fixed wording, never text from the address.
+- Proof: new cases in `tests/auth.test.mjs`; the hostile-text check in `tests/hostile.test.mjs` changes from "shown as text" to "never shown".
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -130,6 +134,14 @@ Iterations: 8 / 30
 - G-3 findings: (1) caused by this fix: a tab that now stays signed in kept its old repository and pins in memory and wrote them back at its next token refresh or Settings open, undoing another tab's change (reproduced). Tabs now follow shared settings, first committing or keeping as a draft what was open, against its own repository; tests. (2) Older: a refresh in flight when another tab signed out or chose "Forget me" wrote the token back to disk (reproduced for both). The result of a refresh is now discarded when what the tab holds is no longer what it spent; tests. My new comment had claimed this was covered; it was not until now. (3) The same root cause as (1) for folder state; covered by following.
 - G-4: nothing new on screen. G-5: no dependency or request; `index.html` about 79 KB. G-6: README says tabs share settings and what signing out in one does.
 
+### N4: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each change reverted alone and caught: error honoured without a pending sign-in, state not checked, GitHub's description shown, a stray code reported over a signed-in tab, a lost-state sign-in silent, "Forget me" not restored after a cancel, the choice lost after a failed exchange. Two of my own checks were hollow at first: a mutation that operator precedence neutralised (redone), and a "Forget me" test whose expected value equalled the default (now tests the remembered choice).
+- Tests changed: hostile "error_description from the URL shown as text" became "never shown", because showing it was the defect. My first new test expected silence for a signed-out crafted link; after the review it expects the fixed "did not finish" wording, and still fails without the state check.
+- Rule 6: the fake's `access_denied` redirect lacked `state`; GitHub's documentation (troubleshooting-authorization-request-errors, fetched from github/docs) shows `error`, `error_description`, `error_uri` and `state`. Fixed, with the URL beside it.
+- G-3 findings: (1) a real sign-in returning to a tab that lost its state (iOS discarding a tab during 2FA, blocked storage) failed with no word: now fixed wording, test. (2) Older: "Forget me" reset after a cancel or failure, so the retry stored the token on disk (reproduced): the choice is carried through, ticked when unknown; tests. (3) A signed-in tab could still be interrupted by a mismatched code: ignored now, test. (4) A crafted `setup_action` link opens Settings for a signed-in person: refuted as harmful, since it is N2's intended landing after a real install and its text is fixed.
+- G-4: the only visible changes are fixed messages in the existing sign-in error note. G-5: no dependency or request; `index.html` about 80 KB. G-6: no documented behaviour changed; README does not describe error links.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -155,3 +167,4 @@ Iterations: 8 / 30
 - 2026-09-25 · N1 · done · 4dec41f
 - 2026-09-25 · N2 · done · 4f5062d
 - 2026-09-25 · N3 · done · f23b584
+- 2026-09-25 · N4 · done · COMMIT

@@ -184,8 +184,12 @@ export async function context(gh, opts = {}) {
     const back = new URL(q.get('redirect_uri'));
     if (gh.denyNext) {
       gh.denyNext = false;
+      // https://docs.github.com/en/apps/oauth-apps/maintaining-oauth-apps/troubleshooting-authorization-request-errors#access-denied
+      // (checked against github/docs content/apps/oauth-apps/maintaining-oauth-apps/troubleshooting-authorization-request-errors.md)
       back.searchParams.set('error', 'access_denied');
       back.searchParams.set('error_description', 'The user has denied your application access.');
+      back.searchParams.set('error_uri', '/apps/building-integrations/setting-up-and-registering-oauth-apps/troubleshooting-authorization-request-errors/%23access-denied');
+      back.searchParams.set('state', q.get('state'));
     } else {
       const code = 'code' + (++gh.seq);
       gh.codes.set(code, { challenge: q.get('code_challenge'), used: false });

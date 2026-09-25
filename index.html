@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-tkpCq4or4jT4O4GJqojFFRNA33zXwdpK4lWEtOmRWe4=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-gxJ5bsihEL/GuO4VfBJmFgxblLt6+lI3i4mng/B4qdU=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -877,14 +877,33 @@ function completeSignIn(params) {
     return Promise.resolve({ installed: true });
   }
 
-  if (!pending || !state || state !== pending.state) {
-    return Promise.reject(new Error("Sign-in expired or did not start here. Try again."));
+  // A code this tab did not ask for: a link someone sent, or a real
+  // sign-in whose tab lost its state (iOS can discard a tab while someone
+  // fetches a 2FA code). Never used; boot() says so to anyone signed out.
+  if (!pending) return Promise.resolve({ orphan: true });
+  if (!state || state !== pending.state) {
+    var e = new Error("Sign-in expired or did not start here. Try again.");
+    e.session = !!pending.session;
+    return Promise.reject(e);
   }
 
   return broker({ code: code, code_verifier: pending.verifier }).then(function (t) {
     sessionOnly = !!pending.session;
     applyTokens(t);                    // persist() clears the other store
+  }, function (err) {
+    err.session = !!pending.session;   // so a retry keeps their "Forget me"
+    throw err;
   });
+}
+
+var ORPHAN_SIGNIN = "That sign-in did not finish in this tab. Please sign in again.";
+
+/* The sign-in view after a failed or foreign return from GitHub, with
+   "Forget me" as the person chose it when they started, or ticked when
+   that is not known (the choice that leaves nothing behind). */
+function showSignInAgain(message, session) {
+  showSignIn(message);
+  $("f-session-in").checked = typeof session === "boolean" ? session : true;
 }
 
 function broker(body) {
@@ -2201,15 +2220,30 @@ function start() {
 (function boot() {
   var params = new URLSearchParams(location.search);
   if (params.get("error")) {
-    // e.g. access_denied when the user clicks Cancel on GitHub
+    // GitHub's answer to a sign-in: access_denied when someone clicks
+    // Cancel. It only counts if this tab started that sign-in; anyone can
+    // put ?error= in a link. Words from the address are never shown, so a
+    // link cannot make the app say something it did not.
+    var pending = null;
+    try { pending = JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); } catch (e) {}
+    try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
     history.replaceState(null, "", redirectUri());
-    showSignIn(params.get("error_description") || "Sign-in was cancelled.");
+    start();
+    if (signedIn()) return;
+    if (pending && params.get("state") === pending.state) {
+      showSignInAgain(params.get("error") === "access_denied"
+        ? "Sign-in was cancelled or denied on GitHub. You can try again."
+        : "GitHub could not complete the sign-in. Try again.", !!pending.session);
+    } else {
+      showSignInAgain(ORPHAN_SIGNIN);
+    }
     return;
   }
   if (!params.get("code")) { start(); return; }
 
   completeSignIn(params).then(function (r) {
     start();
+    if (r && r.orphan) { if (!signedIn()) showSignInAgain(ORPHAN_SIGNIN); return; }
     if (!r || !r.installed) return;
     // start() has already opened settings when no repository is chosen yet.
     if (signedIn()) { if (configured()) openSettings(); return; }
@@ -2220,7 +2254,7 @@ function start() {
     $("f-session-in").checked = true;
   }, function (err) {
     start();
-    showSignIn(err.message);
+    if (!signedIn()) showSignInAgain(err.message, err.session);
   });
 })();
 </script>

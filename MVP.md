@@ -5,7 +5,7 @@ Iterations: 1 / 30
 ## Items
 | ID | Priority | Status | Evidence |
 |----|----------|--------|----------|
-| C1 | 1 | done | `tests/drafts.test.mjs` 44/44 (written before unload, reload, closed tab, new file, stale draft → conflict + Discard, session-only, mode switch, sign-out, plus six review regressions); screens `tests/screens/c1-{desktop,phone}-{light,dark}.png`; commit COMMIT |
+| C1 | 1 | done | `tests/drafts.test.mjs` 44/44 (written before unload, reload, closed tab, new file, stale draft → conflict + Discard, session-only, mode switch, sign-out, plus six review regressions); screens `tests/screens/c1-{desktop,phone}-{light,dark}.png`; commit daa2754 |
 | C2 | 2 | todo | |
 | C3 | 3 | todo | |
 | G2 | 4 | todo | |
@@ -56,4 +56,4 @@ Iterations: 1 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
-- 2026-09-25 · C1 · done · COMMIT
+- 2026-09-25 · C1 · done · daa2754

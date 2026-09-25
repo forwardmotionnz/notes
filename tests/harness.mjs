@@ -139,10 +139,13 @@ const CM_STUB = `
 window.CodeMirror = function (host, opts) {
   var ta = document.createElement('textarea'); ta.id = 'cm-stub';
   ta.style.cssText = 'flex:1;width:100%;border:0'; host.appendChild(ta);
-  var hs = [];
-  ta.addEventListener('input', function () { hs.forEach(function (h) { h(); }); });
+  var hs = [], cm;
+  // Like CodeMirror 5, "change" fires for setValue too, tagged with its origin.
+  var fire = function (origin) { hs.forEach(function (h) { h(cm, { origin: origin }); }); };
+  ta.addEventListener('input', function () { fire('+input'); });
   ta.value = (opts && opts.value) || '';
-  return { getValue: function () { return ta.value; }, setValue: function (v) { ta.value = v; },
+  return cm = { getValue: function () { return ta.value; },
+    setValue: function (v) { ta.value = v; fire('setValue'); },
     clearHistory: function () {}, refresh: function () {}, focus: function () { ta.focus(); },
     on: function (e, f) { if (e === 'change') hs.push(f); } };
 };
@@ -205,8 +208,10 @@ export async function context(gh, opts = {}) {
     const auth = (req.headers()['authorization'] || '').replace(/^Bearer /, '');
     gh.log.apiAuth.push(auth);
     const tok = gh.access.get(auth);
+    // A navigation can cancel a request before it is answered; answering it
+    // then throws, and that says nothing about the app.
     const json = (body, status = 200) => route.fulfill({ status,
-      contentType: 'application/json', body: JSON.stringify(body) });
+      contentType: 'application/json', body: JSON.stringify(body) }).catch(() => {});
 
     if (!tok || tok.expired) return json({ message: 'Bad credentials' }, 401);
 

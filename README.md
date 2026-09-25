@@ -135,14 +135,20 @@ Obsidian would not understand, so both can work on the same repository.
 ## What it does
 
 - Folder tree of the repository, collapse state remembered
-- Markdown editor; `Ctrl`/`Cmd`+`S` commits
+- Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
 - Pinned files as a live task list with a one-line capture box
 - Filter across every path in the repository
 - Light and dark, and a layout that works on a phone
 
-Each save is one commit. A write carries the version it was based on, so if
-the file changed underneath you GitHub rejects it: you are told, and your text
-stays in the editor. Nothing is silently overwritten.
+Each save is one commit. Notes save themselves two seconds after you stop
+typing, and straight away when you switch to another app or tab; **Save** and
+`Ctrl`/`Cmd`+`S` still work any time. A file you have only opened, or a
+restored draft you have not typed into yet, is never saved on its own.
+
+A write carries the version it was based on, so if
+the file changed underneath you GitHub rejects it: you are told, your text
+stays in the editor, and that file stops saving itself until you resolve it.
+Nothing is silently overwritten.
 
 Unsaved changes are kept in the browser as you type, one draft per file, so a
 reload, a closed tab or a phone closing the app in the background loses

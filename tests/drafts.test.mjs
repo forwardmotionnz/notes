@@ -28,6 +28,26 @@ async function ready(opts = {}) {
   return { gh, ctx, p };
 }
 
+/* A reload hides the page, which autosaves. These tests are about the case
+   drafts exist for, where that last commit never gets out before the page
+   dies, so commits are refused while it reloads. */
+async function reloadUnsaved(p) {
+  const before = p.errors.length;
+  // Installed once and switched by a flag: removing a route while the new
+  // page's requests are in flight lets them escape to the real network.
+  if (!p.holdPuts) {
+    p.holdPuts = { on: false };
+    await p.route('https://api.github.com/**', r =>
+      p.holdPuts.on && r.request().method() === 'PUT' ? r.abort() : r.fallback());
+  }
+  p.holdPuts.on = true;
+  await p.reload({ waitUntil: 'load' });
+  p.holdPuts.on = false;
+  // The refused commit is reported by the page on its way out; expected here.
+  p.errors.splice(before, p.errors.length - before,
+    ...p.errors.slice(before).filter(e => !/Failed to fetch/.test(e)));
+}
+
 async function type(p, text) {
   await H.setEditor(p, text);
   await p.waitForTimeout(60);
@@ -42,7 +62,7 @@ async function type(p, text) {
   t.check('draft stored before any unload event', (await drafts(p)).local.length === 1,
     JSON.stringify(await drafts(p)));
 
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   t.check('reload restores the draft', (await H.editorValue(p)) === '# Inbox\n\nhalf a thought');
   t.check('restored draft is flagged in the header', /draft/i.test(await tag(p)), await tag(p));
@@ -57,7 +77,7 @@ async function type(p, text) {
   t.check('commit clears the draft', (await drafts(p)).local.length === 0, JSON.stringify(await drafts(p)));
   t.check('commit clears the draft flag', !/draft/i.test(await tag(p)) && !(await discardShown(p)));
 
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   t.check('nothing restored once committed', (await H.editorValue(p)) === gh.files['inbox.md'] &&
     await p.isDisabled('#btn-save'));
@@ -92,7 +112,7 @@ async function type(p, text) {
   const { ctx, p } = await ready();
   await H.clickRow(p, 'plan.md');
   await type(p, '# Plan\n\nstep two\n');
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.dismiss());
@@ -110,7 +130,7 @@ async function type(p, text) {
   await p.click('#btn-new');
   await p.waitForTimeout(150);
   await type(p, '# First\n\nnot saved yet\n');
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   t.check('new file draft restored after reload', (await H.editorValue(p)) === '# First\n\nnot saved yet\n');
   t.check('still marked new', /new/i.test(await tag(p)), await tag(p));
@@ -128,7 +148,7 @@ async function type(p, text) {
   await H.clickRow(p, 'inbox.md');
   await type(p, '# Inbox\n\nmine\n');
   gh.files['inbox.md'] = '# Inbox\n\ntheirs\n';
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   t.check('stale draft still restored', (await H.editorValue(p)) === '# Inbox\n\nmine\n');
   t.check('user told the file changed on GitHub', /changed on github/i.test(await H.status(p)),
@@ -153,7 +173,7 @@ async function type(p, text) {
   await H.clickRow(p, 'inbox.md');
   await type(p, '# Inbox\n\nsame\n');
   gh.files['inbox.md'] = '# Inbox\n\nsame\n';       // committed from elsewhere
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   t.check('matching draft not flagged', !/draft/i.test(await tag(p)) && await p.isDisabled('#btn-save'));
   t.check('matching draft removed', (await drafts(p)).local.length === 0);
@@ -168,7 +188,7 @@ async function type(p, text) {
   const d = await drafts(p);
   t.check('session-only drafts live in session storage', d.session.length === 1 && d.local.length === 0,
     JSON.stringify(d));
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   t.check('session-only draft restored after reload', (await H.editorValue(p)) === 'on a shared computer');
   await ctx.close();
@@ -247,7 +267,7 @@ async function type(p, text) {
   await p.click('#btn-new');
   await p.waitForTimeout(150);
   await type(p, '# idea\n\nlong important text\n');
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   await H.clickRow(p, 'inbox.md');                 // dismissed: the draft stays where it is
   await p.click('#btn-new');
@@ -296,7 +316,7 @@ async function type(p, text) {
   await H.clickRow(p, 'inbox.md');
   await type(p, 'before the token died');
   await p.evaluate(() => localStorage.removeItem('notes.config.v2'));   // as signOutLocally does
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(300);
   await H.signIn(p, { remember: false });
   await p.waitForTimeout(500);
@@ -313,7 +333,7 @@ async function type(p, text) {
   const { ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
   await type(p, 'keep me');
-  await p.reload({ waitUntil: 'load' });
+  await reloadUnsaved(p);
   await p.waitForTimeout(700);
   await p.route('https://api.github.com/**/contents/**', r => r.abort());
   await p.click('#btn-discard');

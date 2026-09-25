@@ -1273,10 +1273,16 @@ function ensureEditor() {
     document.body.classList.add("plain-editor");
   }
 
-  editor.on("change", function () {
+  // CodeMirror reports setValue (opening a file, a restored draft) as a
+  // change too; only typing counts towards an autosave.
+  editor.on("change", function (cm, change) {
     if (!current) return;
     $("btn-save").disabled = !dirty();
     syncDraft();
+    if (!change || change.origin !== "setValue") {
+      current.touched = true;
+      scheduleAutosave();
+    }
   });
   return editor;
 }
@@ -1322,12 +1328,18 @@ function openFile(path, discarding) {
     flash(path.split("/").pop() + " is not a text file.", true);
     return;
   }
-  if (!discarding && dirty()) {
+  // Text already on its way to GitHub is not unsaved: no question, and its
+  // draft stays until the commit is confirmed, in case it fails.
+  if (!discarding && dirty() && editor.getValue() !== current.pending) {
     if (!confirm("Discard unsaved changes to " + current.path + "?")) return;
     // They said discard: the draft must not come back the next time the
     // file is opened, one Save away from being committed.
     dropDraft(current.path);
   }
+  // Whatever is on screen is being left behind; no autosave may commit it
+  // while the next file loads.
+  if (current) current.leaving = true;
+  clearTimeout(autosaveTimer);
   flash("Opening...");
   readFile(path).then(function (r) {
     ensureEditor();
@@ -1360,14 +1372,60 @@ function openFile(path, discarding) {
   }).catch(fail);
 }
 
-function saveCurrent() {
-  if (!current || !dirty()) return;
+/* ---- autosave ------------------------------------------------------
+   A commit after a pause in typing, and at once when the page is hidden
+   (switching apps on a phone, closing the laptop). Not per keystroke: each
+   save is a commit in someone's history. Only text the user has typed into
+   since it was opened is saved automatically; a restored draft or a fresh
+   template waits until they touch it, so nothing they have not looked at
+   gets committed. A conflict stops it for that file until Discard. */
+
+var AUTOSAVE_MS = 2000;
+var autosaveTimer = null;
+var saving = false;        // a commit is in flight
+var saveAgain = null;      // asked to save meanwhile: { doc, auto }
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(function () { saveCurrent(true); }, AUTOSAVE_MS);
+}
+
+// `auto` is true only for autosave; a click passes an event.
+function saveCurrent(auto) {
+  auto = auto === true;
+  if (auto && (!current || !current.touched || current.conflict)) return;
+  clearTimeout(autosaveTimer);
+  if (!current || current.leaving || !dirty()) return;
+  // Two commits on the same sha would conflict with each other. Wait for
+  // the one in flight, then save again on the sha it returns, but only if
+  // the same file is still open: never another file's untouched draft.
+  if (saving) {
+    if (!saveAgain || saveAgain.doc !== current) saveAgain = { doc: current, auto: auto };
+    else saveAgain.auto = saveAgain.auto && auto;
+    return;
+  }
+  var doc = current;
   var text = editor.getValue();
-  var path = current.path;
+  var path = doc.path;
   flash("Saving...");
   $("btn-save").disabled = true;
+  saving = true;
+  doc.pending = text;
 
-  writeFile(path, text, current.sha).then(function (r) {
+  writeFile(path, text, doc.sha).catch(function (err) {
+    // A commit whose reply was lost (a dropped connection, a page suspended
+    // mid-request) leaves us on the old sha, and the next save looks like a
+    // conflict with ourselves. If GitHub holds exactly what we last sent,
+    // it was ours: carry on from there. Anything else is a real conflict.
+    var own = doc.unsure;
+    if ((err.status !== 409 && err.status !== 422) || typeof own !== "string") throw err;
+    return readFile(path).then(function (r) {
+      if (r.text !== own) throw err;
+      doc.sha = r.sha;
+      return writeFile(path, text, r.sha);
+    });
+  }).then(function (r) {
+    doc.unsure = null;
     if (current && current.path === path) {
       current.sha = r.sha;
       current.saved = text;
@@ -1389,12 +1447,23 @@ function saveCurrent() {
     flash("Saved");
   }).catch(function (err) {
     $("btn-save").disabled = false;
+    if (!err.status) doc.unsure = text;  // may or may not have landed
     if (err.status === 409 || err.status === 422) {
-      if (current && current.path === path) showDiscard(true);
+      if (current && current.path === path) {
+        current.conflict = true;
+        setCrumb(path, "(conflict, not saved)");
+        showDiscard(true);
+      }
       flash("Conflict: " + path + " changed on GitHub. Copy your text, then Discard to load their version.", true);
     } else {
       fail(err);
     }
+  }).then(function () {
+    saving = false;
+    doc.pending = null;
+    var again = saveAgain;
+    saveAgain = null;
+    if (again && again.doc === current) saveCurrent(again.auto);
   });
 }
 
@@ -1767,6 +1836,11 @@ document.addEventListener("keydown", function (e) {
     e.preventDefault();
     saveCurrent();
   }
+});
+
+// A phone may never bring a hidden page back; commit what is there now.
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState === "hidden") saveCurrent(true);
 });
 
 window.addEventListener("beforeunload", function (e) {

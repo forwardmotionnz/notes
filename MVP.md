@@ -37,6 +37,7 @@ Iterations: 1 / 30
 
 ## Needs the owner
 (exact steps for human-only actions)
+- **Give Claude push access to `forwardmotionnz/notes`.** Pushing `claude/pensive-sagan-0vk6ud` was refused (403): Claude's GitHub App has no access to this repository. Connect or reconnect GitHub at https://claude.ai/connect-github, and install the Claude GitHub App on `forwardmotionnz/notes` (an organisation owner may have to approve it). Until then, commits stay in the session's container and are lost if it is reclaimed.
 
 ### C1: gauntlet record
 - G-1: full suite green three runs in a row, Chromium (WebKit arrives with F2).

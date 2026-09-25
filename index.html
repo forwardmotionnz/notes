@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fxyq2h7JGI16AJ7Lcuft+2ONqfeyESi0gtp3yDUQKkY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-E6mZhfsNJqhGpNC+wexzEhQ4kXwIrwq6oh+gh0v83xA=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -186,7 +186,7 @@
   body.plain-editor #degraded { display: inline-block; }
   /* Read-only: said once in the header, and nothing on screen offers to save. */
   body.read-only #readonly { display: inline-block; color: var(--danger); border-color: var(--danger); cursor: pointer; }
-  body.read-only #btn-save, body.read-only #btn-new { display: none; }
+  body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-rename { display: none; }
   body.session-only #ephemeral {
     display: inline-block;
     color: var(--accent);
@@ -477,6 +477,7 @@
     <span id="readonly" title="">read-only</span>
     <span id="ephemeral" title="Session only: you are not remembered on this computer and will be signed out when the browser closes.">session</span>
     <span id="status"></span>
+    <button class="plain" id="btn-rename" hidden title="Rename or move this note">Rename</button>
     <button id="btn-discard" hidden title="Throw away your unsaved changes and load the version on GitHub">Discard</button>
     <button id="btn-save" class="primary" disabled>Save</button>
     <button class="plain only-narrow" id="btn-pins" title="Pinned">&#9745;</button>
@@ -1066,6 +1067,7 @@ window.addEventListener("storage", function (e) {
      describe()                 -> "owner/repo@branch"
      isEmptyRepo()              -> true while the repository has no commits
      repoAccess()               -> "" if writable, else why not
+     moveFile(from, to, sha, mode) -> one commit moving a file, or nothing
    ================================================================ */
 
 var API = "https://api.github.com";
@@ -1077,6 +1079,9 @@ function request(path, options, retried) {
     used = token;
     return fetch(API + path, {
       method: options.method || "GET",
+      // GitHub marks its answers cacheable for 60 s; a stale branch head,
+      // file list or file would make a move or a save act on the past.
+      cache: "no-store",
       headers: {
         "Authorization": "Bearer " + token,
         "Accept": "application/vnd.github+json",
@@ -1241,7 +1246,7 @@ function listTree() {
     repoEmpty = !!data.empty;
     if (data.truncated) flash("Repository is large; the file list is partial.", true);
     var list = (data.tree || []).map(function (n) {
-      return { path: n.path, type: n.type, size: n.size };
+      return { path: n.path, type: n.type, size: n.size, mode: n.mode };
     });
     list.movedTo = data.movedTo;
     return list;
@@ -1296,6 +1301,61 @@ function writeFile(path, text, sha) {
   return request(url, { method: "PUT", body: body }).then(function (data) {
     return { sha: data.content.sha };
   });
+}
+
+/* Move a file in one commit, with the Git Data API: the new path and the
+   removal of the old one go into a single tree and commit, and the branch
+   only then moves, fast-forward only. Nothing is visible before that last
+   step, so a failure at any point leaves the repository as it was.
+   https://docs.github.com/en/rest/git/refs , .../git/commits , .../git/trees
+   `sha` is the version the person has open: if the file at the branch head
+   is not that version, or the target exists, nothing is done. Another
+   commit landing meanwhile (the branch would not fast-forward) is retried
+   on top of it. */
+function moveFile(from, to, sha, mode) {
+  var git = repoPath() + "/git";
+  var ref = "heads/" + encodePath(cfg.branch);
+  function contentsAt(path, head) {
+    return request(repoPath() + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(head),
+                   { allow404: true });
+  }
+  function attempt(tries) {
+    return request(git + "/ref/" + ref).then(function (r) {
+      var head = r.object.sha;
+      return Promise.all([contentsAt(from, head), contentsAt(to, head), request(git + "/commits/" + head)])
+        .then(function (got) {
+          if (!got[0] || got[0].sha !== sha) {
+            throw new Error(from.split("/").pop() + " has changed on GitHub since it was opened; " +
+                            "open it again, then rename it.");
+          }
+          if (got[1]) throw new Error(to + " already exists.");
+          return request(git + "/trees", { method: "POST", body: { base_tree: got[2].tree.sha, tree: [
+            { path: to, mode: mode || "100644", type: "blob", sha: sha },
+            { path: from, mode: mode || "100644", type: "blob", sha: null }
+          ] } }).then(function (tree) {
+            return request(git + "/commits", { method: "POST",
+              body: { message: "Rename " + from + " to " + to, tree: tree.sha, parents: [head] } });
+          }).then(function (commit) {
+            return request(git + "/refs/" + ref, { method: "PATCH", body: { sha: commit.sha, force: false } })
+              .catch(function (err) {
+                // No answer at all: the move may have landed. It did if the
+                // new path now holds this version and the old one is gone.
+                if (err.status) throw err;
+                return request(git + "/ref/" + ref).then(function (r2) {
+                  return Promise.all([contentsAt(to, r2.object.sha), contentsAt(from, r2.object.sha)]);
+                }).then(function (after) {
+                  if (after[0] && after[0].sha === sha && !after[1]) return {};
+                  throw err;
+                }, function () { throw err; });
+              });
+          }).catch(function (err) {
+            if (err.status === 422 && /fast.?forward/i.test(err.detail || "") && tries < 2) return attempt(tries + 1);
+            throw err;
+          });
+        });
+    });
+  }
+  return attempt(0);
 }
 
 function describe() {
@@ -1461,7 +1521,7 @@ function applyAccess(reason) {
   readOnly = reason;
   document.body.classList.toggle("read-only", !!reason);
   $("readonly").title = reason;
-  if (editor && editor.setOption) editor.setOption("readOnly", !!reason);
+  if (editor && editor.setOption) editor.setOption("readOnly", !!reason || moving);
   $("pin-input").disabled = !!reason;
   $("pin-go").disabled = !!reason;
   if (was !== reason) renderPins();
@@ -1756,6 +1816,8 @@ function showDiscard(on) {
 }
 
 function setCrumb(path, tag) {
+  // Rename is for a file that exists on GitHub (not a new one yet).
+  $("btn-rename").hidden = !(current && current.sha && current.path === path);
   var el = $("crumb");
   el.textContent = "";
 
@@ -2022,6 +2084,94 @@ function newFile() {
   ui.last = path;                      // so a reload finds its way back to the draft
   persist(UI_KEY, ui);
   syncDraft();
+}
+
+/* Rename or move the open note. Unsaved words are saved first; the note is
+   locked while it moves; then it is the same note at its new path (same
+   content, so nothing is re-read and nothing typed can go missing), and
+   other tabs are told so theirs follows too. */
+var moving = false;
+var moveChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel("notes-moves") : null;
+
+function renameCurrent() {
+  if (!current || !current.sha || readOnly) return;
+  if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
+  var doc = current, from = doc.path;
+  var to = prompt("Rename or move to (the full path in the repository)", from);
+  if (!to) return;
+  to = to.replace(/^\/+/, "").trim();
+  // No extension given: keep the note's own, so it stays a note.
+  var ext = (from.match(/\.[^./]+$/) || [""])[0];
+  if (ext && !/\.[^./]+$/.test(to.split("/").pop())) to += ext;
+  if (!to || to === from) return;
+  var why = renameProblem(from, to);
+  if (why) { flash("Not renamed: " + why, true); return; }
+
+  flash("Renaming...");
+  if (dirty() && !doc.conflict) saveCurrent();
+  var saved = inflight && inflight.key === draftKey(from) ? inflight.done : Promise.resolve();
+  saved.then(function () {
+    if (current !== doc || dirty()) throw new Error("save your changes first.");
+    clearTimeout(autosaveTimer);
+    moving = true;                     // nothing typed now could be kept
+    if (editor.setOption) editor.setOption("readOnly", true);
+    return moveFile(from, to, doc.sha, modeOf(from));
+  }).then(function () {
+    followMove(from, to);
+    if (moveChannel) moveChannel.postMessage({ repo: describe(), from: from, to: to });
+    flash("Renamed to " + to + ".");
+    refreshTree();
+  }).catch(function (err) {
+    flash("Not renamed: " + (err.message || "could not reach GitHub."), true);
+  }).then(function () {
+    moving = false;
+    if (editor.setOption) editor.setOption("readOnly", !!readOnly);
+  });
+}
+
+// Why a note cannot be moved to `to` here, or "".
+function renameProblem(from, to) {
+  if (files.some(function (f) { return f.path === to; })) return to + " already exists.";
+  var parts = to.split("/");
+  for (var k = 1; k < parts.length; k++) {
+    var dir = parts.slice(0, k).join("/");
+    if (files.some(function (f) { return f.path === dir && f.type === "blob"; })) return dir + " is a file, not a folder.";
+  }
+  if (!isTextFile(to) || isHidden(to)) return "the app could not open it there; choose a name ending in .md or another text type, not in a dot-folder.";
+  var mode = modeOf(from);
+  if (mode !== "100644" && mode !== "100755") return "it is a link or a special file; rename it on GitHub.";
+  return "";
+}
+
+function modeOf(path) {
+  return (files.filter(function (f) { return f.path === path; })[0] || {}).mode;
+}
+
+/* The note at `from` is now at `to`, same content: re-point whatever this
+   tab holds for it (the open note, its draft, pins, the last-open file). */
+function followMove(from, to) {
+  if (current && current.path === from) {
+    var d = readDraft(from);
+    if (d) { try { draftStore().setItem(draftKey(to), JSON.stringify(d)); } catch (e) {} dropDraft(from); }
+    current.path = to;
+    setCrumb(to, dirty() ? "(unsaved)" : "");
+  }
+  cfg.pins = cfg.pins.map(function (p) { return p === from ? to : p; });
+  if (pinCache[from]) { pinCache[to] = pinCache[from]; delete pinCache[from]; }
+  if (ui.last === from) ui.last = to;
+  saveCfg();
+  persist(UI_KEY, ui);
+  renderPinTabs();
+  renderPins();
+}
+
+if (moveChannel) {
+  moveChannel.onmessage = function (e) {
+    var m = e.data || {};
+    if (m.repo !== describe() || typeof m.from !== "string" || typeof m.to !== "string") return;
+    followMove(m.from, m.to);
+    refreshTree();
+  };
 }
 
 function discardDraft() {
@@ -2416,6 +2566,7 @@ $("who-avatar").addEventListener("error", function () { this.style.visibility = 
 
 $("btn-save").onclick     = saveCurrent;
 $("btn-discard").onclick  = discardDraft;
+$("btn-rename").onclick   = renameCurrent;
 $("btn-new").onclick      = newFile;
 $("btn-refresh").onclick  = refreshTree;
 $("btn-settings").onclick = openSettings;

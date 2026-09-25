@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 13 / 30
+Iterations: 14 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -18,7 +18,7 @@ Iterations: 13 / 30
 | B1 | 6 | done | `tests/empty.test.mjs` 19/19: an empty repository is named as such with how to start, no error; the first note and the first pinned task create it (without naming a branch that does not exist yet), and later saves name the branch; the tree updates after a first task; a 409 that is not "empty" is not called empty; a list that failed to load says so and never shows another repository's files; a vanished branch is followed to the default branch, with a note, and saves go there; a pinned task that fails to save goes back in the box. The fake models empty repositories, branches and the repository's default branch per GitHub's docs (URLs in the harness). Screens `tests/screens/b1-*.png`; commit 800e3ed |
 | B3 | 7 | done | `tests/access.test.mjs` 30/30: archived and read-only repositories show a badge with the reason, keep notes readable, lock the editor, hide Save and New, disable the pinned capture and checkboxes, and send nothing (no draft either); a repository archived while someone types locks the open note and sends neither Save nor autosave, keeping the text as a draft; nothing (task or save) is sent before access is known; a late answer about one repository is not applied to another; a repository that is gone locks and says so with what to do; tapping the badge on a phone says why; a writable repository is unaffected. The fake's repository object carries `archived` and `permissions` per GitHub's docs. Screens `tests/screens/b3-*.png`; commit d32c97f |
 | A1 | 8 | done | `tests/shared.test.mjs` 18/18: someone else signs in to the same deployment and is offered every repository across a personal and 101 organisation installations (253, over several pages of installations and of repositories) and writes a note in an organisation repository; paging survives smaller pages than asked for and a missing total; one installation failing leaves the rest listed, with a note; installations are asked at most four at a time; the repository in use is never swapped silently; Save works before a long list arrives; an install waiting for an organisation owner's approval says so. The fake pages both endpoints as GitHub documents. Owner step (make the App public) under Needs the owner. Commit 7a955b3 |
-| D1 | 9 | todo | |
+| D1 | 9 | done | `tests/rename.test.mjs` 49/49: one commit moves the file to a new path or folder, the editor, tree and pins follow, later saves go there; a failure at each of the five requests leaves the repository as it was and says so; a file changed elsewhere is not moved in its old form; an existing target (known or appeared since) is never overwritten; another commit meanwhile is built on, never forced over; unsaved words go with the file; the note is locked while it moves (a refresh cannot unlock it) and is the same note at its new path at once; another tab follows; a lost reply is recognised; a name without an extension keeps the note's own; unopenable targets, a path through a file, and links are refused; every GitHub request skips the browser cache; no Rename in a read-only repository. The fake Git database is modelled on GitHub's docs (trees built from their base, fast-forward-only refs). Screens `tests/screens/d1-*.png`; commit COMMIT |
 | D2 | 10 | todo | |
 | E1 | 11 | todo | |
 | B2 | 12 | todo | |
@@ -87,6 +87,10 @@ Iterations: 13 / 30
 ### A1: plan
 - Done looks like: someone who is not the owner signs in to the owner's deployment, installs the app on their own personal account or an organisation (several installations at once), and every repository across all of them is offered, however many pages GitHub splits them into; they pick one and write a note there. What only the owner can do (making the App installable by anyone) goes under Needs the owner, and the README's App settings say so.
 - Proof: `tests/shared.test.mjs` against a fake that pages both installation endpoints as GitHub documents (`per_page`, `page`, `total_count`, `Link`), with URLs in the harness.
+
+### D1: plan
+- Done looks like: a Rename button beside the open file's name moves it to any path (a new name, another folder) in one commit made with the Git Data API. Nothing is visible until the branch moves, and the branch only moves forward, so a failure at any step leaves the repository as it was. Before moving, the app checks at that exact commit that the file is still the version open, and that the target does not exist. Unsaved changes are saved first; pins and the last-open file follow the move.
+- Proof: `tests/rename.test.mjs` against a fake Git database modelled on GitHub's docs (URLs in the harness): the move, a failure at each step, a change made elsewhere, an existing target, another commit landing meanwhile, and a read-only repository.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -188,6 +192,13 @@ Iterations: 13 / 30
 - G-3 findings: (1) one failing installation (suspended, SAML, a 5xx) emptied the whole list and locked a first-time user out: the rest are listed, with a note; test. (2) Hundreds of installations meant hundreds of simultaneous requests, against GitHub's guidance: at most four at a time; test. Not changed: each Settings open still costs about one request per 100 repositories per installation plus one per installation; recorded here as the known cost. (3) A repository shifting between pages dropped the one in use, and Save then silently switched to the first: the repository in use is always kept and selected; test. (4) An install awaiting an organisation owner's approval was described as done: it now says the owners have been asked; test. Not verified: whether GitHub puts a code on that return; handled either way. (5) SAML SSO hides an organisation's repositories silently; the app cannot tell, so README explains the fix. (6) A slow list locked pins and "Forget me": Save works at once with the repository in use; test. Older, not changed: `redirectUri()` is the page's own path, so a link to `/notes/index.html` would not match a callback of `/notes/`; noted for H1's "Try it" link.
 - G-4: nothing new on screen but the hint's wording. G-5: no dependency or request beyond GitHub's API; `index.html` about 94 KB. G-6: README step 2 says *Any account*, and a new "Sharing your copy" section covers others signing in, organisations, approvals and SAML.
 
+### D1: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught: the version check at head, both existence checks, the retry on another commit, fast-forward only, pins following, saving first, the lock (and that a refresh cannot lift it), re-pointing instead of re-reading, telling other tabs, checking a lost reply, keeping the extension, refusing unopenable targets, paths through a file and links, and no-store. The first G-2 pass found that `force: true` went unnoticed because my fake applied only the changes; it now builds each tree from its base like git, so a forced update really drops what came between, and the test catches it.
+- Rule 6: git refs (get, update with force false: 422 if not a fast-forward), commits (get, create with parents), trees (create with base_tree; a null sha deletes) follow GitHub's docs, with URLs in the harness. Not modelled: symlink contents (the app refuses modes other than 100644/100755 instead), HTTP caching (the app asks for no-store), a nested path through a file (the app refuses first).
+- G-3 findings: (1) another tab with the old path open would recreate it: tabs are told over BroadcastChannel (no storage, so session-only mode is unaffected) and their note, draft and pins follow; test. Another device editing the old path is the same as a file deleted elsewhere: its save fails as a conflict; noted for D2 and G3. (2) Words typed right after a rename were lost while the file was re-read: the note is re-pointed instead, same content, no window; test. (3) A refresh during the move unlocked the note: the lock holds; test. (4) A move whose reply was lost said "Not renamed": the app checks whether it landed; test. (5) Renaming to a name the app cannot open stranded the note: a missing extension keeps the note's own, and unopenable names, dot-folders and paths through a file are refused; tests. (6) GitHub's 60-second cache could serve a stale head or list: all GitHub requests are no-store; test. (7) A symlink would have been rewritten as a file holding the note's text: links and unknown modes are refused; test. (8) A nested path through an existing file: refused before asking GitHub; test. Minor, not changed: a 409 from the git endpoints reads as "the file changed", which fits G3's error wording.
+- G-4: Rename sits beside the file name in the header, legible at 1280 and 390 px, light and dark, with no overflow. G-5: no dependency or request beyond GitHub's API; `index.html` about 101 KB. G-6: README lists Rename under "What it does".
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -201,6 +212,7 @@ Iterations: 13 / 30
 - 2026-09-25: Line endings are kept per line, by diffing the editor text against the text as read, rather than by picking one ending per file. A notes app must never change bytes the user did not touch.
 - 2026-09-25: A return from GitHub's install flow never signs anyone in. Where the app cannot know whether the computer is shared, it defaults to "Forget me": the cost is signing in again, while the other mistake leaves a six-month token on someone else's disk.
 - 2026-09-25: Remembered tabs share one set of settings and follow each other; session-only tabs keep their own. Two remembered tabs on different repositories cannot be kept apart without per-tab storage, and the last writer silently winning was worse.
+- 2026-09-25: Rename uses the Git Data API in one commit and a fast-forward-only branch update, rather than the contents API's create-then-delete, so there is no moment with both copies or neither. All GitHub requests skip the browser cache, since GitHub marks answers cacheable for 60 seconds.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -218,3 +230,4 @@ Iterations: 13 / 30
 - 2026-09-25 · B1 · done · 800e3ed
 - 2026-09-25 · B3 · done · d32c97f
 - 2026-09-25 · A1 · done · 7a955b3
+- 2026-09-25 · D1 · done · COMMIT

@@ -208,6 +208,9 @@ Obsidian would not understand, so both can work on the same repository.
 
 - Folder tree of the repository, collapse state remembered
 - Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
+- **Rename** beside the open note's name renames or moves it (type a new
+  path, folders included) in a single commit: it either happens completely
+  or not at all, and it never overwrites another file
 - Pinned files as a live task list with a one-line capture box
 - Filter across every path in the repository
 - Light and dark, and a layout that works on a phone

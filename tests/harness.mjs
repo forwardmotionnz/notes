@@ -97,7 +97,37 @@ export function fakeGitHub(opts = {}) {
              refresh_token_expires_in: 15897600, token_type: 'bearer', scope: '' };
   };
   gh.expireAll = () => { for (const v of gh.access.values()) v.expired = true; };
-  gh.sha = p => 'sha' + createHash('sha1').update(gh.files[p] ?? '').digest('hex').slice(0, 12);
+  // Blob shas map back to their content, so a tree entry can name one.
+  gh.blobs = {};
+  gh.sha = p => {
+    const s = 'sha' + createHash('sha1').update(gh.files[p] ?? '').digest('hex').slice(0, 12);
+    gh.blobs[s] = gh.files[p];
+    return s;
+  };
+  // The branch head: every change to the files is a new commit. Tests that
+  // edit gh.files directly to play "someone else" call gh.touch().
+  gh.version = 1;
+  gh.head = () => 'c' + String(gh.version).padStart(39, '0');
+  gh.touch = () => { gh.version++; };
+  gh.staged = {};              // tree sha -> { base, changes, files }
+  gh.snapshots = {};           // commit sha -> the files at that commit
+  gh.pending = {};             // commit sha -> { tree, parent, message }
+  // Moving a branch, as PATCH git/refs/heads/{branch} does. Exposed so a
+  // test can make the move happen and then lose the reply.
+  gh.patchRef = (full, branch, b, auth) => {
+    const c = gh.pending[b.sha];
+    if (!c) return { status: 422, body: { message: 'Object does not exist' } };
+    if (c.parent !== gh.head() && !b.force) return { status: 422, body: { message: 'Update is not a fast forward' } };
+    // The branch now points at that commit: its tree is the whole truth,
+    // so a forced update really would drop what came in between.
+    const t = gh.staged[c.tree];
+    for (const k of Object.keys(gh.files)) delete gh.files[k];
+    Object.assign(gh.files, t.files);
+    gh.touch();
+    gh.commits.push({ repo: full, path: Object.keys(t.changes).join(' -> '), message: c.message,
+                      branch, token: auth, moved: t.changes });
+    return { status: 200, body: { ref: 'refs/heads/' + branch, object: { type: 'commit', sha: gh.head() } } };
+  };
 
   // What github.com/login/oauth/access_token does.
   gh.tokenEndpoint = form => {
@@ -297,6 +327,52 @@ export async function context(gh, opts = {}) {
     if (gh.unavailable && /\/git\/trees\//.test(p)) {
       return json({ message: 'Repository access blocked', status: '409' }, 409);
     }
+    // The Git database, enough for one commit that moves a file:
+    // https://docs.github.com/en/rest/git/refs  (get a reference; update a
+    // reference, force false = fast-forward only, else 422)
+    // https://docs.github.com/en/rest/git/commits  (get / create a commit)
+    // https://docs.github.com/en/rest/git/trees#create-a-tree  (base_tree;
+    // an entry whose sha is null deletes that path)
+    const gitRef = p.match(/^\/repos\/[^/]+\/[^/]+\/git\/(ref|refs)\/heads\/(.+)$/);
+    if (gitRef && req.method() === 'GET' && gitRef[1] === 'ref') {
+      if (gitRef[2] !== branchOf(full)) return json({ message: 'Not Found' }, 404);
+      return json({ ref: 'refs/heads/' + gitRef[2], object: { type: 'commit', sha: gh.head() } });
+    }
+    if (gitRef && req.method() === 'PATCH' && gitRef[1] === 'refs') {
+      const r = gh.patchRef(full, gitRef[2], JSON.parse(req.postData() || '{}'), auth);
+      return json(r.body, r.status);
+    }
+    const gitCommit = p.match(/^\/repos\/[^/]+\/[^/]+\/git\/commits(?:\/(.+))?$/);
+    if (gitCommit && req.method() === 'GET') {
+      if (gitCommit[1] !== gh.head()) return json({ message: 'Not Found' }, 404);
+      gh.snapshots[gh.head()] = { ...gh.files };
+      return json({ sha: gh.head(), tree: { sha: 't' + gh.head().slice(1) } });
+    }
+    if (gitCommit && req.method() === 'POST') {
+      const b = JSON.parse(req.postData() || '{}');
+      if (!gh.staged[b.tree]) return json({ message: 'Tree SHA does not exist' }, 422);
+      const sha = 'n' + String(Object.keys(gh.pending).length + 1).padStart(39, '0');
+      gh.pending[sha] = { tree: b.tree, parent: (b.parents || [])[0], message: b.message };
+      return json({ sha, tree: { sha: b.tree } }, 201);
+    }
+    if (/^\/repos\/[^/]+\/[^/]+\/git\/trees$/.test(p) && req.method() === 'POST') {
+      const b = JSON.parse(req.postData() || '{}');
+      const changes = {};
+      for (const e of b.tree || []) {
+        if (e.sha !== null && !(e.sha in gh.blobs)) return json({ message: 'tree.sha ' + e.sha + ' is not a valid blob' }, 422);
+        changes[e.path] = e.sha;
+      }
+      // A new tree is the base tree with these entries changed, as in git.
+      const base = gh.snapshots['c' + String(b.base_tree || '').slice(1)];
+      if (!base) return json({ message: 'base_tree is not a valid tree' }, 422);
+      const next = { ...base };
+      for (const [path, blob] of Object.entries(changes)) {
+        if (blob === null) delete next[path]; else next[path] = gh.blobs[blob];
+      }
+      const sha = 's' + String(Object.keys(gh.staged).length + 1).padStart(39, '0');
+      gh.staged[sha] = { base: b.base_tree, changes, files: next };
+      return json({ sha }, 201);
+    }
     const treeRef = (p.match(/\/git\/trees\/(.+)$/) || [])[1];
     if (!gh.empty && treeRef && treeRef !== branchOf(full)) return json({ message: 'Not Found', status: '404' }, 404);
     if (gh.empty && /\/git\/trees\//.test(p)) {
@@ -312,7 +388,7 @@ export async function context(gh, opts = {}) {
         ...[...dirs].map(d => ({ path: d, type: 'tree' })),
         // Tree entries carry the blob's size in bytes:
         // https://docs.github.com/en/rest/git/trees#get-a-tree
-        ...Object.keys(gh.files).map(k => ({ path: k, type: 'blob', sha: gh.sha(k),
+        ...Object.keys(gh.files).map(k => ({ path: k, mode: (gh.modes || {})[k] || '100644', type: 'blob', sha: gh.sha(k),
           size: Buffer.byteLength(gh.files[k], gh.raw[k] ? 'latin1' : 'utf-8') })),
       ]});
     }
@@ -322,7 +398,7 @@ export async function context(gh, opts = {}) {
       if (req.method() === 'GET') {
         if (gh.empty) return json({ message: 'This repository is empty.', status: '404' }, 404);
         const ref = new URL(req.url()).searchParams.get('ref');
-        if (ref && ref !== branchOf(full)) return json({ message: 'No commit found for the ref ' + ref, status: '404' }, 404);
+        if (ref && ref !== branchOf(full) && ref !== gh.head()) return json({ message: 'No commit found for the ref ' + ref, status: '404' }, 404);
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         // Files between 1 and 100 MB come back with an empty content and
         // encoding "none": https://docs.github.com/en/rest/repos/contents#get-repository-content
@@ -348,6 +424,7 @@ export async function context(gh, opts = {}) {
         if (!exists && b.sha) return json({ message: 'sha given for new file' }, 422);
         gh.files[path] = Buffer.from(b.content, 'base64').toString('utf-8');
         gh.empty = false;
+        gh.touch();
         gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth });
         gh.log.lastPutHadBranch = 'branch' in b;
         return json({ content: { path, sha: gh.sha(path) } });

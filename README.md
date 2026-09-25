@@ -111,7 +111,9 @@ browser. On a phone, open the URL and choose *Add to Home Screen*.
 
 On a work or shared computer, tick **Forget me when I close the browser**
 before signing in. Nothing is written to disk and closing the browser signs
-you out. A `session` badge in the header shows which mode you are in.
+you out. Drafts of unsaved changes still survive a reload in this mode, but
+not closing the browser, so save before you leave. A `session` badge in the
+header shows which mode you are in.
 
 Sign-ins last six months per browser; the app renews the short-lived token
 every eight hours without asking. Several tabs open at once share one sign-in
@@ -141,6 +143,14 @@ Obsidian would not understand, so both can work on the same repository.
 Each save is one commit. A write carries the version it was based on, so if
 the file changed underneath you GitHub rejects it: you are told, and your text
 stays in the editor. Nothing is silently overwritten.
+
+Unsaved changes are kept in the browser as you type, one draft per file, so a
+reload, a closed tab or a phone closing the app in the background loses
+nothing. Open the file again and the draft is back, marked *unsaved draft*;
+saving commits it and removes it, **Discard** throws it away and loads the
+version on GitHub. A draft remembers which version it started from, so if the
+file changed on GitHub in the meantime, saving reports a conflict instead of
+overwriting. Signing out deletes every draft in that browser.
 
 ## What it deliberately does not do
 

@@ -138,13 +138,14 @@
     text-overflow: ellipsis;
   }
   #crumb .name { flex: none; color: var(--fg); font-weight: 600; }
-  #crumb .tag { flex: none; color: var(--fg-soft); padding-left: 6px; }
+  #crumb .tag { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg-soft); padding-left: 6px; }
   #status {
     font-size: 12px;
     color: var(--fg-soft);
     white-space: nowrap;
   }
   #status.err { color: var(--danger); }
+  #btn-discard[hidden] { display: none; }
   /* Header badges: the editor fell back to a textarea, and settings are
      session-only. Both are states you want to notice without being told. */
   #degraded, #ephemeral {
@@ -432,6 +433,12 @@
 
     main { position: relative; overflow: hidden; }
     #crumb { font-size: 12px; }
+
+    /* A message long enough to matter (a restored draft, a conflict) would
+       push Save off a phone screen. It gets a line of its own instead. */
+    header { flex-wrap: wrap; }
+    #status { order: 10; flex-basis: 100%; white-space: normal; }
+    #status:empty { display: none; }
   }
 </style>
 </head>
@@ -444,6 +451,7 @@
     <span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
     <span id="ephemeral" title="Session only: you are not remembered on this computer and will be signed out when the browser closes.">session</span>
     <span id="status"></span>
+    <button id="btn-discard" hidden title="Throw away your unsaved changes and load the version on GitHub">Discard</button>
     <button id="btn-save" class="primary" disabled>Save</button>
     <button class="plain only-narrow" id="btn-pins" title="Pinned">&#9745;</button>
     <button class="plain" id="btn-settings" title="Settings">&#9881;</button>
@@ -605,6 +613,91 @@ function persist(key, val) {
 function forgetStored(key) {
   try { localStorage.removeItem(key); } catch (e) {}
   try { sessionStorage.removeItem(key); } catch (e) {}
+}
+
+/* ---- local drafts --------------------------------------------------
+   Every edit is copied to storage as it happens, one entry per file, so a
+   reload, a closed tab or a phone killing a backgrounded page loses nothing.
+   Written on each change rather than on unload: iOS may discard a page
+   without firing any event. The entry keeps the sha the text was based on,
+   so a restored draft still goes through the conflict check and cannot
+   overwrite a change made on GitHub in the meantime. */
+
+var DRAFT_PREFIX = "notes.draft.v1:";
+var draftWarned = false;
+var draftWritten = null;   // last text this tab stored as a draft
+
+function draftStore() { return sessionOnly ? sessionStorage : localStorage; }
+
+// Keyed by repository and branch as well as path: the same path in another
+// repository is another file.
+function draftKey(path) {
+  return DRAFT_PREFIX + cfg.owner + "/" + cfg.repo + "@" + cfg.branch + ":" + path;
+}
+
+function readDraft(path) {
+  try {
+    var d = JSON.parse(draftStore().getItem(draftKey(path)) || "null");
+    return d && typeof d.text === "string" ? d : null;
+  } catch (e) { return null; }
+}
+
+function dropDraft(path) {
+  try { draftStore().removeItem(draftKey(path)); } catch (e) {}
+}
+
+/* Mirror the open file: a draft while it differs from what is committed,
+   nothing once it does not. Only while signed in, so a tab signed out from
+   elsewhere cannot write drafts back after sign-out removed them. */
+function syncDraft() {
+  if (!current || !signedIn()) return;
+  if (!dirty()) {
+    // Another tab on the same file may have written the draft since; its
+    // text is not ours to throw away.
+    var d = readDraft(current.path);
+    if (d && (d.text === draftWritten || d.text === current.saved)) dropDraft(current.path);
+    return;
+  }
+  try {
+    draftWritten = editor.getValue();
+    draftStore().setItem(draftKey(current.path), JSON.stringify({
+      text: draftWritten, sha: current.sha, at: Date.now()
+    }));
+    draftWarned = false;
+  } catch (e) {
+    // Storage full or blocked: say so once, so nobody relies on a copy
+    // that is not there.
+    if (!draftWarned) flash("Could not keep a local copy of your changes. Save soon.", true);
+    draftWarned = true;
+  }
+}
+
+function draftKeys(store) {
+  var keys = [];
+  try {
+    for (var i = 0; i < store.length; i++) {
+      var k = store.key(i);
+      if (k && k.indexOf(DRAFT_PREFIX) === 0) keys.push(k);
+    }
+  } catch (e) {}
+  return keys;
+}
+
+function forgetDrafts() {
+  [localStorage, sessionStorage].forEach(function (store) {
+    draftKeys(store).forEach(function (k) { try { store.removeItem(k); } catch (e) {} });
+  });
+}
+
+// On changing mode, drafts follow the settings into the other store and no
+// copy is left behind in the one being left.
+function moveDrafts() {
+  var from = sessionOnly ? localStorage : sessionStorage;
+  var to = draftStore();
+  draftKeys(from).forEach(function (k) {
+    try { to.setItem(k, from.getItem(k)); } catch (e) {}
+    try { from.removeItem(k); } catch (e) {}
+  });
 }
 
 function signedIn() {
@@ -1183,12 +1276,19 @@ function ensureEditor() {
   editor.on("change", function () {
     if (!current) return;
     $("btn-save").disabled = !dirty();
+    syncDraft();
   });
   return editor;
 }
 
 function dirty() {
   return !!(current && editor && editor.getValue() !== current.saved);
+}
+
+// Discard is only offered where there is something it would rescue you
+// from: a restored draft, or a save GitHub rejected as a conflict.
+function showDiscard(on) {
+  $("btn-discard").hidden = !on;
 }
 
 function setCrumb(path, tag) {
@@ -1213,26 +1313,50 @@ function setCrumb(path, tag) {
   }
 }
 
-function openFile(path) {
+// `discarding`: the user asked to throw this file's draft away. It is only
+// dropped once GitHub's version is in hand, so a failed fetch leaves the
+// draft, and the editor still tracking it, exactly as they were.
+function openFile(path, discarding) {
   // Guards the restore-on-boot path as well as a click.
   if (!isTextFile(path)) {
     flash(path.split("/").pop() + " is not a text file.", true);
     return;
   }
-  if (dirty() && !confirm("Discard unsaved changes to " + current.path + "?")) return;
+  if (!discarding && dirty()) {
+    if (!confirm("Discard unsaved changes to " + current.path + "?")) return;
+    // They said discard: the draft must not come back the next time the
+    // file is opened, one Save away from being committed.
+    dropDraft(current.path);
+  }
   flash("Opening...");
   readFile(path).then(function (r) {
     ensureEditor();
-    current = { path: path, sha: r.sha, saved: r.text };
-    editor.setValue(r.text);
+    if (discarding) dropDraft(path);
+    var draft = readDraft(path);
+    if (draft && draft.text === r.text) { dropDraft(path); draft = null; }
+
+    // A draft keeps the sha it was based on, not the one just fetched: if
+    // the file moved on since, saving is a conflict rather than an overwrite.
+    // A file that does not exist yet is always saveable, like a new note.
+    current = draft
+      ? { path: path, sha: draft.sha || null, saved: r.sha ? r.text : "\u0000" }
+      : { path: path, sha: r.sha, saved: r.text };
+    editor.setValue(draft ? draft.text : r.text);
     editor.clearHistory();
     editor.refresh();
-    $("btn-save").disabled = true;
-    setCrumb(path);
+    $("btn-save").disabled = !dirty();
+    setCrumb(path, draft ? (r.sha ? "(unsaved draft)" : "(new, unsaved draft)") : "");
+    showDiscard(!!draft);
     ui.last = path;
     persist(UI_KEY, ui);
     renderTree();
-    flash("");
+    if (!draft) flash("");
+    else if ((draft.sha || null) !== r.sha) {
+      flash("Restored your unsaved changes. " + path.split("/").pop() +
+            " has also changed on GitHub, so saving will report a conflict.", true);
+    } else {
+      flash("Restored your unsaved changes to " + path.split("/").pop() + ".");
+    }
   }).catch(fail);
 }
 
@@ -1248,7 +1372,14 @@ function saveCurrent() {
       current.sha = r.sha;
       current.saved = text;
       setCrumb(path);
+      showDiscard(false);
       $("btn-save").disabled = !dirty();
+      syncDraft();                       // gone, or rebased if typed during the save
+    } else {
+      // Committed and then switched away: the draft on disk is what was
+      // just saved, unless it had moved on.
+      var d = readDraft(path);
+      if (d && d.text === text) dropDraft(path);
     }
     if (cfg.pins.indexOf(path) !== -1) {
       delete pinCache[path];
@@ -1259,7 +1390,8 @@ function saveCurrent() {
   }).catch(function (err) {
     $("btn-save").disabled = false;
     if (err.status === 409 || err.status === 422) {
-      flash("Conflict: " + path + " changed on the server. Copy your text, then reopen it.", true);
+      if (current && current.path === path) showDiscard(true);
+      flash("Conflict: " + path + " changed on GitHub. Copy your text, then Discard to load their version.", true);
     } else {
       fail(err);
     }
@@ -1273,7 +1405,12 @@ function newFile() {
   if (!path) return;
   if (!/\.[a-z0-9]+$/i.test(path)) path += ".md";
 
-  if (files.some(function (f) { return f.path === path; })) { openFile(path); return; }
+  // A note already there, or one typed but never committed: open it, never
+  // replace its draft with a fresh template.
+  if (readDraft(path) || files.some(function (f) { return f.path === path; })) {
+    openFile(path);
+    return;
+  }
 
   ensureEditor();
   current = { path: path, sha: null, saved: "\u0000" };   // sentinel: always dirty
@@ -1283,6 +1420,18 @@ function newFile() {
   editor.focus();
   $("btn-save").disabled = false;
   setCrumb(path, "(new)");
+  showDiscard(false);
+  ui.last = path;                      // so a reload finds its way back to the draft
+  persist(UI_KEY, ui);
+  syncDraft();
+}
+
+function discardDraft() {
+  if (!current) return;
+  var path = current.path;
+  if (!confirm("Throw away your unsaved changes to " + path.split("/").pop() +
+               " and load the version on GitHub?")) return;
+  openFile(path, true);
 }
 
 function suggestPath() {
@@ -1529,6 +1678,7 @@ function saveSettings() {
   sessionOnly = $("f-session").checked;
   forgetStored(CFG_KEY);
   forgetStored(UI_KEY);
+  moveDrafts();
   document.body.classList.toggle("session-only", sessionOnly);
 
   if (changedRepo) { ui.open = {}; ui.last = null; }
@@ -1541,6 +1691,7 @@ function saveSettings() {
   if (changedRepo) {
     current = null;
     if (editor) editor.setValue("");
+    showDiscard(false);
   }
   $("crumb").textContent = describe();
 
@@ -1550,9 +1701,20 @@ function saveSettings() {
 }
 
 function forget() {
-  if (!confirm("Sign out on this browser?")) return;
+  syncDraft();
+  var unsaved = draftKeys(draftStore()).map(function (k) {
+    return k.slice(k.indexOf(":", DRAFT_PREFIX.length) + 1);
+  });
+  var warn = unsaved.length
+    ? "\n\nUnsaved changes to " + unsaved.length + (unsaved.length === 1 ? " file" : " files") +
+      " will be deleted: " + unsaved.slice(0, 5).join(", ") + (unsaved.length > 5 ? ", ..." : "") +
+      ". Cancel and save them first if you want to keep them."
+    : "";
+  if (!confirm("Sign out on this browser?" + warn)) return;
   forgetStored(CFG_KEY);
   forgetStored(UI_KEY);
+  forgetDrafts();
+  current = null;                      // nothing may write a draft back on the way out
   location.replace(redirectUri());
 }
 
@@ -1561,6 +1723,7 @@ function forget() {
    ================================================================ */
 
 $("btn-save").onclick     = saveCurrent;
+$("btn-discard").onclick  = discardDraft;
 $("btn-new").onclick      = newFile;
 $("btn-refresh").onclick  = refreshTree;
 $("btn-settings").onclick = openSettings;
@@ -1631,7 +1794,9 @@ function start() {
   $("crumb").textContent = describe();
   renderPins();
   refreshTree().then(function () {
-    if (ui.last && files.some(function (f) { return f.path === ui.last; })) {
+    // A new note that was never committed is not in the tree, but its draft
+    // is still worth reopening.
+    if (ui.last && (readDraft(ui.last) || files.some(function (f) { return f.path === ui.last; }))) {
       openFile(ui.last);
     }
   });

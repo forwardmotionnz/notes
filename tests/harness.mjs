@@ -14,7 +14,15 @@ import { fileURLToPath } from 'url';
 import worker from '../broker/worker.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const PAGE = () => readFileSync(ROOT + 'index.html', 'utf-8');
+// Served as a deployment would be: the copy's own policy (the one that is
+// only connect-src) names the broker this copy uses, here the test one,
+// whatever the file says, so a fork's own settings do not break its tests.
+// `pageEdit` lets a test serve the page edited as a fork would edit it.
+let pageEdit = html => html;
+export const setPageEdit = fn => { pageEdit = fn || (html => html); };
+const PAGE = () => pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
+  /(<meta http-equiv="Content-Security-Policy" content=")connect-src [^"]*(">)/,
+  '$1connect-src https://api.github.com https://broker.test$2'));
 
 export const DEPLOY = {
   clientId: 'Iv23liTESTCLIENT',

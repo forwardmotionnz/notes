@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 4 / 30
+Iterations: 5 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -9,7 +9,7 @@ Iterations: 4 / 30
 | C2 | 2 | done | `tests/autosave.test.mjs` 36/36 (pause commits, steady typing does not, hide commits, Save kept, in-flight save not raced, conflict stops autosave and keeps the draft, restored draft and New wait for typing, plus seven review regressions); screens `tests/screens/c2-{desktop,phone}-{light,dark}.png`; commit 493850a |
 | C3 | 3 | done | `tests/switching.test.mjs` 33/33 (no dialog on switch, New or change of repository; commit on leaving; offline and conflict keep a draft; save in flight; untouched template leaves nothing; right repository; reopening during a commit; failed open; two-tab draft; lost reply across repositories); rewritten drafts/autosave tests listed below; commit ec26502 |
 | G2 | 4 | done | `tests/hostile.test.mjs` 28/28: source scan for HTML sinks (incl. bracket and split spellings); payloads in file, folder, pin and new-note names, note text, task lines, headings, branch, login, a GitHub error message, a pin read error and the sign-in error in the URL; folders and pins named `constructor`, `__proto__`, `toString`, `valueOf`, `hasOwnProperty`; tripwire never set and no payload element created. Screens `tests/screens/g2-{desktop,phone}-{light,dark}.png`; commit 981fd4d |
-| G1 | 5 | todo | |
+| G1 | 5 | done | `tests/csp.test.mjs` 26/26 (runs first in `npm test`): two policies present and shaped as intended; inline script hash listed; no inline handlers; fetch, image, beacon, WebSocket, form, injected `<script>` and `<base>` to a third party all blocked and nothing reached it; a copy filled in exactly as the README says signs in end to end with nothing injected; the broker check agrees with the browser on 13 cases; a mismatched broker is reported and sign-in withheld. All 10 suites pass under the policy. Screens `tests/screens/g1-{desktop,phone}-{light,dark}.png`; commit COMMIT |
 | N1 | 5a | todo | From G2 review: a note with CRLF line endings opens as an "unsaved draft" nobody made (the editor normalises to LF), Discard cannot clear it, and any edit rewrites every line ending. Must open clean and save with the file's own line endings. |
 | N2 | 5b | todo | From G2 review: signing in with "Forget me" ticked, then "Choose repositories" (opens a new tab, returns with `setup_action`) starts a remembered sign-in there and writes a 6-month refresh token to localStorage. Session-only must survive that round trip. |
 | N3 | 5c | todo | From G2 review: Save in Settings (or signing in) in one tab fires a storage event with no value first, and every other tab drops to the sign-in view with no way back but a new sign-in. |
@@ -51,8 +51,13 @@ Iterations: 4 / 30
 - Done looks like: no `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `document.write` anywhere in the app; every other place repo or user content reaches the DOM (tree, filter results, crumb, status, pins, repository picker, account, editor) goes through text nodes, and each is marked with a comment saying why it is safe. Hostile file names, folder names, note contents, task lines, headings, a hostile GitHub error message and a hostile login never execute or create elements.
 - Proof: `tests/hostile.test.mjs`: a source scan for HTML sinks (fails today on four static `innerHTML`s), and a repository full of payloads rendered in every view with a tripwire that any executed payload would set.
 
+### G1: plan
+- Done looks like: a `<meta>` Content Security Policy (GitHub Pages cannot set headers) with `default-src 'none'`; scripts only from the inline script's own hash and the pinned CodeMirror path on cdnjs; `connect-src` only api.github.com and the broker; `img-src` only the app, GitHub avatars and `data:`; `form-action`, `base-uri` and `object-src` none. A copy whose broker is missing from the policy says so instead of failing silently. README tells forks to update the policy with the broker.
+- Proof: `tests/csp.test.mjs`: fetch, image, beacon, WebSocket, form post and injected `<script>`/`<base>` towards a third-party host are all blocked and never reach the network; the inline script's hash is in the policy; the rest of the suite passes with the policy on.
+
 ## Needs the owner
 (exact steps for human-only actions)
+- **Optional, hardening: pin the CodeMirror files by hash (Subresource Integrity).** This container cannot reach cdnjs, so the hashes could not be computed here. Open https://cdnjs.com/libraries/codemirror/5.65.16, and for each of `codemirror.min.css`, `codemirror.min.js`, `mode/xml/xml.min.js` and `mode/markdown/markdown.min.js` use "Copy SRI". Add `integrity="sha512-…" crossorigin="anonymous" referrerpolicy="no-referrer"` to the matching `<link>` and `<script>` tags in `index.html`. The app script's hash does not change (those tags are outside it). If a hash is wrong, the editor falls back to the plain text box with its `plain` badge, which is how you would notice.
 - ~~Give Claude push access to `forwardmotionnz/notes`.~~ Done by the owner on 2026-09-25; branch pushed.
 
 ### C1: gauntlet record
@@ -86,6 +91,12 @@ Iterations: 4 / 30
 - G-3 findings: (1) a folder named `constructor`, `__proto__`, `toString`… emptied the whole tree (and a pin with such a name broke the pin pane): fixed with prototype-free maps, tests. (2) Four sinks were listed but not exercised (repository label, header folder, pin error, empty-pin notice): three now carry payloads in the test. The repository label is refuted as unreachable: GitHub restricts owner and repository names to letters, digits, `.`, `-` and `_`, and the label is built with `new Option(text)`, which cannot parse HTML. A fake that returned `<` in a repository name would describe a GitHub that does not exist (rule 6). (3) A new comment credited a CSP that is not there yet: corrected. The regex dodge `el["inner"+"HTML"]` is now caught by the scan. Findings (4)–(7) are real but outside G2 and are now ledger items N1–N4 (CRLF drafts, session-only lost via "Choose repositories", storage-event sign-in flash, crafted error link).
 - G-4: rows rebuilt without `innerHTML` look as before; hostile names show as plain text, light and dark, 1280 and 390 px. Long names are clipped at the sidebar edge as before (unchanged). G-5: no new dependency or request, `index.html` 66 KB. G-6: nothing a user would notice changed, except that folders with those names now show up; no doc claimed otherwise.
 
+### G1: gauntlet record
+- G-1: full suite green three runs in a row, Chromium, with the policy on for every suite.
+- G-2: each directive loosened alone and caught (connect-src opened, img-src opened, no form-action, no base-uri, no default-src, `'unsafe-inline'` added), and the broker check switched off (with the hash recomputed so only that changed).
+- G-3 findings: (1) BLOCKER: filling in `DEPLOYMENT` as the README said changed the hashed script, so a real fork got a dead page. The tests missed it because they injected settings instead of editing the file. Fixed: settings live in a `<script type="application/json">` data block, which is not code and not hashed. The policy is split in two: the app's own (hash, images, forms, base) and the copy's own (connect-src only). A fork edits only the second, so merging upstream never conflicts with the hash. New test: a page filled in exactly as the README says, with nothing injected, signs in end to end. (2) A fork's `npm test` stayed red and never printed the hash: the harness now rewrites the copy's policy whatever broker it holds, and the CSP suite runs first. (3) Windows line endings would print a hash that does not match the served file: `.gitattributes` pins `index.html` to LF. (4) The broker check rejected trailing slash, upper case, wildcard, no scheme, port and path forms the browser accepts: now matched per the CSP source grammar, 13 cases tested (it also caught a gap in my first version: a scheme-less source on an http page also allows https). (5) With a wrong broker entry, users already signed in are signed out at the next refresh: this is the "unreachable broker signs you out" bug already noted for G3, and fixing it there covers this. (6) "Nowhere else" overclaimed: navigation (location, window.open, links, meta refresh) and DNS prefetch cannot be stopped by any CSP. The policy comment, the test and README Known limits now say so. The WebSocket result is now asserted through the violation report. Writes through GitHub itself (e.g. into a public repository) cannot be stopped by CSP either; that is what G2's "nothing gets in" is for. No integrity hashes on the CodeMirror tags: cdnjs is unreachable from here, so steps are in Needs the owner.
+- G-4: the new "broker not allowed" notice is legible at 1280 and 390 px, light and dark. G-5: no new dependency, no new request; `index.html` about 70 KB. G-6: README step 4 rewritten for the data block and the copy's policy; Known limits says what CSP cannot stop.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -95,6 +106,7 @@ Iterations: 4 / 30
 - 2026-09-25: Leaving a file commits it rather than asking. A person switching files wants their words kept, and the history holds anything they regret; offline or in conflict, the draft keeps it instead.
 - 2026-09-25: No `innerHTML` at all, rather than "only with static strings": a rule a test can enforce beats a judgement each reader must repeat.
 - 2026-09-25: Review findings outside the current item become ledger items (N1–N4) rather than widening the item. They go straight after G1 because three of them touch data or sign-in.
+- 2026-09-25: The policy is a `<meta>` tag because GitHub Pages cannot send headers, and it comes in two parts. The app's part pins its one inline script by sha256 rather than allowing `'unsafe-inline'`. Deployment settings moved into a JSON data block so that a fork's edits never touch the hash.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -103,3 +115,4 @@ Iterations: 4 / 30
 - 2026-09-25 · C2 · done · 493850a
 - 2026-09-25 · C3 · done · ec26502 (pushed once the owner granted access)
 - 2026-09-25 · G2 · done · 981fd4d
+- 2026-09-25 · G1 · done · COMMIT

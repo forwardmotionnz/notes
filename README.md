@@ -85,15 +85,37 @@ Request/Response handler and runs on Deno Deploy, Bun, or a small Node server.
 
 ### 4. Point the app at your deployment
 
-Near the top of the script in `index.html`:
+Two edits in `index.html`, both plain text.
 
-```js
-var DEPLOYMENT = {
-  clientId: "Iv23li...",                                   // step 2
-  appSlug:  "roldaof-notes",                               // step 2
-  broker:   "https://notes-token-broker.<you>.workers.dev" // step 3
-};
+The deployment block, just above the script:
+
+```html
+<script type="application/json" id="deployment">
+{
+  "clientId": "Iv23li...",
+  "appSlug":  "roldaof-notes",
+  "broker":   "https://notes-token-broker.<you>.workers.dev"
+}
+</script>
 ```
+
+`clientId` and `appSlug` come from step 2, `broker` from step 3.
+
+The second `Content-Security-Policy` tag at the very top, the one that is
+only `connect-src`: replace `https://notes-token-broker.REPLACE_ME.workers.dev`
+with the same broker origin.
+
+```html
+<meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.<you>.workers.dev">
+```
+
+That policy is the list of hosts the page may talk to at all, so if anything
+ever got into the page it could reach GitHub and your broker and nothing
+else. If the broker there and in the deployment block do not match, the
+sign-in screen says so. Leave the first policy alone: it pins the app's own
+script by its hash, and your edits above do not affect it. (If you change the
+app's script, `npm test` fails first thing and prints the new hash to paste
+into that first policy.)
 
 Commit and push. Pages redeploys on its own.
 
@@ -193,6 +215,11 @@ rotates single-use refresh tokens the way GitHub does. Nothing touches the
 network.
 
 ## Known limits
+
+- The Content Security Policy stops the page sending data to any host but
+  GitHub and the broker by request, image, beacon, socket or form. No policy
+  can stop a script navigating the page away or making DNS lookups, so it
+  narrows what injected code could do; the app is built so none gets in.
 
 - Very large repositories: GitHub truncates the file listing; the app says so.
 - CodeMirror loads from a CDN. If it fails, the editor falls back to a plain

@@ -2,6 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!--
+  Content Security Policy, in two parts. The browser enforces both, so a
+  request must pass each of them.
+
+  The first belongs to the app: scripts only from the one inline script
+  below (by its hash) and the pinned CodeMirror files, images only from here
+  and GitHub, no forms, no <base>, no plugins. Leave it alone when you run
+  your own copy. If you change the app's script, `npm test` fails and prints
+  the new sha256 to paste in.
+
+  The second belongs to your copy: connect-src says which hosts the page may
+  talk to at all, GitHub's API and your broker. Put your broker's origin
+  there, the same one as in the deployment block further down; the sign-in
+  view tells you if they do not match.
+
+  What this does not stop: no policy can stop a script from navigating the
+  page (location, window.open, a link) or from DNS lookups. It narrows what
+  injected code could do; it is not a reason to let any in.
+  GitHub Pages cannot send headers, so both live here.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-2FF+HRBj+Hgwy/RmtG8i9+yq+8b+kRFrjKjOFVi17rY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
 
@@ -503,8 +525,10 @@
 
       <div id="signin-error" class="note err" hidden></div>
       <div id="not-deployed" class="note" hidden>
-        This copy has not been set up yet. Fill in <code>DEPLOYMENT</code> near
-        the top of the script in <code>index.html</code>; the README explains how.
+        <span id="why-setup">This copy has not been set up yet. Fill in <code>DEPLOYMENT</code> near
+        the top of the script in <code>index.html</code>; the README explains how.</span>
+        <span id="why-csp">This copy's broker is not allowed by its Content-Security-Policy. Add
+        the broker's origin to <code>connect-src</code> at the top of <code>index.html</code>.</span>
       </div>
     </div>
   </div>
@@ -513,7 +537,7 @@
   <div id="view-account" hidden>
     <div class="dlg-body">
       <div class="who">
-        <img id="who-avatar" alt="" width="36" height="36" onerror="this.style.visibility='hidden'">
+        <img id="who-avatar" alt="" width="36" height="36">
         <div>
           <div id="who-login"></div>
           <div class="who-sub">Signed in with GitHub</div>
@@ -545,26 +569,85 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+<!--
+  DEPLOYMENT: the only values you change to run your own copy. None of them
+  are secret: the client secret lives in the broker. The README walks
+  through where each one comes from. It is a data block, not code, so
+  filling it in does not change the app script's hash in the policy above.
+-->
+<script type="application/json" id="deployment">
+{
+  "clientId": "Iv23li_REPLACE_ME",
+  "appSlug":  "REPLACE_ME",
+  "broker":   "https://notes-token-broker.REPLACE_ME.workers.dev"
+}
+</script>
 <script>
 "use strict";
 
 /* ================================================================
-   DEPLOYMENT  -  the only values you change to run your own copy.
-   None of them are secret: the client secret lives in the broker.
-   The README walks through where each one comes from.
+   DEPLOYMENT  -  read from the data block above the script.
    ================================================================ */
 
-var DEPLOYMENT = {
-  clientId: "Iv23li_REPLACE_ME",                        // GitHub App > Client ID
-  appSlug:  "REPLACE_ME",                               // github.com/apps/<slug>
-  broker:   "https://notes-token-broker.REPLACE_ME.workers.dev"
-};
+var DEPLOYMENT = { clientId: "", appSlug: "", broker: "" };
+try {
+  Object.assign(DEPLOYMENT, JSON.parse(document.getElementById("deployment").textContent));
+} catch (e) {}                         // unreadable: treated as not set up
 
 // Tests and forks can override without editing the file.
 if (window.NOTES_DEPLOYMENT) DEPLOYMENT = Object.assign({}, DEPLOYMENT, window.NOTES_DEPLOYMENT);
 
+function filledIn() {
+  return !!(DEPLOYMENT.clientId && DEPLOYMENT.appSlug && DEPLOYMENT.broker) &&
+    !/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);
+}
+
+// The policies at the top of the page decide which hosts the app may reach.
+// A copy whose broker is not allowed would fail at sign-in with nothing but
+// a console error; say so up front instead. The broker must pass every
+// policy, as the browser requires.
+function brokerAllowed() {
+  var target;
+  try { target = new URL(DEPLOYMENT.broker); } catch (e) { return false; }
+  var metas = document.querySelectorAll('meta[http-equiv="Content-Security-Policy"]');
+  return Array.prototype.every.call(metas, function (el) {
+    var dirs = {};
+    el.content.split(";").forEach(function (d) {
+      var parts = d.trim().split(/\s+/);
+      if (parts[0]) dirs[parts[0].toLowerCase()] = parts.slice(1);
+    });
+    var list = dirs["connect-src"] || dirs["default-src"];
+    return !list || list.some(function (src) { return sourceAllows(src, target); });
+  });
+}
+
+// Does one CSP source expression allow this URL? Covers what a person is
+// likely to write: a scheme ("https:"), an origin with or without a trailing
+// slash, any case, no scheme, "*." wildcards, explicit ports and paths.
+function sourceAllows(src, target) {
+  src = src.toLowerCase();
+  if (/^[a-z][a-z0-9+.-]*:$/.test(src)) return target.protocol === src;
+  if (src.charAt(0) === "'") return false;
+  // No scheme: the page's own, or its secure upgrade (CSP3, "scheme-part").
+  if (!/^[a-z][a-z0-9+.-]*:\/\//.test(src)) {
+    var upgrade = location.protocol === "http:" && target.protocol === "https:";
+    src = (upgrade ? "https:" : location.protocol) + "//" + src;
+  }
+  var wild = /:\/\/\*\./.test(src);
+  var u;
+  try { u = new URL(src.replace("://*.", "://wildcard.")); } catch (e) { return false; }
+  if (u.protocol !== target.protocol || u.port !== target.port) return false;
+  if (wild) {
+    var suffix = u.hostname.slice("wildcard".length);         // ".example.com"
+    if (target.hostname.slice(-suffix.length) !== suffix) return false;
+  } else if (u.hostname !== target.hostname) return false;
+  var path = u.pathname;
+  if (path === "/" && !/:\/\/[^/]+\/./.test(src)) return true;  // no path given
+  return path.slice(-1) === "/" ? target.pathname.indexOf(path) === 0 : target.pathname === path;
+}
+
 function deployed() {
-  return !/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);
+  return filledIn() && brokerAllowed();
 }
 
 /* ================================================================
@@ -1732,6 +1815,8 @@ function showSignIn(message) {
   $("view-account").hidden = true;
   $("f-signin").disabled = !deployed();
   $("not-deployed").hidden = deployed();
+  $("why-setup").hidden = filledIn();
+  $("why-csp").hidden = !filledIn() || brokerAllowed();
   $("f-session-in").checked = sessionOnly;
   var err = $("signin-error");
   err.hidden = !message;
@@ -1858,6 +1943,9 @@ function forget() {
 /* ================================================================
    WIRING
    ================================================================ */
+
+// Not an onerror attribute: the policy allows no inline handlers.
+$("who-avatar").addEventListener("error", function () { this.style.visibility = "hidden"; });
 
 $("btn-save").onclick     = saveCurrent;
 $("btn-discard").onclick  = discardDraft;

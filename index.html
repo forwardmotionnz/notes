@@ -588,6 +588,12 @@ var cfg = load(CFG_KEY, {
 
 var ui = load(UI_KEY, { open: {}, last: null, pin: 0 });
 
+/* Maps keyed by a path or a folder name have no prototype: a folder called
+   "constructor" or "__proto__" is an ordinary name in someone's notes, and
+   on a plain object it would find a built-in instead of nothing. */
+function pathMap(from) { return Object.assign(Object.create(null), from || {}); }
+ui.open = pathMap(ui.open);
+
 function load(key, fallback) {
   var raw = null;
   try { raw = sessionStorage.getItem(key); } catch (e) {}
@@ -1072,14 +1078,20 @@ function fromBase64(b64) {
 var files = [];        // [{ path, type }]
 var current = null;    // { path, sha, saved }
 var editor = null;
-var pinCache = {};     // path -> { text, sha }
+var pinCache = pathMap();   // path -> { text, sha }
 var statusTimer = null;
 
 function $(id) { return document.getElementById(id); }
 
+/* Content from the repository or from GitHub (file and folder names, note
+   text, task lines, branch, login, error messages) reaches the page only as
+   text: textContent, text nodes, Option labels, the editor's value. There is
+   no innerHTML anywhere in this file, and tests/hostile.test.mjs fails if
+   one appears. File names and notes are data, never markup. */
+
 function flash(msg, isError) {
   var el = $("status");
-  el.textContent = msg;
+  el.textContent = msg;                    // may carry a path or GitHub's message: text
   el.className = isError ? "err" : "";
   clearTimeout(statusTimer);
   if (msg) {
@@ -1155,12 +1167,12 @@ function renderTree() {
     return;
   }
 
-  var root = { dirs: {}, files: [] };
+  var root = { dirs: pathMap(), files: [] };
   blobs.forEach(function (f) {
     var parts = f.path.split("/");
     var node = root;
     for (var i = 0; i < parts.length - 1; i++) {
-      node.dirs[parts[i]] = node.dirs[parts[i]] || { dirs: {}, files: [] };
+      node.dirs[parts[i]] = node.dirs[parts[i]] || { dirs: pathMap(), files: [] };
       node = node.dirs[parts[i]];
     }
     node.files.push({ name: parts[parts.length - 1], path: f.path });
@@ -1174,8 +1186,8 @@ function renderTree() {
       var row = document.createElement("div");
       row.className = "row dir";
       row.style.paddingLeft = (8 + depth * 14) + "px";
-      row.innerHTML = '<span class="tw">' + (open ? "&#9662;" : "&#9656;") + "</span>";
-      row.appendChild(document.createTextNode(name));
+      row.appendChild(twisty(open ? "\u25BE" : "\u25B8"));
+      row.appendChild(document.createTextNode(name));      // a folder name: text, never markup
       row.onclick = function () {
         ui.open[path] = !open;
         persist(UI_KEY, ui);
@@ -1194,6 +1206,13 @@ function renderTree() {
   })(root, "", 0);
 }
 
+function twisty(glyph) {
+  var tw = document.createElement("span");
+  tw.className = "tw";
+  tw.textContent = glyph;
+  return tw;
+}
+
 function fileRow(label, path, depth) {
   var text = isTextFile(path);
   var row = document.createElement("div");
@@ -1201,8 +1220,8 @@ function fileRow(label, path, depth) {
     (current && current.path === path ? " active" : "") +
     (text ? "" : " binary");
   row.style.paddingLeft = (8 + depth * 14) + "px";
-  row.innerHTML = '<span class="tw"></span>';
-  row.appendChild(document.createTextNode(label));
+  row.appendChild(twisty(""));
+  row.appendChild(document.createTextNode(label));        // a file name: text, never markup
 
   if (!text) {
     row.title = "Not a text file. Attachments are left alone so they cannot be corrupted.";
@@ -1254,6 +1273,8 @@ function ensureEditor() {
   if (ph) ph.remove();
   var host = $("editor-pane");
 
+  // Both editors show note text as text: CodeMirror builds its lines from
+  // text nodes and a textarea's value is never parsed.
   if (typeof CodeMirror === "function") {
     editor = CodeMirror(host, {
       value: "",
@@ -1310,7 +1331,7 @@ function setCrumb(path, tag) {
 
   var name = document.createElement("span");
   name.className = "name";
-  name.textContent = path.split("/").pop();
+  name.textContent = path.split("/").pop();   // text: a file name is never markup
   el.appendChild(name);
 
   if (tag) {
@@ -1576,20 +1597,26 @@ function activePin() {
   return cfg.pins[ui.pin] || cfg.pins[0] || null;
 }
 
+function emptyNote(text) {
+  var e = document.createElement("div");
+  e.className = "empty";
+  e.textContent = text;
+  return e;
+}
+
 function renderPins() {
   var host = $("pin-list");
   var path = activePin();
   host.textContent = "";
 
   if (!path || !configured()) {
-    host.innerHTML = '<div class="empty">' +
-      (configured() ? 'No pinned file.' : 'Your pinned tasks appear here.') + '</div>';
+    host.appendChild(emptyNote(configured() ? "No pinned file." : "Your pinned tasks appear here."));
     return;
   }
 
   var cached = pinCache[path];
   if (!cached) {
-    host.innerHTML = '<div class="empty">Loading...</div>';
+    host.appendChild(emptyNote("Loading..."));
     readFile(path).then(function (r) {
       pinCache[path] = r;
       if (activePin() === path) renderPins();
@@ -1618,7 +1645,7 @@ function renderPins() {
       box.checked = done;
       box.onchange = function () { toggleTask(path, index, box.checked); };
       var txt = document.createElement("span");
-      txt.textContent = task[3];
+      txt.textContent = task[3];             // a line of the note: text, never markup
       row.appendChild(box);
       row.appendChild(txt);
       host.appendChild(row);
@@ -1708,7 +1735,7 @@ function showSignIn(message) {
   $("f-session-in").checked = sessionOnly;
   var err = $("signin-error");
   err.hidden = !message;
-  err.textContent = message || "";
+  err.textContent = message || "";          // may come from the address bar: text
   openDialog();
 }
 
@@ -1722,6 +1749,7 @@ function openSettings() {
   $("f-install").href = "https://github.com/apps/" + encodeURIComponent(DEPLOYMENT.appSlug) +
                         "/installations/new";
   $("who-login").textContent = cfg.login ? "@" + cfg.login : "";
+  // An image source loads a picture and never runs script.
   if (cfg.avatar) $("who-avatar").src = cfg.avatar;
 
   var sel = $("f-repo");
@@ -1751,7 +1779,7 @@ function openSettings() {
       return;
     }
     repos.forEach(function (r, i) {
-      var o = new Option(r.full + (r.private ? "" : "  (public)"), String(i));
+      var o = new Option(r.full + (r.private ? "" : "  (public)"), String(i));   // Option label is text
       if (r.owner === cfg.owner && r.repo === cfg.repo) o.selected = true;
       sel.appendChild(o);
     });
@@ -1790,12 +1818,12 @@ function saveSettings() {
   moveDrafts();
   document.body.classList.toggle("session-only", sessionOnly);
 
-  if (changedRepo) { ui.open = {}; ui.last = null; }
+  if (changedRepo) { ui.open = pathMap(); ui.last = null; }
   saveCfg();
   persist(UI_KEY, ui);
   $("settings").close();
 
-  pinCache = {};
+  pinCache = pathMap();
   ui.pin = 0;
   if (changedRepo) {
     current = null;

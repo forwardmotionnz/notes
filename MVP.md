@@ -7,7 +7,7 @@ Iterations: 3 / 30
 |----|----------|--------|----------|
 | C1 | 1 | done | `tests/drafts.test.mjs` 44/44 (written before unload, reload, closed tab, new file, stale draft → conflict + Discard, session-only, mode switch, sign-out, plus six review regressions); screens `tests/screens/c1-{desktop,phone}-{light,dark}.png`; commit daa2754 |
 | C2 | 2 | done | `tests/autosave.test.mjs` 36/36 (pause commits, steady typing does not, hide commits, Save kept, in-flight save not raced, conflict stops autosave and keeps the draft, restored draft and New wait for typing, plus seven review regressions); screens `tests/screens/c2-{desktop,phone}-{light,dark}.png`; commit 493850a |
-| C3 | 3 | done | `tests/switching.test.mjs` 33/33 (no dialog on switch, New or change of repository; commit on leaving; offline and conflict keep a draft; save in flight; untouched template leaves nothing; right repository; reopening during a commit; failed open; two-tab draft; lost reply across repositories); rewritten drafts/autosave tests listed below; commit COMMIT |
+| C3 | 3 | done | `tests/switching.test.mjs` 33/33 (no dialog on switch, New or change of repository; commit on leaving; offline and conflict keep a draft; save in flight; untouched template leaves nothing; right repository; reopening during a commit; failed open; two-tab draft; lost reply across repositories); rewritten drafts/autosave tests listed below; commit ec26502 |
 | G2 | 4 | todo | |
 | G1 | 5 | todo | |
 | B1 | 6 | todo | |
@@ -85,4 +85,4 @@ Iterations: 3 / 30
 (one line per iteration: date, item, result, commit)
 - 2026-09-25 · C1 · done · daa2754
 - 2026-09-25 · C2 · done · 493850a (push still refused, 403)
-- 2026-09-25 · C3 · done · COMMIT (push still refused, 403)
+- 2026-09-25 · C3 · done · ec26502 (push still refused, 403)

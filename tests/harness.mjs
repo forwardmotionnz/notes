@@ -246,7 +246,10 @@ export async function context(gh, opts = {}) {
       });
       return json({ truncated: false, tree: [
         ...[...dirs].map(d => ({ path: d, type: 'tree' })),
-        ...Object.keys(gh.files).map(k => ({ path: k, type: 'blob', sha: gh.sha(k) })),
+        // Tree entries carry the blob's size in bytes:
+        // https://docs.github.com/en/rest/git/trees#get-a-tree
+        ...Object.keys(gh.files).map(k => ({ path: k, type: 'blob', sha: gh.sha(k),
+          size: Buffer.byteLength(gh.files[k], gh.raw[k] ? 'latin1' : 'utf-8') })),
       ]});
     }
     const m = p.match(/^\/repos\/([^/]+\/[^/]+)\/contents\/(.*)$/);
@@ -254,6 +257,11 @@ export async function context(gh, opts = {}) {
       const path = m[2];
       if (req.method() === 'GET') {
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
+        // Files between 1 and 100 MB come back with an empty content and
+        // encoding "none": https://docs.github.com/en/rest/repos/contents#get-repository-content
+        // (checked against github/rest-api-description, "If the requested file's size is").
+        const size = Buffer.byteLength(gh.files[path], gh.raw[path] ? 'latin1' : 'utf-8');
+        if (size > 1024 * 1024) return json({ path, sha: gh.sha(path), size, encoding: 'none', content: '' });
         return json({ path, sha: gh.sha(path),
           content: Buffer.from(gh.files[path], gh.raw[path] ? 'latin1' : 'utf-8').toString('base64') });
       }

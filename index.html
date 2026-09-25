@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-gxJ5bsihEL/GuO4VfBJmFgxblLt6+lI3i4mng/B4qdU=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-T82c0d1kJ5YFmYFoctmcxsvkPMc1wZnkK0wdfbtQpVk=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -1090,9 +1090,14 @@ function request(path, options, retried) {
         var msg = body.message || res.statusText || ("HTTP " + res.status);
         if (res.status === 401) msg = "Signed out. Sign in again to continue.";
         if (res.status === 403) msg = "GitHub refused. Is the app installed on this repository?";
+        // A file over GitHub's 1 MB limit for this API is refused with
+        // code "too_large": say that, not that the app is not installed.
+        var tooBig = (body.errors || []).some(function (e) { return e && e.code === "too_large"; });
+        if (tooBig) msg = "That file is larger than 1 MB, too large to edit here, so it is left alone.";
         if (res.status === 409) msg = "Conflict. The file changed on the server.";
         var err = new Error(msg);
         err.status = res.status;
+        err.refused = tooBig;
         throw err;
       });
     }
@@ -1139,9 +1144,17 @@ function listTree() {
   return request(url).then(function (data) {
     if (data.truncated) flash("Repository is large; the file list is partial.", true);
     return (data.tree || []).map(function (n) {
-      return { path: n.path, type: n.type };
+      return { path: n.path, type: n.type, size: n.size };
     });
   });
+}
+
+// A file the app will not open, so must never write: too large, stored in
+// Git LFS, or not UTF-8.
+function refused(message) {
+  var e = new Error(message);
+  e.refused = true;
+  return e;
 }
 
 function readFile(path) {
@@ -1150,13 +1163,21 @@ function readFile(path) {
   return request(url, { allow404: true }).then(function (data) {
     if (!data) return { text: "", sha: null };              // file does not exist yet
     if (Array.isArray(data)) throw new Error("That path is a folder.");
+    // Over 1 MB GitHub leaves the content out (encoding "none"). Opening
+    // that as an empty note would let a save replace the whole file.
+    if (data.encoding === "none") throw refused(tooLargeMessage(path));
     var text;
     try { text = fromBase64(data.content || ""); }
     catch (e) {
       // Not UTF-8 (an old Windows or Latin-1 file). Shown as text it would
       // be garbled, and saved back it would be destroyed, so it is refused
       // like an attachment.
-      throw new Error(path.split("/").pop() + " is not UTF-8 text, so it is left alone.");
+      throw refused(path.split("/").pop() + " is not UTF-8 text, so it is left alone.");
+    }
+    // A Git LFS pointer stands in for a file stored elsewhere; saving over it
+    // would replace that file with this text.
+    if (/^version https:\/\/git-lfs\.github\.com\/spec\/v1\r?\n/.test(text)) {
+      throw refused(path.split("/").pop() + " is stored with Git LFS, so it is left alone.");
     }
     return { text: text, sha: data.sha };
   });
@@ -1348,6 +1369,26 @@ function refreshTree() {
    treated as text. */
 var TEXT_FILE = /\.(md|markdown|mdx|txt|text|csv|tsv|json|jsonc|ya?ml|toml|ini|cfg|conf|canvas|excalidraw|base|html?|xml|svg|css|scss|js|mjs|cjs|jsx|ts|tsx|py|rb|sh|bash|zsh|fish|sql|rs|go|java|kt|swift|c|h|cpp|hpp|cs|lua|php|pl|r|jl|vue|astro|env|gitignore|gitattributes|editorconfig|log|org|rst|adoc|tex|bib|diff|patch|srt|vtt|properties|gradle|dockerfile|makefile)$/i;
 
+/* GitHub's contents API returns files up to 1 MB. Anything bigger is shown
+   but not opened: it could not be read, so it must not be written. */
+var MAX_BYTES = 1024 * 1024;
+
+function tooLarge(path) {
+  return files.some(function (f) { return f.path === path && f.size > MAX_BYTES; });
+}
+
+function overLimit(raw) {
+  return raw.length > MAX_BYTES / 4 && new TextEncoder().encode(raw).length > MAX_BYTES;
+}
+
+function overLimitMessage(path) {
+  return path.split("/").pop() + " would be over 1 MB, too large to save here. It is kept as a draft.";
+}
+
+function tooLargeMessage(path) {
+  return path.split("/").pop() + " is larger than 1 MB, too large to edit here, so it is left alone.";
+}
+
 function isTextFile(path) {
   var name = path.split("/").pop();
   return name.indexOf(".") === -1 || TEXT_FILE.test(name);
@@ -1436,7 +1477,8 @@ function twisty(glyph) {
 }
 
 function fileRow(label, path, depth) {
-  var text = isTextFile(path);
+  var big = tooLarge(path);
+  var text = isTextFile(path) && !big;
   var row = document.createElement("div");
   row.className = "row" +
     (current && current.path === path ? " active" : "") +
@@ -1446,9 +1488,10 @@ function fileRow(label, path, depth) {
   row.appendChild(document.createTextNode(label));        // a file name: text, never markup
 
   if (!text) {
-    row.title = "Not a text file. Attachments are left alone so they cannot be corrupted.";
+    row.title = big ? "Larger than 1 MB: too large to edit here, so it is left alone."
+                    : "Not a text file. Attachments are left alone so they cannot be corrupted.";
     row.onclick = function () {
-      flash(label + " is not a text file.", true);
+      flash(big ? tooLargeMessage(path) : label + " is not a text file.", true);
     };
     return row;
   }
@@ -1615,10 +1658,33 @@ function openFile(path, discarding) {
       flash("Restored your unsaved changes to " + path.split("/").pop() + ".");
     }
   }).catch(function (err) {
+    // Unsaved text for a file that can no longer be opened here (it grew
+    // past 1 MB elsewhere, say) must not become unreachable.
+    var draft = err.refused && readDraft(path);
+    if (draft) { rescueDraft(path, draft, err.message); return; }
     // Still on the old file after all: it is live again.
     if (left && current === left) left.leaving = false;
     fail(err);
   });
+}
+
+// Open a draft as a new note beside the file it belonged to, and move it
+// there: the original is left alone, the words stay within reach.
+function rescueDraft(path, draft, reason) {
+  var copy = path.replace(/(\.[^./]*)?$/, function (ext) { return " (unsaved copy)" + ext; });
+  ensureEditor();
+  current = { path: copy, sha: null, saved: "\u0000" };   // new file: always saveable
+  editor.setValue(draft.text);
+  editor.clearHistory();
+  editor.refresh();
+  $("btn-save").disabled = false;
+  setCrumb(copy, "(new)");
+  showDiscard(false);
+  syncDraft();
+  dropDraft(path);
+  ui.last = copy;
+  persist(UI_KEY, ui);
+  flash(reason + " Your unsaved text for it is here, as a new note.", true);
 }
 
 /* Leaving a file never asks. What was typed is committed now if it can be;
@@ -1669,13 +1735,16 @@ function saveCurrent(auto) {
   var doc = current;
   var text = editor.getValue();
   var path = doc.path;
+  var raw = rawFor(text, doc.base);
+  // Past 1 MB GitHub's API would not hand the note back, so it could not be
+  // opened here again: keep it as a draft instead.
+  if (overLimit(raw)) { flash(overLimitMessage(path), true); return; }
   var key = draftKey(path);            // before a change of repository moves cfg on
   var base = doc.sha;
   flash("Saving...");
   $("btn-save").disabled = true;
   saving = true;
   doc.pending = text;
-  var raw = rawFor(text, doc.base);
 
   var done = writeFile(path, raw, doc.sha).catch(function (err) {
     // A commit whose reply was lost (a dropped connection, a page suspended
@@ -1691,7 +1760,7 @@ function saveCurrent(auto) {
       if (r.text !== own) throw err;       // byte for byte, endings included
       doc.sha = r.sha;
       return writeFile(path, raw, r.sha);
-    });
+    }, function () { throw err; });       // cannot even read it back: still a conflict
   }).then(function (r) {
     doc.unsure = null;
     doc.base = baseOf(raw);              // the next save compares with what this wrote
@@ -1913,14 +1982,14 @@ function addTask() {
   var body = cached.text.replace(/\s*$/, "");
   var next = (body ? body + "\n" : "") + "- [ ] " + text + "\n";
 
-  input.value = "";
-  commitPin(path, next);
+  if (commitPin(path, next) !== false) input.value = "";   // refused: keep what they typed
 }
 
 function commitPin(path, text) {
   var cached = pinCache[path];
   var sha = cached ? cached.sha : null;
   var raw = rawFor(text, cached && cached.base);
+  if (overLimit(raw)) { flash(overLimitMessage(path).replace(" It is kept as a draft.", ""), true); return false; }
 
   pinCache[path] = { text: text, sha: sha, base: baseOf(raw) };   // optimistic: redraw immediately
   renderPins();

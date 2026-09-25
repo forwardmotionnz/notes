@@ -165,6 +165,13 @@ Obsidian would not understand, so both can work on the same repository.
   CRLF, and an edit changes only the lines you touched, even in a file that
   mixes endings. New lines take the ending most of the file uses. A
   byte-order mark at the start of a file is kept too.
+- A file over 1 MB is shown but not opened: GitHub's API does not hand
+  over files that size, and opening one empty would let a save replace it.
+  A note is not saved past 1 MB either; it stays a draft until it is
+  shorter. If a file you had unsaved changes to has grown past 1 MB
+  elsewhere, your text opens as a new note beside it, `name (unsaved copy).md`.
+- A file stored with Git LFS is not opened: what the repository holds is a
+  pointer, and saving over it would replace the real file.
 - A text file that is not UTF-8 (an old Windows or Latin-1 file) is not
   opened: shown here it would be garbled, and saved it would be destroyed.
 
@@ -236,6 +243,7 @@ network.
   narrows what injected code could do; the app is built so none gets in.
 
 - Very large repositories: GitHub truncates the file listing; the app says so.
+- Notes over 1 MB cannot be opened here (see above); edit them elsewhere.
 - CodeMirror loads from a CDN. If it fails, the editor falls back to a plain
   text box (a `plain` badge appears) and everything still works.
 - Signing out forgets the sign-in in that browser. The token itself stays

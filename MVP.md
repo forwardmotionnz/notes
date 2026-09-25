@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 9 / 30
+Iterations: 10 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -14,7 +14,7 @@ Iterations: 9 / 30
 | N2 | 5b | done | `tests/auth.test.mjs` 78/78, new cases: a return from installing signs nobody in, uses no code, shows a note with "Forget me" ticked, one click signs in session-only; "Choose repositories" opens a new tab and the tab refreshes its list on return, staying session-only; a remembered tab carries on and fetches the list once; an older, slower list never overrides a newer one; a refresh keeps an unsaved pick. Screens `tests/screens/n2-{desktop,phone}-{light,dark}.png`, `tests/screens/n2-settings-*.png`; commit 4f5062d |
 | N3 | 5c | done | `tests/auth.test.mjs` 97/97, new cases: saving settings, or signing in again, in one tab leaves the others signed in and saving (and they adopt the new token); choosing "Forget me" in one tab signs the others out and leaves nothing on disk; switching back to remembered sticks after a reload; other tabs follow a change of repository (committing their open file to the old one first) and of pins alone, and do not undo it later; a token refresh finishing after another tab signed out or chose "Forget me" writes nothing and sends no empty-token request. Commit f23b584 |
 | N4 | 5d | done | `tests/auth.test.mjs` 111/111, new cases: a crafted `?error=` or `?code=` link neither hides a signed-in person's notes nor puts its words anywhere on screen; signed out, it shows only fixed wording; an error whose state is not this tab's is not taken for a cancel; a real cancel is reported in the app's own words; a sign-in that lost its state says so; the "Forget me" choice survives a cancel and a failed exchange (and defaults to ticked when unknown); a signed-in tab ignores a mismatched code. `tests/hostile.test.mjs`: text from the address is never shown. The fake's access_denied redirect now carries `state` and `error_uri`, per GitHub's docs (URL in the harness). Commit 045b181 |
-| N5 | 5e | todo | From N1 review: GitHub's contents API returns no content for files between 1 and 100 MB, so such a note opens empty with a valid sha, and the first save (or autosave) replaces the whole file. Must refuse, or read through the blob API, instead. Check the behaviour against GitHub's documentation before faking it. |
+| N5 | 5e | done | `tests/large.test.mjs` 20/20: a file over 1 MB is listed but marked, clicking says why, opening it directly or as a pin is refused and nothing is written; GitHub's `too_large` refusal gets its own message; a draft whose file grew past 1 MB opens as `name (unsaved copy).md` and saves there; a note or a pinned task is never saved past 1 MB (the task text stays in the box); a lost reply followed by an unreadable file is a conflict with Discard; a Git LFS pointer is refused and never written. The fake answers large files as GitHub's docs describe (URLs in the harness). Screens `tests/screens/n5-*.png`; commit COMMIT |
 | B1 | 6 | todo | |
 | B3 | 7 | todo | |
 | A1 | 8 | todo | |
@@ -71,6 +71,10 @@ Iterations: 9 / 30
 ### N4: plan
 - Done looks like: an `?error=` or `?code=` in the address only counts when this tab started a sign-in (its pending state is there). Otherwise it is scrubbed and ignored: a signed-in person carries on with their notes, a signed-out one sees the plain sign-in view. When it does count, the message is the app's own fixed wording, never text from the address.
 - Proof: new cases in `tests/auth.test.mjs`; the hostile-text check in `tests/hostile.test.mjs` changes from "shown as text" to "never shown".
+
+### N5: plan
+- Done looks like: a file over 1 MB is shown in the tree but cannot be opened, like an attachment, with a reason; if GitHub still answers a read with no content (`encoding: "none"`) or refuses it as too large, the app refuses to open it rather than showing an empty note that a save would write over the file. Nothing is ever committed to such a file.
+- Proof: `tests/large.test.mjs` against a fake that answers large files as GitHub's documentation describes (URLs in the harness), plus the refusal variant.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -142,6 +146,13 @@ Iterations: 9 / 30
 - G-3 findings: (1) a real sign-in returning to a tab that lost its state (iOS discarding a tab during 2FA, blocked storage) failed with no word: now fixed wording, test. (2) Older: "Forget me" reset after a cancel or failure, so the retry stored the token on disk (reproduced): the choice is carried through, ticked when unknown; tests. (3) A signed-in tab could still be interrupted by a mismatched code: ignored now, test. (4) A crafted `setup_action` link opens Settings for a signed-in person: refuted as harmful, since it is N2's intended landing after a real install and its text is fixed.
 - G-4: the only visible changes are fixed messages in the existing sign-in error note. G-5: no dependency or request; `index.html` about 80 KB. G-6: no documented behaviour changed; README does not describe error links.
 
+### N5: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught: tree marking, `encoding: "none"` refusal, the `too_large` message, draft rescue, the moved draft dropped, save refused past 1 MB, pinned task refused past 1 MB, recovery read failure reported as a conflict, LFS pointer refused. A guard in `openFile` duplicated the one in `readFile` and was removed.
+- Rule 6: GitHub's OpenAPI description (github/rest-api-description) and docs say files of 1–100 MB come back with `content: ""` and `encoding: "none"` for the `object` type, and that tree entries carry `size`; the default media type is left unspecified, so the app handles both that and a 403 `too_large`, and the test covers both. The exact byte threshold is only given as "1 MB"; the app uses 1,048,576. A file between 1,000,000 and that would look openable but is still refused on reading, and nothing is written.
+- G-3 findings: (1) a draft whose file grew past 1 MB elsewhere became unreachable: it now opens as a new note beside the file; test. (2) The app saved notes past 1 MB, which it then could not reopen, and after a lost reply the recovery read failed with a misleading message, stranding later text: saves (and pinned tasks) past 1 MB are refused and kept as drafts, and a recovery that cannot read the file reports a conflict; tests. Found while testing (2): a refused pinned task cleared the capture box, losing the text; it is kept. (3) Older, same class: a Git LFS pointer opened and a save replaced the real file at HEAD: pointers are refused; test.
+- G-4: the greyed large file and the rescue note are legible at 1280 and 390 px, light and dark. G-5: no dependency or request; `index.html` about 84 KB. G-6: README (Obsidian section and Known limits) covers the 1 MB limit, the rescue copy and LFS files.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -168,3 +179,4 @@ Iterations: 9 / 30
 - 2026-09-25 · N2 · done · 4f5062d
 - 2026-09-25 · N3 · done · f23b584
 - 2026-09-25 · N4 · done · 045b181
+- 2026-09-25 · N5 · done · COMMIT

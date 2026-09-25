@@ -41,7 +41,11 @@ GitHub Pages only serves public repositories on a free plan. Your notes live
 in a separate, private repository.
 
 Settings → Pages → Source: *Deploy from a branch*, branch `main`, folder `/`.
-After a minute the app is at `https://roldaof.github.io/notes/`.
+After a minute the app is at `https://roldaof.github.io/notes/`. Pages also
+publishes `PRIVACY.md` beside it as `PRIVACY.html`, which the sign-in
+screen's *Privacy* link opens. On another host, serve the note at that
+address too (or change the *Privacy* link in the sign-in screen's markup,
+`id="about"` in `index.html`).
 
 ### 2. Register a GitHub App
 
@@ -178,9 +182,11 @@ It is a web page, so any browser works: home, work, phone. Sign in once per
 browser. On a phone, open the URL and choose *Add to Home Screen*.
 
 On a work or shared computer, tick **Forget me when I close the browser**
-before signing in. Nothing is written to disk and closing the browser signs
-you out. Drafts of unsaved changes still survive a reload in this mode, but
-not closing the browser, so save before you leave. A `session` badge in the
+before signing in. The sign-in and drafts are kept for this browser session
+only, not in its lasting storage, and go when the tabs are closed. Drafts of
+unsaved changes still survive a reload in this mode, so save before you
+leave, and press **Sign out**: a browser set to reopen its tabs on start
+brings the session back with them (see [PRIVACY.md](PRIVACY.md)). A `session` badge in the
 header shows which mode you are in.
 
 Sign-ins last six months per browser; the app renews the short-lived token

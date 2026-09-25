@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 15 / 30
+Iterations: 16 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -20,7 +20,7 @@ Iterations: 15 / 30
 | A1 | 8 | done | `tests/shared.test.mjs` 18/18: someone else signs in to the same deployment and is offered every repository across a personal and 101 organisation installations (253, over several pages of installations and of repositories) and writes a note in an organisation repository; paging survives smaller pages than asked for and a missing total; one installation failing leaves the rest listed, with a note; installations are asked at most four at a time; the repository in use is never swapped silently; Save works before a long list arrives; an install waiting for an organisation owner's approval says so. The fake pages both endpoints as GitHub documents. Owner step (make the App public) under Needs the owner. Commit 7a955b3 |
 | D1 | 9 | done | `tests/rename.test.mjs` 49/49: one commit moves the file to a new path or folder, the editor, tree and pins follow, later saves go there; a failure at each of the five requests leaves the repository as it was and says so; a file changed elsewhere is not moved in its old form; an existing target (known or appeared since) is never overwritten; another commit meanwhile is built on, never forced over; unsaved words go with the file; the note is locked while it moves (a refresh cannot unlock it) and is the same note at its new path at once; another tab follows; a lost reply is recognised; a name without an extension keeps the note's own; unopenable targets, a path through a file, and links are refused; every GitHub request skips the browser cache; no Rename in a read-only repository. The fake Git database is modelled on GitHub's docs (trees built from their base, fast-forward-only refs). Screens `tests/screens/d1-*.png`; commit c77ef15 |
 | D2 | 10 | done | `tests/delete.test.mjs` 37/37: Delete asks first, saying how to recover from the history (and that unsaved changes go too); saying no deletes nothing; one commit; the note closes and the list updates; a file changed elsewhere, a failure, a stale draft are not deleted and say why (pointing to Discard); a lost reply and an already-deleted file count as done; a double tap changes nothing; a slow delete is not raced by autosave or by switching apps; it waits for a pinned task being saved; the empty editor takes no typing; a pinned note is unpinned; other tabs close it, and one with unsaved words keeps them as a new, unsaved note (and a draft, even if it never heard); no Delete when read-only. Screens `tests/screens/d2-*.png` (incl. 320 px); commit d762495 |
-| E1 | 11 | todo | |
+| E1 | 11 | done | `tests/wikilinks.test.mjs` 47/47, in CodeMirror and the plain editor: Ctrl-click, Cmd-click and a tap open `[[Note]]`, `[[Note|alias]]`, `[[folder/Note]]`, `[[Note#Heading]]`, any case; shortest path wins (by depth, then length), dot-folders ignored; a plain click and a tap at a link's edge only place the cursor; an unresolved link asks to create `<name>.md` (no means nothing, yes then Save creates it) in the folder's existing spelling; no offer before the list loads, from a partial or stale list, when read-only, or outside the repository. Screens `tests/screens/e1-*.png`; commit 918ad02 |
 | B2 | 12 | todo | |
 | A2 | 13 | todo | |
 | A3 | 14 | todo | |
@@ -95,6 +95,10 @@ Iterations: 15 / 30
 ### D2: plan
 - Done looks like: a Delete button beside Rename removes the open note in one commit (contents API DELETE, with the sha of the version open), after a confirmation that says it can be recovered from the repository's history and, if there are unsaved changes, that they go too. A file changed elsewhere is not deleted; a lost reply is recognised; other tabs with the note open are told, and one with unsaved words keeps them as a new note to save or discard.
 - Proof: `tests/delete.test.mjs` against the fake's DELETE, modelled on GitHub's docs (URL in the harness).
+
+### E1: plan
+- Done looks like: Ctrl/Cmd-click (desktop) or a tap (phone) on `[[Note]]`, `[[Note|alias]]`, `[[folder/Note]]` or `[[Note#Heading]]` opens the note, resolved as Obsidian does: by file name, case-insensitive, `.md` implied, shortest path winning, dot-folders ignored. A plain click still just places the cursor. An unresolved link asks whether to create the note, and creates nothing if not.
+- Proof: `tests/wikilinks.test.mjs` on an Obsidian-shaped vault, in the CodeMirror stub and in the plain-textarea fallback.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -210,6 +214,13 @@ Iterations: 15 / 30
 - G-3 findings: (1) the deleting tab dropped another tab's draft, whose words were then lost on leaving: a tab drops only a draft it wrote, and the other tab re-writes its own as a new note's; tests. (2) After a delete the empty editor took typing into nowhere: with no note open the editor is locked; test. (3) The recovery promise was true but unusable: the confirmation now says how (the "Delete ..." commit on GitHub) and "as long as the history is kept", and the done message stays up longer. (4) Delete did not wait for other writes: it waits for saves and pinned tasks in flight; test. (5) An already-deleted file said "Not deleted": counts as done; test. (6) A double tap said "Not deleted": ignored while one is in flight; test. (7) "Open it again first" was a dead end for a stale draft: now points to Discard; test. (9) A deleted pinned file stayed pinned and a task would recreate it: unpinned, and said so; test. (10) "No files." after the last delete now says to press +. Left for G3: raw network error text, and a lost reply where the file was recreated meanwhile (reported as not deleted; nothing lost).
 - G-4: on a phone the header had no room for Rename and Delete beside a long name, which overlapped them. On narrow screens they are now icons (pencil, bin, with labels for screen readers), and a long name gives way with an ellipsis after the folders. Checked at 1280, 390 and 320 px, light and dark: no overlap, no overflow. G-5: no dependency or request beyond GitHub's API; `index.html` about 107 KB. G-6: README describes Delete and how to recover.
 
+### E1: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught (14 mutations): dot-folders ignored, shortest path by depth, then by length, no offer to create before the list has loaded, nor from a partial list, nor when read-only, nor outside the repository; a plain mouse click only places the cursor; a link's edges on both sides are not the link; a table's `\|` is not part of the name; a link always makes a `.md` note; the folder's existing spelling is used; + with "Release 2.0" makes a note. The fixtures list the wrong candidates first, so a missing rule cannot pass by the order it meets them. Not caught: `configureMouse` (Ctrl-click adding no second cursor), which only real CodeMirror shows and the CDN is unreachable here; it changes no text.
+- Rule 6: `truncated` in the fake's tree follows GitHub's tree docs (URL in the harness).
+- G-3 findings: (1) `[[Release 1.2]]` or `[[Node.js]]` created a file with no `.md`, which the app then refused to open, stranding any draft: a link always makes `<name>.md`, as Obsidian does, and + adds `.md` to a name that is not a text file; tests. (2) A tap just after a link at the end of a line followed it, so there was no way to tap in to carry on typing: the edges no longer count; test. (3) A tap inside a link follows it, so a phone user cannot tap in to fix a typo in a link: by design (the criterion), stated in the README with the way round it (tap just before or after). (4) `[[projects/Q4]]` created a second folder beside `Projects/`: a new note uses the folder's existing spelling; test. (5) A partial (truncated) or stale list offered to create a note that might exist, ending in an alarming conflict: no offer unless the list is freshly and fully loaded; tests. (6) The stub has no `coordsChar`: noted above; the edge fix in (2) covers the end-of-line case real CodeMirror would hit.
+- G-4: `tests/screens/e1-{desktop,phone}-{light,dark}-{refused,followed}.png`. The message fits on a phone; no overflow. G-5: no dependency or request added; `index.html` about 112 KB. G-6: README describes following and creating links, and no longer lists wikilink navigation as something the app does not do.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -224,6 +235,7 @@ Iterations: 15 / 30
 - 2026-09-25: A return from GitHub's install flow never signs anyone in. Where the app cannot know whether the computer is shared, it defaults to "Forget me": the cost is signing in again, while the other mistake leaves a six-month token on someone else's disk.
 - 2026-09-25: Remembered tabs share one set of settings and follow each other; session-only tabs keep their own. Two remembered tabs on different repositories cannot be kept apart without per-tab storage, and the last writer silently winning was worse.
 - 2026-09-25: Rename uses the Git Data API in one commit and a fast-forward-only branch update, rather than the contents API's create-then-delete, so there is no moment with both copies or neither. All GitHub requests skip the browser cache, since GitHub marks answers cacheable for 60 seconds.
+- 2026-09-25: A link that names no existing note is only offered for creation when the whole list of notes is loaded and fresh. Otherwise "not found" may be wrong, and creating would end in a conflict at best.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -243,3 +255,4 @@ Iterations: 15 / 30
 - 2026-09-25 · A1 · done · 7a955b3
 - 2026-09-25 · D1 · done · c77ef15
 - 2026-09-25 · D2 · done · d762495
+- 2026-09-25 · E1 · done · 918ad02

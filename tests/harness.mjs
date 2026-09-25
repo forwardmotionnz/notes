@@ -408,6 +408,23 @@ export async function context(gh, opts = {}) {
         return json({ path, sha: gh.sha(path),
           content: Buffer.from(gh.files[path], gh.raw[path] ? 'latin1' : 'utf-8').toString('base64') });
       }
+      // https://docs.github.com/en/rest/repos/contents#delete-a-file
+      // message and sha required; 404, 409, 422 documented. Which one a
+      // stale sha gets is not said; 409 here, and the app treats 409 and 422 alike.
+      if (req.method() === 'DELETE') {
+        const b = JSON.parse(req.postData() || '{}');
+        if (!b.message || !b.sha) return json({ message: 'Invalid request.' }, 422);
+        if (entry.archived || (entry.permissions && !entry.permissions.push)) {
+          gh.log.refusedWrites = (gh.log.refusedWrites || 0) + 1;
+          return json({ message: 'Forbidden' }, 403);
+        }
+        if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
+        if (b.sha !== gh.sha(path)) return json({ message: path + ' does not match ' + b.sha }, 409);
+        delete gh.files[path];
+        gh.touch();
+        gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth, deleted: true });
+        return json({ content: null, commit: { sha: gh.head() } });
+      }
       if (req.method() === 'PUT') {
         const b = JSON.parse(req.postData() || '{}');
         // What GitHub answers here is not documented; any write the app

@@ -211,6 +211,11 @@ Obsidian would not understand, so both can work on the same repository.
 - **Rename** beside the open note's name renames or moves it (type a new
   path, folders included) in a single commit: it either happens completely
   or not at all, and it never overwrites another file
+- **Delete** removes the open note in a single commit, after asking. Nothing
+  is lost for good: the note stays in the repository's history, and on
+  github.com the file's history (or the commit that deleted it) lets you
+  copy it back. If it changed elsewhere since you opened it, it is not
+  deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
 - Pinned files as a live task list with a one-line capture box
 - Filter across every path in the repository
 - Light and dark, and a layout that works on a phone

@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 14 / 30
+Iterations: 15 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -19,7 +19,7 @@ Iterations: 14 / 30
 | B3 | 7 | done | `tests/access.test.mjs` 30/30: archived and read-only repositories show a badge with the reason, keep notes readable, lock the editor, hide Save and New, disable the pinned capture and checkboxes, and send nothing (no draft either); a repository archived while someone types locks the open note and sends neither Save nor autosave, keeping the text as a draft; nothing (task or save) is sent before access is known; a late answer about one repository is not applied to another; a repository that is gone locks and says so with what to do; tapping the badge on a phone says why; a writable repository is unaffected. The fake's repository object carries `archived` and `permissions` per GitHub's docs. Screens `tests/screens/b3-*.png`; commit d32c97f |
 | A1 | 8 | done | `tests/shared.test.mjs` 18/18: someone else signs in to the same deployment and is offered every repository across a personal and 101 organisation installations (253, over several pages of installations and of repositories) and writes a note in an organisation repository; paging survives smaller pages than asked for and a missing total; one installation failing leaves the rest listed, with a note; installations are asked at most four at a time; the repository in use is never swapped silently; Save works before a long list arrives; an install waiting for an organisation owner's approval says so. The fake pages both endpoints as GitHub documents. Owner step (make the App public) under Needs the owner. Commit 7a955b3 |
 | D1 | 9 | done | `tests/rename.test.mjs` 49/49: one commit moves the file to a new path or folder, the editor, tree and pins follow, later saves go there; a failure at each of the five requests leaves the repository as it was and says so; a file changed elsewhere is not moved in its old form; an existing target (known or appeared since) is never overwritten; another commit meanwhile is built on, never forced over; unsaved words go with the file; the note is locked while it moves (a refresh cannot unlock it) and is the same note at its new path at once; another tab follows; a lost reply is recognised; a name without an extension keeps the note's own; unopenable targets, a path through a file, and links are refused; every GitHub request skips the browser cache; no Rename in a read-only repository. The fake Git database is modelled on GitHub's docs (trees built from their base, fast-forward-only refs). Screens `tests/screens/d1-*.png`; commit c77ef15 |
-| D2 | 10 | todo | |
+| D2 | 10 | done | `tests/delete.test.mjs` 37/37: Delete asks first, saying how to recover from the history (and that unsaved changes go too); saying no deletes nothing; one commit; the note closes and the list updates; a file changed elsewhere, a failure, a stale draft are not deleted and say why (pointing to Discard); a lost reply and an already-deleted file count as done; a double tap changes nothing; a slow delete is not raced by autosave or by switching apps; it waits for a pinned task being saved; the empty editor takes no typing; a pinned note is unpinned; other tabs close it, and one with unsaved words keeps them as a new, unsaved note (and a draft, even if it never heard); no Delete when read-only. Screens `tests/screens/d2-*.png` (incl. 320 px); commit COMMIT |
 | E1 | 11 | todo | |
 | B2 | 12 | todo | |
 | A2 | 13 | todo | |
@@ -27,7 +27,7 @@ Iterations: 14 / 30
 | F2 | 15 | todo | |
 | F1 | 16 | todo | |
 | F3 | 17 | todo | |
-| G3 | 18 | todo | Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
+| G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
@@ -91,6 +91,10 @@ Iterations: 14 / 30
 ### D1: plan
 - Done looks like: a Rename button beside the open file's name moves it to any path (a new name, another folder) in one commit made with the Git Data API. Nothing is visible until the branch moves, and the branch only moves forward, so a failure at any step leaves the repository as it was. Before moving, the app checks at that exact commit that the file is still the version open, and that the target does not exist. Unsaved changes are saved first; pins and the last-open file follow the move.
 - Proof: `tests/rename.test.mjs` against a fake Git database modelled on GitHub's docs (URLs in the harness): the move, a failure at each step, a change made elsewhere, an existing target, another commit landing meanwhile, and a read-only repository.
+
+### D2: plan
+- Done looks like: a Delete button beside Rename removes the open note in one commit (contents API DELETE, with the sha of the version open), after a confirmation that says it can be recovered from the repository's history and, if there are unsaved changes, that they go too. A file changed elsewhere is not deleted; a lost reply is recognised; other tabs with the note open are told, and one with unsaved words keeps them as a new note to save or discard.
+- Proof: `tests/delete.test.mjs` against the fake's DELETE, modelled on GitHub's docs (URL in the harness).
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -199,6 +203,13 @@ Iterations: 14 / 30
 - G-3 findings: (1) another tab with the old path open would recreate it: tabs are told over BroadcastChannel (no storage, so session-only mode is unaffected) and their note, draft and pins follow; test. Another device editing the old path is the same as a file deleted elsewhere: its save fails as a conflict; noted for D2 and G3. (2) Words typed right after a rename were lost while the file was re-read: the note is re-pointed instead, same content, no window; test. (3) A refresh during the move unlocked the note: the lock holds; test. (4) A move whose reply was lost said "Not renamed": the app checks whether it landed; test. (5) Renaming to a name the app cannot open stranded the note: a missing extension keeps the note's own, and unopenable names, dot-folders and paths through a file are refused; tests. (6) GitHub's 60-second cache could serve a stale head or list: all GitHub requests are no-store; test. (7) A symlink would have been rewritten as a file holding the note's text: links and unknown modes are refused; test. (8) A nested path through an existing file: refused before asking GitHub; test. Minor, not changed: a 409 from the git endpoints reads as "the file changed", which fits G3's error wording.
 - G-4: Rename sits beside the file name in the header, legible at 1280 and 390 px, light and dark, with no overflow. G-5: no dependency or request beyond GitHub's API; `index.html` about 101 KB. G-6: README lists Rename under "What it does".
 
+### D2: gauntlet record
+- G-1: full suite green three runs in a row, Chromium.
+- G-2: each safeguard reverted alone and caught: asking first, naming unsaved changes, the lost-reply read-back, 404 as done, a double tap ignored, the pending autosave cleared and saves held during the delete (incl. switching apps), waiting for a pinned task, unpinning, the Discard wording, the empty editor locked, other tabs told, the other tab's words kept (as a new note, and its draft re-based), and the deleting tab leaving another tab's draft alone. Two safeguards first covered each other in one test; each now has its own case (a tab that never hears, and the draft's base).
+- Rule 6: the contents DELETE (message and sha required; 404, 409, 422 documented) is modelled with the URL in the harness. GitHub's docs say contents writes must not run in parallel; the fake does not model that conflict, so the test checks the order of requests instead.
+- G-3 findings: (1) the deleting tab dropped another tab's draft, whose words were then lost on leaving: a tab drops only a draft it wrote, and the other tab re-writes its own as a new note's; tests. (2) After a delete the empty editor took typing into nowhere: with no note open the editor is locked; test. (3) The recovery promise was true but unusable: the confirmation now says how (the "Delete ..." commit on GitHub) and "as long as the history is kept", and the done message stays up longer. (4) Delete did not wait for other writes: it waits for saves and pinned tasks in flight; test. (5) An already-deleted file said "Not deleted": counts as done; test. (6) A double tap said "Not deleted": ignored while one is in flight; test. (7) "Open it again first" was a dead end for a stale draft: now points to Discard; test. (9) A deleted pinned file stayed pinned and a task would recreate it: unpinned, and said so; test. (10) "No files." after the last delete now says to press +. Left for G3: raw network error text, and a lost reply where the file was recreated meanwhile (reported as not deleted; nothing lost).
+- G-4: on a phone the header had no room for Rename and Delete beside a long name, which overlapped them. On narrow screens they are now icons (pencil, bin, with labels for screen readers), and a long name gives way with an ellipsis after the folders. Checked at 1280, 390 and 320 px, light and dark: no overlap, no overflow. G-5: no dependency or request beyond GitHub's API; `index.html` about 107 KB. G-6: README describes Delete and how to recover.
+
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
 
@@ -231,3 +242,4 @@ Iterations: 14 / 30
 - 2026-09-25 · B3 · done · d32c97f
 - 2026-09-25 · A1 · done · 7a955b3
 - 2026-09-25 · D1 · done · c77ef15
+- 2026-09-25 · D2 · done · COMMIT

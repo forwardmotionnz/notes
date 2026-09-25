@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-E6mZhfsNJqhGpNC+wexzEhQ4kXwIrwq6oh+gh0v83xA=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-jIFrrZECEU2228mm08q9ItxYHymyhtRqcXeAnfjb5kM=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -159,7 +159,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  #crumb .name { flex: none; color: var(--fg); font-weight: 600; }
+  /* The folders give way first; a very long name is cut last, never overlapped. */
+  #crumb .dir { flex-shrink: 1000; }
+  #crumb .name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg); font-weight: 600; }
   #crumb .tag { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg-soft); padding-left: 6px; }
   #status {
     font-size: 12px;
@@ -168,6 +170,8 @@
   }
   #status.err { color: var(--danger); }
   #btn-discard[hidden] { display: none; }
+  /* Rename and Delete: words where there is room, icons on a phone. */
+  #btn-rename .ic, #btn-delete .ic { display: none; }
   /* Header badges: the editor fell back to a textarea, and settings are
      session-only. Both are states you want to notice without being told. */
   #degraded, #ephemeral, #readonly {
@@ -186,7 +190,7 @@
   body.plain-editor #degraded { display: inline-block; }
   /* Read-only: said once in the header, and nothing on screen offers to save. */
   body.read-only #readonly { display: inline-block; color: var(--danger); border-color: var(--danger); cursor: pointer; }
-  body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-rename { display: none; }
+  body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-rename, body.read-only #btn-delete { display: none; }
   body.session-only #ephemeral {
     display: inline-block;
     color: var(--accent);
@@ -458,6 +462,8 @@
 
     main { position: relative; overflow: hidden; }
     #crumb { font-size: 12px; }
+    #btn-rename .ic, #btn-delete .ic { display: inline; }
+    #btn-rename .lbl, #btn-delete .lbl { display: none; }
 
     /* A message long enough to matter (a restored draft, a conflict) would
        push Save off a phone screen. It gets a line of its own instead. */
@@ -477,7 +483,8 @@
     <span id="readonly" title="">read-only</span>
     <span id="ephemeral" title="Session only: you are not remembered on this computer and will be signed out when the browser closes.">session</span>
     <span id="status"></span>
-    <button class="plain" id="btn-rename" hidden title="Rename or move this note">Rename</button>
+    <button class="plain" id="btn-rename" hidden title="Rename or move this note" aria-label="Rename"><span class="ic" aria-hidden="true">&#9998;</span><span class="lbl">Rename</span></button>
+    <button class="plain" id="btn-delete" hidden title="Delete this note (it stays in the repository's history)" aria-label="Delete"><span class="ic" aria-hidden="true">&#128465;&#xFE0E;</span><span class="lbl">Delete</span></button>
     <button id="btn-discard" hidden title="Throw away your unsaved changes and load the version on GitHub">Discard</button>
     <button id="btn-save" class="primary" disabled>Save</button>
     <button class="plain only-narrow" id="btn-pins" title="Pinned">&#9745;</button>
@@ -1068,6 +1075,7 @@ window.addEventListener("storage", function (e) {
      isEmptyRepo()              -> true while the repository has no commits
      repoAccess()               -> "" if writable, else why not
      moveFile(from, to, sha, mode) -> one commit moving a file, or nothing
+     deleteFile(path, sha)      -> one commit deleting that version, or nothing
    ================================================================ */
 
 var API = "https://api.github.com";
@@ -1303,6 +1311,22 @@ function writeFile(path, text, sha) {
   });
 }
 
+/* Delete a file in one commit, naming the version the person has open: if
+   it changed elsewhere, GitHub refuses. https://docs.github.com/en/rest/repos/contents#delete-a-file
+   A reply that never arrived is settled by looking: gone means done. */
+function deleteFile(path, sha) {
+  var url = repoPath() + "/contents/" + encodePath(path);
+  return request(url, { method: "DELETE", body: { message: "Delete " + path, sha: sha, branch: cfg.branch } })
+    .catch(function (err) {
+      if (err.status === 404) return null;   // already gone: what was asked for
+      if (err.status) throw err;
+      return readFile(path).then(function (r) {
+        if (r.sha === null) return null;
+        throw err;
+      }, function () { throw err; });
+    });
+}
+
 /* Move a file in one commit, with the Git Data API: the new path and the
    removal of the old one go into a single tree and commit, and the branch
    only then moves, fast-forward only. Nothing is visible before that last
@@ -1494,13 +1518,13 @@ function $(id) { return document.getElementById(id); }
    no innerHTML anywhere in this file, and tests/hostile.test.mjs fails if
    one appears. File names and notes are data, never markup. */
 
-function flash(msg, isError) {
+function flash(msg, isError, ms) {
   var el = $("status");
   el.textContent = msg;                    // may carry a path or GitHub's message: text
   el.className = isError ? "err" : "";
   clearTimeout(statusTimer);
   if (msg) {
-    statusTimer = setTimeout(function () { el.textContent = ""; }, isError ? 7000 : 2500);
+    statusTimer = setTimeout(function () { el.textContent = ""; }, ms || (isError ? 7000 : 2500));
   }
 }
 
@@ -1516,12 +1540,17 @@ function fail(err) {
 
 var readOnly = "";            // why this repository cannot be changed, or ""
 
+// The editor takes typing only when there is a note for it to go into.
+function editorLock() {
+  if (editor && editor.setOption) editor.setOption("readOnly", !!readOnly || moving || !current);
+}
+
 function applyAccess(reason) {
   var was = readOnly;
   readOnly = reason;
   document.body.classList.toggle("read-only", !!reason);
   $("readonly").title = reason;
-  if (editor && editor.setOption) editor.setOption("readOnly", !!reason || moving);
+  editorLock();
   $("pin-input").disabled = !!reason;
   $("pin-go").disabled = !!reason;
   if (was !== reason) renderPins();
@@ -1537,6 +1566,7 @@ var loadNote = "";             // said once the next file list is in (it clears 
    is in, nothing is written; an answer about a repository no longer shown
    is ignored; no answer at all (offline) blocks nothing, since writes
    would fail anyway and drafts keep the text. */
+var pinWriting = Promise.resolve();   // the last pinned-task commit, settling either way
 var accessSeq = 0;
 var accessPending = false;
 
@@ -1644,7 +1674,8 @@ function renderTree() {
     e.textContent = configured()
       ? (treeState === "loading" ? "Loading..." :
          treeState === "failed" ? (treeError || "Could not load the files. Press \u21bb to try again.") :
-         isEmptyRepo() ? "This repository is empty. Press + to write the first note." : "No files.") :
+         isEmptyRepo() ? "This repository is empty. Press + to write the first note." :
+         "No notes here yet. Press + to write one.") :
       (signedIn() ? "Choose a repository in settings." : "Sign in to see your notes.");
     host.appendChild(e);
     return;
@@ -1789,7 +1820,7 @@ function ensureEditor() {
     // gets cleared by whatever happens next.
     document.body.classList.add("plain-editor");
   }
-  if (readOnly && editor.setOption) editor.setOption("readOnly", true);
+  editorLock();
 
   // CodeMirror reports setValue (opening a file, a restored draft) as a
   // change too; only typing counts towards an autosave.
@@ -1816,8 +1847,8 @@ function showDiscard(on) {
 }
 
 function setCrumb(path, tag) {
-  // Rename is for a file that exists on GitHub (not a new one yet).
-  $("btn-rename").hidden = !(current && current.sha && current.path === path);
+  // Rename and Delete are for a file that exists on GitHub (not a new one yet).
+  $("btn-rename").hidden = $("btn-delete").hidden = !(current && current.sha && current.path === path);
   var el = $("crumb");
   el.textContent = "";
 
@@ -1874,6 +1905,7 @@ function openFile(path, discarding) {
       ? { path: path, sha: draft.sha || null, saved: r.sha ? r.text : "\u0000", base: r.base }
       : { path: path, sha: r.sha, saved: r.text, base: r.base };
     editor.setValue(draft ? draft.text : r.text);
+    editorLock();
     editor.clearHistory();
     editor.refresh();
     $("btn-save").disabled = !dirty();
@@ -1910,6 +1942,7 @@ function rescueDraft(path, draft, reason) {
   ensureEditor();
   current = { path: copy, sha: null, saved: "\u0000" };   // new file: always saveable
   editor.setValue(draft.text);
+  editorLock();
   editor.clearHistory();
   editor.refresh();
   $("btn-save").disabled = false;
@@ -1957,6 +1990,7 @@ function scheduleAutosave() {
 function saveCurrent(auto) {
   auto = auto === true;
   if (readOnly) { if (!auto) flash(readOnly, true); return; }
+  if (moving) return;                  // a rename or delete is in flight for the open note
   if (accessPending) {
     if (auto) scheduleAutosave(); else flash("Checking whether this repository can be changed...");
     return;
@@ -2075,6 +2109,7 @@ function newFile() {
   leaveCurrent();
   current = { path: path, sha: null, saved: "\u0000", template: true };   // sentinel: always dirty
   editor.setValue("# " + path.split("/").pop().replace(/\.md$/i, "") + "\n\n");
+  editorLock();
   editor.clearHistory();
   editor.refresh();
   editor.focus();
@@ -2091,10 +2126,10 @@ function newFile() {
    content, so nothing is re-read and nothing typed can go missing), and
    other tabs are told so theirs follows too. */
 var moving = false;
-var moveChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel("notes-moves") : null;
+var moveChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel("notes-changes") : null;
 
 function renameCurrent() {
-  if (!current || !current.sha || readOnly) return;
+  if (!current || !current.sha || readOnly || moving) return;
   if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
   var doc = current, from = doc.path;
   var to = prompt("Rename or move to (the full path in the repository)", from);
@@ -2114,18 +2149,18 @@ function renameCurrent() {
     if (current !== doc || dirty()) throw new Error("save your changes first.");
     clearTimeout(autosaveTimer);
     moving = true;                     // nothing typed now could be kept
-    if (editor.setOption) editor.setOption("readOnly", true);
+    editorLock();
     return moveFile(from, to, doc.sha, modeOf(from));
   }).then(function () {
     followMove(from, to);
-    if (moveChannel) moveChannel.postMessage({ repo: describe(), from: from, to: to });
-    flash("Renamed to " + to + ".");
+    if (moveChannel) moveChannel.postMessage({ kind: "moved", repo: describe(), from: from, to: to });
+    loadNote = "Renamed to " + to + ".";
     refreshTree();
   }).catch(function (err) {
     flash("Not renamed: " + (err.message || "could not reach GitHub."), true);
   }).then(function () {
     moving = false;
-    if (editor.setOption) editor.setOption("readOnly", !!readOnly);
+    editorLock();
   });
 }
 
@@ -2168,10 +2203,90 @@ function followMove(from, to) {
 if (moveChannel) {
   moveChannel.onmessage = function (e) {
     var m = e.data || {};
-    if (m.repo !== describe() || typeof m.from !== "string" || typeof m.to !== "string") return;
-    followMove(m.from, m.to);
+    if (m.repo !== describe()) return;
+    if (m.kind === "moved" && typeof m.from === "string" && typeof m.to === "string") followMove(m.from, m.to);
+    else if (m.kind === "deleted" && typeof m.path === "string") followDelete(m.path, true);
+    else return;
     refreshTree();
   };
+}
+
+/* Delete the open note, after saying plainly what that means. */
+function deleteCurrent() {
+  if (!current || !current.sha || readOnly || moving) return;
+  if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
+  var doc = current, path = doc.path, name = path.split("/").pop();
+  if (!confirm("Delete " + name + "?\n\nIt is removed from the repository in a new commit. As long as " +
+               "the repository's history is kept, it can be recovered: on GitHub, open the commit " +
+               "\"Delete " + path + "\" and copy the note back from there." +
+               (dirty() ? "\n\nYour unsaved changes to it will be lost." : ""))) return;
+  clearTimeout(autosaveTimer);
+  moving = true;                       // nothing typed now could be kept
+  editorLock();
+  flash("Deleting...");
+  // GitHub asks for writes to files one after another: wait for any save or
+  // pinned task still on its way.
+  var ahead = Promise.all([inflight ? inflight.done : null, pinWriting]);
+  ahead.then(function () {
+    return deleteFile(path, doc.sha);  // the sha after any save in flight
+  }).then(function () {
+    var pinned = cfg.pins.indexOf(path) !== -1;
+    followDelete(path, false);
+    if (pinned) {
+      cfg.pins = cfg.pins.filter(function (p) { return p !== path; });
+      saveCfg();
+      renderPinTabs();
+      renderPins();
+    }
+    if (moveChannel) moveChannel.postMessage({ kind: "deleted", repo: describe(), path: path });
+    var said = name + " deleted" + (pinned ? " and unpinned" : "") + ". It stays in the repository's " +
+               "history on GitHub, where the commit that deleted it lets you copy it back.";
+    flash(said, false, 9000);
+    loadNote = said;                   // said again once the list has reloaded
+    refreshTree();
+  }).catch(function (err) {
+    flash("Not deleted: " + (err.status === 409 || err.status === 422
+      ? name + " has changed on GitHub since it was opened, or your unsaved draft is based on an " +
+        "older version. Discard your changes to load the current one, then delete it."
+      : err.message || "could not reach GitHub."), true);
+  }).then(function () {
+    moving = false;
+    editorLock();
+  });
+}
+
+/* The note at `path` is gone. Here, or in a clean tab, it is simply
+   closed. A tab told from elsewhere that holds unsaved words keeps them,
+   as a new note that is saved only if the person chooses to. */
+function followDelete(path, fromElsewhere) {
+  if (current && current.path === path) {
+    if (fromElsewhere && dirty()) {
+      current.sha = null;
+      current.saved = "\u0000";
+      current.touched = false;         // no autosave: bringing it back is their call
+      syncDraft();                     // their words, kept as a draft of a new note
+      setCrumb(path, "(new: deleted in another tab, not saved)");
+      loadNote = path.split("/").pop() + " was deleted in another tab. Your unsaved words are still " +
+                 "here; Save brings the note back, Discard lets it go.";
+      showDiscard(true);
+      return;
+    }
+    // Only a draft this tab wrote, or one that matches what was deleted: a
+    // draft from another tab still typing is theirs to keep.
+    var d = readDraft(path);
+    if (d && (d.text === draftWritten[draftKey(path)] || d.text === current.saved)) dropDraft(path);
+    current = null;
+    if (editor) editor.setValue("");
+    editorLock();
+    showDiscard(false);
+    $("btn-save").disabled = true;
+    $("crumb").textContent = describe();
+    $("btn-rename").hidden = $("btn-delete").hidden = true;
+    if (fromElsewhere) loadNote = path.split("/").pop() + " was deleted in another tab.";
+  }
+  delete pinCache[path];
+  if (ui.last === path) { ui.last = null; persist(UI_KEY, ui); }
+  renderPins();
 }
 
 function discardDraft() {
@@ -2327,7 +2442,7 @@ function commitPin(path, text, onFail) {
   renderPins();
   flash("Saving...");
 
-  writeFile(path, raw, sha).then(function (r) {
+  pinWriting = writeFile(path, raw, sha).then(function (r) {
     if (pinCache[path]) pinCache[path].sha = r.sha;
     if (current && current.path === path && !dirty()) {
       current.sha = r.sha;
@@ -2494,6 +2609,7 @@ function showPointed(changedRepo) {
     applyAccess("");             // until this one's access is known
     current = null;
     if (editor) editor.setValue("");
+    editorLock();
     showDiscard(false);
   }
   $("crumb").textContent = describe();
@@ -2567,6 +2683,7 @@ $("who-avatar").addEventListener("error", function () { this.style.visibility = 
 $("btn-save").onclick     = saveCurrent;
 $("btn-discard").onclick  = discardDraft;
 $("btn-rename").onclick   = renameCurrent;
+$("btn-delete").onclick   = deleteCurrent;
 $("btn-new").onclick      = newFile;
 $("btn-refresh").onclick  = refreshTree;
 $("btn-settings").onclick = openSettings;

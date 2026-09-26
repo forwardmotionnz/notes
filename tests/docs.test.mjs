@@ -37,4 +37,25 @@ t.check('public reports keep notes and credentials private', /reports are public
   /Do not include private notes, passwords, tokens/.test(bug) && /made.up example/i.test(bug));
 t.check('README links the report template', /\]\(\.github\/ISSUE_TEMPLATE\/bug_report.md\)/.test(readme));
 t.check('readers can find where to submit their report', /\]\(https:\/\/github.com\/forwardmotionnz\/notes\/issues\/new\)/.test(readme));
+
+const changePath = new URL('CHANGELOG.md', root);
+const changes = existsSync(changePath) ? readFileSync(changePath, 'utf8') : '';
+const ledger = readFileSync(new URL('MVP.md', root), 'utf8');
+t.check('changelog has an unreleased MVP entry', /^## Unreleased — MVP candidate$/m.test(changes));
+t.check('MVP entry describes the implemented user features', /autosave/i.test(changes) && /drafts/i.test(changes) &&
+  /rename/i.test(changes) && /delete/i.test(changes) && /wikilinks/i.test(changes) && /home.screen/i.test(changes));
+t.check('known limitations include network and file limits', /### Known limitations/.test(changes) &&
+  /no offline sync/i.test(changes) && /1 MB/.test(changes) && /Git LFS/.test(changes) && /partial file list/i.test(changes));
+t.check('draft recovery guidance names the destructive actions', /copy your latest text before using \*\*Discard\*\*/.test(changes) &&
+  /Sign out[^.]*removes[\s\S]*drafts/.test(changes));
+t.check('sign-out scope includes each independent session-only tab', /current tab's\s+session.only drafts/.test(changes) &&
+  /sign out in each session.only tab separately/i.test(changes));
+t.check('phone limitations do not claim a real-device pass', /iPhone or iPad[\s\S]*separate[\s\S]*drafts/.test(changes) &&
+  /real.phone[\s\S]*still pending/i.test(changes));
+t.check('F2 remains an explicit release blocker', !/\| F2 \|[^\n]*\| blocked \|/.test(ledger) ||
+  /WebKit[\s\S]*blocked[\s\S]*release gate has not passed/i.test(changes));
+t.check('unfinished shared sign-in names the owner setup', !/REPLACE_ME/.test(html) ||
+  /owner[\s\S]*broker[\s\S]*GitHub App/.test(changes));
+t.check('release status and privacy have working local links', /\]\(MVP.md\)/.test(changes) && /\]\(PRIVACY.md\)/.test(changes));
+t.check('README links the changelog', /\]\(CHANGELOG.md\)/.test(readme));
 t.finish();

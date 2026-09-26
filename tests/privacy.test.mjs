@@ -154,7 +154,11 @@ for (const remember of [true, false]) {
   gh.expireAll();
   for (const v of gh.refresh.values()) v.used = true;
   await p.click('#btn-refresh');
-  await p.waitForTimeout(800);
+  // A refused refresh waits up to 2 s for another tab's tokens before
+  // signing out; wait for the sign-out itself.
+  await p.waitForFunction(() => document.getElementById('settings').open &&
+    !document.getElementById('view-signin').hidden, null, { timeout: 5000 }).catch(() => {});
+  await p.waitForTimeout(100);
   const k = await keysOf(p);
   t.check('revoked: signed out, the sign-in gone from storage', !k.local.includes('notes.config.v2') &&
     await p.evaluate(() => !document.getElementById('view-signin').hidden), JSON.stringify(k));

@@ -257,7 +257,9 @@ Obsidian would not understand, so both can work on the same repository.
   deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
 - Pinned files as a live task list with a one-line capture box
 - Filter across every path in the repository
-- Light and dark, and a layout that works on a phone
+- Light and dark, and a layout that works on a phone: with the keyboard up,
+  the app fits the space above it, so the buttons stay at the top and the
+  line you are typing stays in view
 
 Each save is one commit. Notes save themselves two seconds after you stop
 typing, and straight away when you switch to another app or tab; **Save** and

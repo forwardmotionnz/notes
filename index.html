@@ -22,13 +22,14 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-V3gI++z1V5kw1n1EBPnzG/3OCn6sQlQE5zWUCHlkD38=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-9TLZfVOuY07kbOpKCCiPGf5zmbPrJ1qMos2tOf6qaG8=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
 <!-- Add to Home Screen: the manifest for Android and desktop, the touch
      icon and title for iOS, which does not use the manifest's icons. -->
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-title" content="Notes">
@@ -451,6 +452,10 @@
   .only-narrow { display: none; }
 
   @media (max-width: 820px) {
+    /* iOS Safari zooms the page into any field whose text is under 16px
+       when it is tapped, and stays zoomed. Here every field is 16px. */
+    input, textarea, select, #filter, #pin-add input,
+    #editor-pane .CodeMirror, .fallback-editor { font-size: 16px; }
     .only-narrow { display: inline-block; }
 
     #sidebar {
@@ -478,6 +483,9 @@
       box-shadow: 0 -4px 40px rgba(0,0,0,.25);
       padding-bottom: env(safe-area-inset-bottom);
     }
+    /* Never taller than the space there is: with the keyboard up that is
+       much less than the screen, and the "Add a task" box is at the top. */
+    #pins { max-height: 100%; }
     body.pins-open #pins { transform: none; }
 
     #scrim {
@@ -2968,6 +2976,44 @@ function forget() {
 /* ================================================================
    WIRING
    ================================================================ */
+
+/* The on-screen keyboard. Android Chrome shrinks the page for it (the
+   viewport tag asks it to). iOS Safari does not: the page stays full height
+   behind the keyboard and Safari pans it to reach the caret, taking the
+   header off the top. There the app follows the visible area instead, as
+   visualViewport reports it, so the header stays at the top of what can be
+   seen and the editor ends at the keyboard, keeping the caret in view. */
+(function followVisibleArea() {
+  var vv = window.visualViewport;
+  if (!vv) return;
+  var shell = $("shell");
+  var lastHeight = vv.height;
+  function fit(e) {
+    // Where the visible area starts on the page (pageTop allows for the
+    // page itself having scrolled, not only for Safari panning it).
+    var top = vv.pageTop != null ? vv.pageTop : vv.offsetTop + (window.scrollY || 0);
+    var whole = Math.abs(window.innerHeight - vv.height) < 1 && !top;
+    // Pinch zoom also shrinks the visible area; that is not a keyboard.
+    if (whole || vv.scale > 1.01) {
+      shell.style.height = "";
+      shell.style.transform = "";
+    } else {
+      shell.style.height = vv.height + "px";
+      shell.style.transform = top ? "translateY(" + top + "px)" : "";
+    }
+    // Only when the space itself changed (the keyboard came or went), not
+    // on every pan: the editor re-measures, and keeps the caret in view if
+    // that is where the person is typing.
+    if (e.type === "resize" && vv.height !== lastHeight && editor) {
+      editor.refresh();
+      var typing = editor.getWrapperElement && editor.getWrapperElement().contains(document.activeElement);
+      if (typing && editor.scrollIntoView) editor.scrollIntoView(null, 40);
+    }
+    lastHeight = vv.height;
+  }
+  vv.addEventListener("resize", fit);
+  vv.addEventListener("scroll", fit);
+})();
 
 // Phones never show a title: tapping the badge says why, again.
 $("readonly").onclick = function () { flash(readOnly, true); };

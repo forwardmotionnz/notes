@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 21 / 30
+Iterations: 23 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -25,9 +25,11 @@ Iterations: 21 / 30
 | A2 | 14 | done | `tests/welcome.test.mjs` 19/19: at most three sentences of at most 20 words, above Sign in, saying what Notes is, that it reads and writes files only in repositories the app is installed on (which you choose), that notes stay there and whoever runs the copy's App can reach them; a Privacy link to `PRIVACY.html` (GitHub Pages publishes `PRIVACY.md` there) in a new tab; Sign in has the focus; Forget me promises no more than PRIVACY.md (the privacy test holds the README to that too); fits 320 px. Screens `tests/screens/a2-*.png`; commit d91783c |
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | done | `npm test` runs every suite in Chromium and WebKit (`tests/run.mjs`; a missing engine fails, never skips); `tests/runner.test.mjs` 14/14; GitHub Actions run 18 (https://github.com/forwardmotionnz/notes/actions/runs/36204886187): the whole suite three times in a row, green in both engines, on 72c1af2; three local Chromium runs green. WebKit found one real bug, a Safari sign-in race between tabs, fixed with tests that reproduce it in Chromium; review of that fix found and fixed the offline sign-out. Commits d2b0cec, aaa113f, 8424be2, c7db305, 2a86afd, 72c1af2 |
-| F1 | 16 | doing | |
-| F3 | 17 | todo | |
-| G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
+| F1 | 16 | done | `manifest.webmanifest` (standalone, start and scope `./`, 192/512 and maskable icons), `icon-180.png` touch icon, `icon.svg`, theme colours light and dark, `manifest-src 'self'`; `tests/manifest.test.mjs` 25/25 (fields, real icon sizes, links, policy, Chromium parses it with no errors, start address equals the sign-in callback); GitHub Actions run 22 (https://github.com/forwardmotionnz/notes/actions/runs/36208864366): three runs in a row, both engines, green; three local Chromium runs green. Screen `tests/screens/f1-icon-shapes.png`. Commit 1326f8c; merged to `main` in forwardmotionnz/notes#1 |
+| F3 | 17 | doing | |
+| N6 | 17a | doing | |
+| N7 | 17b | todo | |
+| G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review (offline refresh signing out): fixed in F2 (2a86afd). Also from F2: `broker()` has no timeout, so a stalled connection holds the refresh lock until the browser gives up. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
@@ -119,6 +121,18 @@ Iterations: 21 / 30
 ### F1: plan
 - Done looks like: Add to Home Screen gives "Notes", the note icon and a standalone window, on Android (web app manifest, maskable icon) and iOS (apple-touch-icon, title). Small files in the repository root, no service worker; the page's security policy lets the manifest load; the home-screen app starts at exactly the address GitHub's sign-in returns to.
 - Proof: `tests/manifest.test.mjs`: the manifest's fields, every icon file's real pixel size, the page's links, the policy, the browser loading the manifest (Chromium reports it parsed with no errors), and the start address matching the sign-in callback.
+
+### N6: plan (asked by the owner, 2026-09-26)
+- The browser tab shows the Notes icon from F1 in every browser: the SVG where it is supported, and a PNG fallback (32 px, and the 192 px one) for browsers that do not use SVG tab icons (older Safari). The owner saw the generic globe on the live site right after the F1 merge; the SVG link is there, so check whether it was the favicon cache or a real gap, and cover both.
+- Proof: a test that every tab-icon link resolves to a real file of the stated type and size, and a screenshot of the tab icon where one can be taken.
+
+### F3: plan
+- Done looks like: on a 390 px phone with the on-screen keyboard up, the app fits the area above the keyboard: the header buttons stay on screen and tappable, the editor ends at the keyboard so the caret stays visible while typing, and the pinned tasks' "Add a task" box stays visible. Android Chrome resizes the page for the keyboard (`interactive-widget=resizes-content`); iOS Safari does not, so the app follows `visualViewport`, as iOS reports the visible area.
+- Proof: `tests/keyboard.test.mjs` fakes the visible area shrinking (and iOS panning the page) exactly as `visualViewport` reports it, types at the end of a long note, and checks what is on screen; and a short window, as Android gives, for the resize path. Screenshots with the keyboard's space marked.
+
+### N7: plan (asked by the owner, 2026-09-26)
+- Done looks like: a full run takes about a minute or two instead of five, and is less sensitive to a slow machine. The 394 fixed pauses (about 232 s of waiting per run) become waits for the condition each one stands for, and the runner runs several suites at once (each has its own fake GitHub and browser). No check is weakened or removed; every check still fails for the right reason.
+- Proof: timings before and after; every suite passes three runs in a row in both engines; a sample of each suite's checks reverted against the app still caught (G-2 across the suites, not only one); the runner's own tests extended for parallel runs (a failure in one suite still fails the run, output stays per suite).
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -274,11 +288,25 @@ Iterations: 21 / 30
 - G-4: nothing in the app changed. G-5: dev tooling only; no runtime dependency, no request from the app. G-6: README's Tests section.
 
 ### F1: gauntlet record
-- G-1: full suite green three runs in a row, Chromium locally; both engines in CI.
+- G-1: GitHub Actions run 22, three runs in a row in both engines, green; three local Chromium runs green (1326f8c).
 - G-2: each safeguard reverted alone and caught: `manifest-src 'self'` (without it Chromium refuses the manifest, 4 checks fail), the start address (`index.html` would not match the sign-in callback), standalone display, the maskable icon, an icon's claimed size against its real pixels, the iPhone touch icon, the manifest link. The dark-mode colour and the tab-free wording have checks of their own.
 - Rule 6: the harness now serves the manifest and icons with the types GitHub Pages gives them (mime-db: `.webmanifest` is `application/manifest+json`; URL in the harness).
 - G-3 findings, all taken; the reviewer found nothing that could lose notes or a token, and confirmed the scope, start address, icons (opaque, maskable safe zone), policy and safe-area padding. (1) After installing the GitHub App from the home-screen app, iOS opens GitHub outside it, and the page GitHub returns to spoke of "tabs", inviting a sign-in in a throwaway sheet: the wording now names the Notes app too, and the README says to come back to the app. (2) On iPhone the home-screen app's storage is its own: the README now says the two are signed in and out separately and unsaved changes stay where they were typed. (3) The browser bar colour ignored dark mode: a dark `theme-color` too. Known limit, for the release checklist: signing in from the home-screen app on a real iPhone can only be tried there.
 - G-4: `tests/screens/f1-icon-shapes.png`: the icon as an Android circle, an iOS rounded square, and at 48 and 24 px. G-5: five small files in the root (about 7 KB together), no dependency, no service worker, no request beyond the app's own files. G-6: README on Add to Home Screen, iPhone and Android.
+
+### F3: gauntlet record
+- G-1: full suite three runs in a row locally (Chromium) and in CI (both engines).
+- G-2: each safeguard reverted alone and caught (9): the resize listener, the scroll listener, following a pan, leaving pinch zoom alone, resetting when the keyboard goes, 16px fields, the pins sheet's cap, not moving the note on a pan, not moving it to its caret when typing elsewhere. The fake keyboard fires `resize` and `scroll` separately, as iOS does; a first version fired both together and hid a missing listener.
+- What no test here can show: a real on-screen keyboard. The tests fake `visualViewport` as iOS reports it (height, pageTop, scale), at real keyboard heights; Android's path is a shorter window. The release checklist needs a real iPhone and an Android phone: type at the end of a long note, and add a task, with the keyboard up.
+- G-3 findings, all taken: (1) every field's text was under 16px, so iOS Safari zooms in when one is tapped; the code took any zoom for a pinch and stood aside, so on a real iPhone it would never have run: every field is 16px on phones; test. (2) The pinned-tasks sheet was sized from the full screen height, so at real keyboard heights (417 px left on an iPhone 14 with Safari's form bar, 343 on an iPhone SE) its "Add a task" box was cut off, worse than before; the test had used a generous 508 px and passed by 1 px: the sheet is capped to the space there is; tests at both real heights. (3) Every pan snapped the note back to its caret and re-measured it: now only when the height changes, and the caret only while the note has the focus; tests. (4) The position follows `pageTop`, which allows for the page itself having scrolled. Left, noted: while the page pans, the header can lag a frame behind until iOS reports the pan (the transform follows each event, not each frame); and re-measuring CodeMirror while an input method is composing is not known to be safe.
+- G-4: `tests/screens/f3-{editor,pins}-{light,dark}.png` with the keyboard's space marked: the header at the top, the editor ending at the keyboard with the typed line in view, the task box above the keyboard. G-5: CSS and one small function; no dependency. G-6: README.
+
+### N6: gauntlet record
+- G-1: full suite three runs in a row locally (Chromium) and in CI (both engines).
+- G-2: dropping the PNG link, and a size claimed that the file does not have, are each caught.
+- Change: a 32 px PNG tab icon (367 bytes) beside the SVG, raster first with explicit sizes (so Chromium still prefers the SVG). The test now checks every tab-icon link: the file exists, its type and real pixel size match, it is served with its type.
+- G-3: nothing wrong found. Chrome, Edge, Firefox and current Safari use the SVG; older Safari the PNG; iOS the PNG or the 180 px touch icon. Favicons are same-origin, so `img-src 'self'` allows them where a browser applies the policy. The globe the owner saw: the link was already on `main`, so most likely a page loaded before the deploy finished (Pages also caches for up to 10 minutes) or Chrome's favicon cache; hard reload, or open the app in a new tab.
+- G-4: a browser's tab strip cannot be screenshotted headless; the icon itself was checked at 32 px. G-5: one 367-byte file, no request beyond the app's own files. G-6: no behaviour described in the README changed.
 
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
@@ -298,6 +326,7 @@ Iterations: 21 / 30
 - 2026-09-25: Before a repository is in use, a public one is never chosen for anyone, even when it is the only one: notes are private by default, and the other mistake cannot be undone.
 - 2026-09-25: A3 goes before A2: the signed-out screen links to the privacy note, so the note has to exist first.
 - 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
+- 2026-09-26: `main` is protected by a ruleset (pull requests only); merges now go through a pull request, the first being forwardmotionnz/notes#1 (F2 and F1), merged at the owner's request.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -322,3 +351,4 @@ Iterations: 21 / 30
 - 2026-09-25 · A3 · done · 211e75b (taken before A2, which links to it)
 - 2026-09-25 · A2 · done · d91783c
 - 2026-09-26 · F2 · done · d2b0cec…72c1af2 (WebKit runs in GitHub Actions)
+- 2026-09-26 · F1 · done · 1326f8c

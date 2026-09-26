@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 21 / 30
+Iterations: 22 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -26,8 +26,9 @@ Iterations: 21 / 30
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | done | `npm test` runs every suite in Chromium and WebKit (`tests/run.mjs`; a missing engine fails, never skips); `tests/runner.test.mjs` 14/14; GitHub Actions run 18 (https://github.com/forwardmotionnz/notes/actions/runs/36204886187): the whole suite three times in a row, green in both engines, on 72c1af2; three local Chromium runs green. WebKit found one real bug, a Safari sign-in race between tabs, fixed with tests that reproduce it in Chromium; review of that fix found and fixed the offline sign-out. Commits d2b0cec, aaa113f, 8424be2, c7db305, 2a86afd, 72c1af2 |
 | F1 | 16 | done | `manifest.webmanifest` (standalone, start and scope `./`, 192/512 and maskable icons), `icon-180.png` touch icon, `icon.svg`, theme colours light and dark, `manifest-src 'self'`; `tests/manifest.test.mjs` 25/25 (fields, real icon sizes, links, policy, Chromium parses it with no errors, start address equals the sign-in callback); GitHub Actions run 22 (https://github.com/forwardmotionnz/notes/actions/runs/36208864366): three runs in a row, both engines, green; three local Chromium runs green. Screen `tests/screens/f1-icon-shapes.png`. Commit 1326f8c; merged to `main` in forwardmotionnz/notes#1 |
-| F3 | 17 | todo | |
-| G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
+| F3 | 17 | doing | |
+| N6 | 17a | todo | |
+| G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review (offline refresh signing out): fixed in F2 (2a86afd). Also from F2: `broker()` has no timeout, so a stalled connection holds the refresh lock until the browser gives up. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
@@ -119,6 +120,10 @@ Iterations: 21 / 30
 ### F1: plan
 - Done looks like: Add to Home Screen gives "Notes", the note icon and a standalone window, on Android (web app manifest, maskable icon) and iOS (apple-touch-icon, title). Small files in the repository root, no service worker; the page's security policy lets the manifest load; the home-screen app starts at exactly the address GitHub's sign-in returns to.
 - Proof: `tests/manifest.test.mjs`: the manifest's fields, every icon file's real pixel size, the page's links, the policy, the browser loading the manifest (Chromium reports it parsed with no errors), and the start address matching the sign-in callback.
+
+### N6: plan (asked by the owner, 2026-09-26)
+- The browser tab shows the Notes icon from F1 in every browser: the SVG where it is supported, and a PNG fallback (32 px, and the 192 px one) for browsers that do not use SVG tab icons (older Safari). The owner saw the generic globe on the live site right after the F1 merge; the SVG link is there, so check whether it was the favicon cache or a real gap, and cover both.
+- Proof: a test that every tab-icon link resolves to a real file of the stated type and size, and a screenshot of the tab icon where one can be taken.
 
 ## Needs the owner
 (exact steps for human-only actions)

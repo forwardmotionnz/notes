@@ -54,6 +54,7 @@ for (const pan of [0, 120]) {
   await p.evaluate(() => { const ta = document.querySelector('#cm-stub'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
   await p.evaluate(([k, pan]) => window.keyboard(k, pan), [KEYBOARD, pan]);
   await H.settle(p, 200);
+  await H.still(p);
   for (const b of ['#btn-tree', '#btn-save', '#btn-pins', '#btn-settings']) {
     t.check(`${label}: ${b} stays on screen and tappable`, (await onScreen(p, b)) === 'ok', await onScreen(p, b));
   }
@@ -115,9 +116,11 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   await H.settle(p, 300);
   await p.click('#btn-pins');
   await H.settle(p, 300);
+  await H.still(p);                                 // the sheet has finished sliding in
   await p.focus('#pin-input');
   await p.evaluate(k => window.keyboard(k), keyboard);
   await H.settle(p, 250);
+  await H.still(p);
   t.check(`pins sheet, ${label}: the "Add a task" box stays above the keyboard`, (await onScreen(p, '#pin-input')) === 'ok', await onScreen(p, '#pin-input'));
   t.check(`pins sheet, ${label}: and its Add button`, (await onScreen(p, '#pin-go')) === 'ok', await onScreen(p, '#pin-go'));
   await ctx.close();

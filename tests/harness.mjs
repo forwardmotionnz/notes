@@ -240,7 +240,10 @@ window.CodeMirror = function (host, opts) {
       return i + pos.ch;
     },
     getWrapperElement: function () { return ta; },
-    clearHistory: function () {}, refresh: function () {}, focus: function () { ta.focus(); },
+    clearHistory: function () {}, focus: function () { ta.focus(); },
+    // Counted, so tests can see when the app asks for them.
+    refresh: function () { window.cmRefreshes = (window.cmRefreshes || 0) + 1; },
+    scrollIntoView: function () { window.cmScrolls = (window.cmScrolls || 0) + 1; },
     on: function (e, f) { if (e === 'change') hs.push(f); } };
 };
 window.CodeMirror.defineMode = function () {};`;

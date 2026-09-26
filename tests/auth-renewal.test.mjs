@@ -479,6 +479,9 @@ for (const how of ['forget me', 'sign out']) {
   });
   t.check('sign-in button fits and is thumb-sized on a phone', fits);
   await H.signIn(p);
+  // Stored credentials precede the asynchronous repository listing.
+  await p.waitForFunction(() => [...document.querySelectorAll('#tree .row')]
+    .some(e => e.textContent.trim() === 'todo.md'), null, { timeout: 5000 }).catch(() => {});
   t.check('phone sign-in lands in the notes', (await H.rows(p)).includes('todo.md'));
   await ctx.close();
 }

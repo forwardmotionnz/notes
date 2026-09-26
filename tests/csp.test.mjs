@@ -56,6 +56,9 @@ const directive = name => dir(meta, name);
   await p.addInitScript(() => document.addEventListener('securitypolicyviolation',
     e => window.__violation(e.violatedDirective + ' ' + e.blockedURI)));
   await H.signIn(p);
+  // Stored credentials precede the asynchronous repository listing.
+  await p.waitForFunction(() => [...document.querySelectorAll('#tree .row')]
+    .some(e => e.textContent.trim() === 'todo.md'), null, { timeout: 5000 }).catch(() => {});
   t.check('signed in and working under the policy', (await H.rows(p)).includes('todo.md'));
 
   const results = await p.evaluate(async () => {

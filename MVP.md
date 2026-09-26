@@ -64,6 +64,14 @@ They are not instructions to repeat completed setup.
   The corrected wikilink suite passed 47/47 three times in each engine:
   `tests/screens/wikilinks-final-{chromium,webkit}-{1,2,3}.log`. Both WebKit
   CI jobs and the PR Chromium job passed on the preceding app-identical head.
+- A subsequent WebKit round exposed the same readiness issue in two sign-in
+  checks: stored credentials existed before the repository tree arrived.
+  Independent held-tree probes reproduced both failures; releasing the same
+  response produced the expected row without another sign-in, CSP violation
+  or page error. The phone sign-in and CSP tests now wait up to five seconds
+  for that row before their unchanged assertions. App code is unchanged.
+  Both suites passed three times in each engine (auth-renewal 62/62, CSP
+  26/26); logs: `tests/screens/signin-ready-{chromium,webkit}-{auth-renewal,csp}-{1,2,3}.log`.
 
 ## Items
 | ID | Priority | Status | Evidence |

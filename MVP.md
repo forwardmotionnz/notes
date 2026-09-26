@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 25 / 30
+Iterations: 26 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -29,8 +29,8 @@ Iterations: 25 / 30
 | F3 | 17 | done | `tests/keyboard.test.mjs` 22/22 using real CodeMirror and the fallback; full 23-suite Chromium gauntlet green three times; five independent mutations caught; `tests/screens/f3-{desktop,phone}-{light,dark}.png` viewed; commit 3486a8f (pushed). |
 | G3 | 18 | done | `tests/errors.test.mjs` 90/90; all 24 Chromium suites green three consecutive runs (`tests/screens/g3-gauntlet-2/`); 26 safeguards independently removed and caught; fresh review findings fixed or documented below; viewed `tests/screens/g3-{desktop,phone}-{light,dark}.png`; commit c57046d (pushed). |
 | H1 | 19 | done | `tests/docs.test.mjs` 10/10; all 25 Chromium suites green three times (`tests/screens/h1-gauntlet-2/`); four misleading wording variants caught; reviewed `tests/screens/h1-{desktop,phone}-{light,dark}.png`; fresh review fixes recorded below; commit a7b60d0 (pushed). |
-| H2 | 20 | doing | Add a simple bug report template asking for device, browser and expected result; plan below. |
-| H3 | 21 | todo | |
+| H2 | 20 | done | `.github/ISSUE_TEMPLATE/bug_report.md`; `tests/docs.test.mjs` 20/20, five template mutations caught; all 25 Chromium suites green three times (`tests/screens/h2-gauntlet/`); fresh review and viewed `tests/screens/h2-{desktop,phone}-{light,dark}.png`; commit a66ce72 (pushed). |
+| H3 | 21 | doing | Add an unreleased MVP changelog entry with features, known limits and explicit release blockers; plan below. |
 | S1 | 22 | todo | SHOULD |
 | S2 | 23 | todo | SHOULD |
 | S3 | 24 | todo | SHOULD |
@@ -168,6 +168,10 @@ Iterations: 25 / 30
 - GitHub documents the name/about frontmatter, directory and default-branch requirement at https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates . The template becomes selectable only after the owner's future merge into main; mvp does not activate it yet.
 - Five independent removals (public-report privacy guidance, frontmatter, device, browser, expected result) failed their checks: `tests/h2-mutations.log` and `tests/screens/h2-mutation-*.log`. These variants only changed test-local strings; the files remained intact. No runtime safeguard changed.
 - Viewed `tests/screens/h2-{desktop,phone}-{light,dark}.png`: clear existing app layout and reachable Save, no overflow. No runtime code, dependency, build or request changed; index.html remains 127,373 bytes. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h2-gauntlet/run-{1,2,3}.json`. WebKit remains blocked under F2.
+
+### H3: plan
+- Done looks like: CHANGELOG.md describes the MVP candidate and its known limits, plainly marked unreleased. It does not imply WebKit, real-phone testing or shared sign-in are ready while F2 and owner setup remain outstanding.
+- Proof: failing documentation checks before creation; compare each claim with app behaviour and the ledger, fresh review, four viewed screenshots and all Chromium suites three times. No runtime change is planned.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -337,6 +341,7 @@ Iterations: 25 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
+- 2026-09-26 · H2 · done · a66ce72 (pushed)
 - 2026-09-26 · H1 · done · a7b60d0 (pushed)
 - 2026-09-26 · G3 · done · c57046d (pushed)
 - 2026-09-26 · F3 · done · 3486a8f (pushed)

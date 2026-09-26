@@ -6,13 +6,15 @@
     node tests/run.mjs webkit       one engine
     node tests/run.mjs --list       the suites it would run
     --dir <folder>                  suites from another folder (the runner's own test)
-    --jobs <n>                      suites run at once (default: 3 per CPU, at most 12)
+    --jobs <n>                      suites run at once (default: 2 per CPU, at most 8)
 
   Each suite has its own fake GitHub and its own browser, so several can run
   at once; each one's output is printed together when it finishes. Most of a
   suite's time is waiting on the app, not CPU, hence more suites than CPUs.
   (Measured on 4 CPUs: 4 at a time 109 s, 8 at a time 72 s, 12 at a time 60 s,
-  each three runs in a row without a failure.)
+  each three runs in a row without a failure here; but 12 at a time on
+  GitHub's slower 4-CPU runners failed sign-ins and loads for lack of time,
+  so the default is 8, and CI asks for 4.)
 
   An engine that is not installed fails the run, with the command that
   installs it. It is never skipped: a run that quietly left out Safari's
@@ -27,7 +29,7 @@ import { ENGINES } from './harness.mjs';
 
 const args = process.argv.slice(2);
 const jobsAt = args.indexOf('--jobs');
-const jobs = jobsAt === -1 ? Math.max(1, Math.min(12, 3 * cpus().length)) : Number(args.splice(jobsAt, 2)[1]);
+const jobs = jobsAt === -1 ? Math.max(1, Math.min(8, 2 * cpus().length)) : Number(args.splice(jobsAt, 2)[1]);
 if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs needs a whole number from 1.'); process.exit(2); }
 const dirAt = args.indexOf('--dir');
 const here = dirAt === -1 ? new URL('./', import.meta.url)

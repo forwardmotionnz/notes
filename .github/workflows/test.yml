@@ -50,5 +50,7 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.engine }}
+      # Four at a time: GitHub's runners have 4 slower CPUs, and at twelve
+      # sign-ins and loads ran out of time (run 37).
       - name: Suite in ${{ matrix.engine }}
-        run: node tests/run.mjs ${{ matrix.engine }}
+        run: node tests/run.mjs ${{ matrix.engine }} --jobs 4

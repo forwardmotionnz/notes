@@ -79,6 +79,13 @@ They are not instructions to repeat completed setup.
   attachment, bounded at five seconds, before its unchanged typing operation.
   All 45 draft checks passed three times per engine; logs:
   `tests/screens/drafts-ready-{chromium,webkit}-{1,2,3}.log`.
+- A duplicate Chromium job then caught the first file-switch assertion
+  reading the previous editor before the return GET completed; the PR job
+  and both WebKit jobs passed. Independent response gating reproduced this
+  exactly. The first case now awaits the expected path and editor text;
+  every assertion and deliberate in-flight race case remains unchanged.
+  All 33 checks passed three times per engine; logs:
+  `tests/screens/switch-ready-final-{chromium,webkit}-{1,2,3}.log`.
 
 ## Items
 | ID | Priority | Status | Evidence |

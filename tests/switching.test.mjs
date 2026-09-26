@@ -42,6 +42,8 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   t.check('the new file is open', (await H.editorValue(p)) === '# Plan\n');
   t.check('no draft left once committed', (await drafts(p)).length === 0, JSON.stringify(await drafts(p)));
   await H.clickRow(p, 'inbox.md');
+  await p.waitForFunction(() => current?.path === 'inbox.md' &&
+    editor.getValue() === '# Inbox\n\ntyped then left', null, { timeout: 5000 });
   t.check('going back shows the committed text', (await H.editorValue(p)) === '# Inbox\n\ntyped then left' &&
     await p.isDisabled('#btn-save'));
   t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));

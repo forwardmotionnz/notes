@@ -179,7 +179,16 @@ again: GitHub only shows them to a sign-in made during an SSO session.
 ## Using it on several computers
 
 It is a web page, so any browser works: home, work, phone. Sign in once per
-browser. On a phone, open the URL and choose *Add to Home Screen*.
+browser. On a phone, open the URL and choose *Add to Home Screen* (on an
+iPhone, the Share button first; on Android, the browser's menu, where it may
+say *Install app*). It then opens from its own icon, in a window of its own,
+named Notes. It needs the network, as the app always does: there is no
+offline copy. On an iPhone the home-screen app usually has storage of its
+own, apart from Safari's. Then it is signed in and out separately (signing
+out in one leaves the other signed in), and unsaved changes stay where you
+typed them. When the app sends you to GitHub, for example to choose a
+repository, come back to the Notes app afterwards rather than signing in on
+the page GitHub returns you to.
 
 On a work or shared computer, tick **Forget me when I close the browser**
 before signing in. The sign-in and drafts are kept for this browser session

@@ -7,7 +7,7 @@
   after one use, as GitHub's do.
 */
 import * as playwright from 'playwright';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { createServer } from 'http';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
@@ -30,8 +30,17 @@ const PAGE = () => pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
 export const ENGINES = ['chromium', 'webkit'];
 const ENGINE = process.env.NOTES_TEST_ENGINE || 'chromium';
 export const engine = () => ENGINE;
+// A request a test deliberately failed (route.abort), as each engine words it
+// in the console: Chromium "Failed to fetch", WebKit "Load failed", or, for a
+// request cut off as the page unloads, "... due to access control checks".
+// Only for filtering failures a test injected itself.
+export const networkFailure = /Failed to fetch|Load failed|due to access control checks/;
 // The engine really running, as Playwright reports it.
 export const launched = () => browser?.browserType().name();
+
+// GitHub Pages takes types from mime-db (webmanifest: application/manifest+json):
+// https://github.com/jshttp/mime-db/blob/master/db.json
+const ASSET_TYPES = { webmanifest: 'application/manifest+json', png: 'image/png', svg: 'image/svg+xml' };
 
 export const DEPLOY = {
   clientId: 'Iv23liTESTCLIENT',
@@ -181,7 +190,13 @@ let server, origin, browser;
 
 export async function start() {
   server = createServer((req, res) => {
-    // Every path serves the app, as GitHub Pages does for index.html.
+    // The app's own files, with the types GitHub Pages gives them.
+    const asset = (req.url.match(/^\/notes\/([\w-]+\.(webmanifest|png|svg))$/) || []);
+    if (asset[1] && existsSync(ROOT + asset[1])) {
+      res.writeHead(200, { 'Content-Type': ASSET_TYPES[asset[2]] });
+      return res.end(readFileSync(ROOT + asset[1]));
+    }
+    // Every other path serves the app, as GitHub Pages does for index.html.
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(PAGE());
   });

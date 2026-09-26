@@ -35,11 +35,13 @@ t.check('and running nothing that could look like a pass', !/passed/.test(said),
 
 // A suite that fails, or dies before reporting, fails the whole run, and
 // every suite still runs.
-const fx = run(['chromium', '--dir', 'tests/fixtures/runner']);
+// In the engine this run has: the other may not be installed (CI installs one).
+const here = process.env.NOTES_TEST_ENGINE || 'chromium';
+const fx = run([here, '--dir', 'tests/fixtures/runner']);
 const fxOut = fx.stdout + fx.stderr;
-t.check('a failing suite fails the run', fx.status === 1 && /FAILED: .*bad\.test\.mjs \[chromium\]/.test(fxOut), fxOut);
-t.check('so does one that crashes before reporting', /FAILED: .*crash\.test\.mjs \[chromium\]/.test(fxOut), fxOut);
-t.check('and the rest still run', /ok \[chromium\]: 1\/1 passed/.test(fxOut), fxOut);
+t.check('a failing suite fails the run', fx.status === 1 && new RegExp(`FAILED: .*bad\\.test\\.mjs \\[${here}\\]`).test(fxOut), fxOut);
+t.check('so does one that crashes before reporting', new RegExp(`FAILED: .*crash\\.test\\.mjs \\[${here}\\]`).test(fxOut), fxOut);
+t.check('and the rest still run', new RegExp(`ok \\[${here}\\]: 1/1 passed`).test(fxOut), fxOut);
 t.check('the fixtures are not part of the real suite', !run(['--list']).stdout.includes('bad.test.mjs'));
 
 // The harness launches the engine it is told to: in the WebKit run this is

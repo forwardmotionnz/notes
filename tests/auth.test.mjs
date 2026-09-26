@@ -427,7 +427,10 @@ await H.start();
   gh.expireAll();
   for (const v of gh.refresh.values()) v.used = true;
   await p.click('#btn-refresh');
-  await p.waitForTimeout(700);
+  // A refused refresh waits up to 2 s for another tab's tokens before
+  // signing out (WebKit's storage can lag); wait for the outcome itself.
+  await p.waitForFunction(() => document.getElementById('settings').open &&
+    !document.getElementById('view-signin').hidden, null, { timeout: 5000 }).catch(() => {});
   t.check('dead refresh token signs you out cleanly', await H.dialogOpen(p) &&
     await p.evaluate(() => !document.getElementById('view-signin').hidden));
   t.check('tokens removed from storage', (await H.stored(p)).local === null);
@@ -454,6 +457,121 @@ await H.start();
   await b.click('#pin-go');
   await b.waitForTimeout(600);
   t.check('both tabs keep working afterwards', gh.files['todo.md'].includes('from tab b'));
+  await ctx.close();
+}
+
+/* ===== WebKit: another tab's new tokens reach this one late ===== */
+// In WebKit a localStorage write in one tab can reach another a moment after
+// the refresh lock does. Tab B is made to see the old tokens for 800 ms after
+// tab A has written new ones; B must wait for them, not spend A's used token.
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  await b.evaluate(() => {
+    const real = Storage.prototype.getItem;
+    const old = localStorage.getItem('notes.config.v2');
+    window.lagUntil = 0;
+    Storage.prototype.getItem = function (k) {
+      // Only local storage lags; session storage must still read as empty.
+      return this === localStorage && k === 'notes.config.v2' && Date.now() < window.lagUntil ? old : real.call(this, k);
+    };
+  });
+  // A's refresh takes 300 ms, so B asks while A holds the lock; B then sees
+  // the old tokens until 800 ms after A has written the new ones.
+  await a.route(H.DEPLOY.broker + '**', async r => { await new Promise(res => setTimeout(res, 300)); return r.fallback(); });
+  await b.evaluate(() => { window.lagUntil = Date.now() + 1100; });
+  const refreshesBefore = gh.log.refreshes;
+  const first = a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  await a.waitForTimeout(50);                      // A holds the lock, its refresh in flight
+  const waited = await b.evaluate(() => navigator.locks.query().then(q => q.held.length === 1));
+  const second = b.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  const [ra, rb] = await Promise.all([first, second]);
+  t.check('late storage: tab B really asked while A held the lock', waited);
+  t.check('late storage: the waiting tab does not spend the used refresh token',
+    gh.log.badRefresh === 0 && gh.log.refreshes - refreshesBefore === 1,
+    JSON.stringify({ bad: gh.log.badRefresh, ok: gh.log.refreshes - refreshesBefore }));
+  t.check('late storage: both tabs stay signed in, on the same new token', ra === 'ok' && rb === 'ok' &&
+    (await a.evaluate(() => cfg.token)) === (await b.evaluate(() => cfg.token)), JSON.stringify({ ra, rb, a: await a.evaluate(() => cfg.token), b: await b.evaluate(() => cfg.token), stored: await a.evaluate(() => JSON.parse(localStorage.getItem('notes.config.v2')).token) }));
+  await ctx.close();
+}
+
+/* ===== offline or the broker down during a refresh: nobody is signed out ===== */
+for (const [label, fail] of [['offline', r => r.abort()],
+                             ['broker 502', r => r.fulfill({ status: 502, contentType: 'application/json',
+                               body: JSON.stringify({ error: 'github_unreachable' }) })]]) {
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  const spent = await a.evaluate(() => cfg.refresh);
+  await a.route(H.DEPLOY.broker + '**', fail);
+  const r = await a.evaluate(() => refreshTokens().then(() => 'ok', e => (e.retryable ? 'retry:' : 'fail:') + e.message));
+  await a.waitForTimeout(300);
+  t.check(`${label}: the refresh fails as "try again", not as a sign-out`, /^retry:.*try again/i.test(r), r);
+  t.check(`${label}: the sign-in stays in storage and in both tabs`,
+    (await a.evaluate(() => !!JSON.parse(localStorage.getItem('notes.config.v2') || '{}').refresh)) &&
+    (await a.evaluate(() => cfg.refresh)) === spent && (await b.evaluate(() => cfg.refresh)) === spent &&
+    !(await H.dialogOpen(a)) && !(await H.dialogOpen(b)));
+  t.check(`${label}: the refresh token was never spent, so it still works`, gh.refresh.get(spent).used === false);
+  await a.unroute(H.DEPLOY.broker + '**');
+  t.check(`${label}: and once back, the refresh goes through`,
+    (await a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message))) === 'ok');
+  await ctx.close();
+}
+
+/* ===== storage later still: the waiting tab may give up, but never wipes the new pair ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  await b.evaluate(() => {
+    const real = Storage.prototype.getItem;
+    const old = localStorage.getItem('notes.config.v2');
+    window.lagUntil = Date.now() + 6000;
+    Storage.prototype.getItem = function (k) {
+      return this === localStorage && k === 'notes.config.v2' && Date.now() < window.lagUntil ? old : real.call(this, k);
+    };
+  });
+  await a.route(H.DEPLOY.broker + '**', async r => { await new Promise(res => setTimeout(res, 300)); return r.fallback(); });
+  const first = a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  await a.waitForTimeout(50);
+  const second = b.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  const [ra] = await Promise.all([first, second]);
+  const kept = await a.evaluate(() => ({ mine: cfg.token, stored: JSON.parse(localStorage.getItem('notes.config.v2') || '{}').token }));
+  t.check('very late storage: the tab that refreshed keeps its new pair, in memory and in storage',
+    ra === 'ok' && !!kept.mine && kept.mine === kept.stored && !(await H.dialogOpen(a)), JSON.stringify({ ra, ...kept }));
+  await ctx.close();
+}
+
+/* ===== a waiting tab takes the other's new token even if it is short-lived ===== */
+// The new token is valid, only due for renewal soon; the waiting tab must use
+// it, not refresh again (with 30 s tokens every token is "due soon").
+{
+  const gh = H.fakeGitHub({ expiresIn: 30 });
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  await a.route(H.DEPLOY.broker + '**', async r => { await new Promise(res => setTimeout(res, 300)); return r.fallback(); });
+  const before = gh.log.refreshes;
+  const first = a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  await a.waitForTimeout(50);
+  const second = b.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  const [ra, rb] = await Promise.all([first, second]);
+  t.check("short-lived: the waiting tab uses the other's new token, no second refresh",
+    ra === 'ok' && rb === 'ok' && gh.log.refreshes - before === 1 && gh.log.badRefresh === 0 &&
+    (await a.evaluate(() => cfg.token)) === (await b.evaluate(() => cfg.token)),
+    JSON.stringify({ ra, rb, refreshes: gh.log.refreshes - before, bad: gh.log.badRefresh }));
   await ctx.close();
 }
 

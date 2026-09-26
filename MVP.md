@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 24 / 30
+Iterations: 25 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -28,8 +28,8 @@ Iterations: 24 / 30
 | F1 | 16 | done | `tests/manifest.test.mjs` 20/20; full 22-suite Chromium gauntlet green three consecutive times; origin restriction mutation caught; viewed icon and `tests/screens/f1-{desktop,phone}-{light,dark}.png`; commit 83c1791 (pushed). |
 | F3 | 17 | done | `tests/keyboard.test.mjs` 22/22 using real CodeMirror and the fallback; full 23-suite Chromium gauntlet green three times; five independent mutations caught; `tests/screens/f3-{desktop,phone}-{light,dark}.png` viewed; commit 3486a8f (pushed). |
 | G3 | 18 | done | `tests/errors.test.mjs` 90/90; all 24 Chromium suites green three consecutive runs (`tests/screens/g3-gauntlet-2/`); 26 safeguards independently removed and caught; fresh review findings fixed or documented below; viewed `tests/screens/g3-{desktop,phone}-{light,dark}.png`; commit c57046d (pushed). |
-| H1 | 19 | doing | Plain-language Try it first, honest preview status and self-hosting below user guidance; plan below. |
-| H2 | 20 | todo | |
+| H1 | 19 | done | `tests/docs.test.mjs` 10/10; all 25 Chromium suites green three times (`tests/screens/h1-gauntlet-2/`); four misleading wording variants caught; reviewed `tests/screens/h1-{desktop,phone}-{light,dark}.png`; fresh review fixes recorded below; commit a7b60d0 (pushed). |
+| H2 | 20 | doing | Add a simple bug report template asking for device, browser and expected result; plan below. |
 | H3 | 21 | todo | |
 | S1 | 22 | todo | SHOULD |
 | S2 | 23 | todo | SHOULD |
@@ -157,6 +157,10 @@ Iterations: 24 / 30
 - Fresh reviewer found two exact first-run gaps: New is actually the + button behind Files on phones, and the repository picker needs Save to close. Both steps are now explicit. The phone regression failed before the correction (`tests/h1-review-before.log`); removing either corrected step independently now fails (`tests/screens/h1-mutation-{phone,picker-save}.log`).
 - Gauntlet attempt 1 failed the new docs test: a multiline-regex end anchor read only the first line of step 3. Paragraph extraction now uses its blank-line boundary. The owner-trust assertion also formerly matched the preview's unrelated owner mention; it now checks the actual access sentence. The corrected suite is green, and four independent misleading variants (readiness, owner access, phone navigation, picker Save) all fail (`tests/h1-mutations.log`). No runtime safeguard was changed.
 - Viewed `tests/screens/h1-{desktop,phone}-{light,dark}.png`: the existing app fits both widths, with Save reachable and clear text. The README now names the phone menu and creation icon seen there. App code stays 127,373 bytes; no build step, runtime dependency or host changed. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h1-gauntlet-2/run-{1,2,3}.json`. WebKit remains blocked under F2.
+
+### H2: plan
+- Done looks like: GitHub offers a Bug report template asking for device, browser/version, steps, expected result and actual result, without asking people to share private notes or credentials.
+- Proof: add failing documentation checks, create the minimal Markdown issue template, fresh review, four viewed screenshots and three full Chromium passes. No runtime change is planned.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -326,6 +330,7 @@ Iterations: 24 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
+- 2026-09-26 · H1 · done · a7b60d0 (pushed)
 - 2026-09-26 · G3 · done · c57046d (pushed)
 - 2026-09-26 · F3 · done · 3486a8f (pushed)
 - 2026-09-26 · F1 · done · 83c1791 (pushed)

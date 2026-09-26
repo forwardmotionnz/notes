@@ -173,19 +173,27 @@ async function slowPuts(ctx, p, ms, answer) {
   await ctx.route('https://api.github.com/repos/**/contents/**', async r => {
     if (r.request().method() !== 'PUT') return r.fallback();
     const i = n++;
-    await new Promise(res => setTimeout(res, ms));
+    await (typeof ms === 'number' ? new Promise(res => setTimeout(res, ms)) : ms);
     if (answer && answer(i)) return answer(i)(r);
     return r.fallback();
   });
   return seen;
 }
+function holdCommits() {
+  let release;
+  const done = new Promise(resolve => { release = resolve; });
+  return { done, release };
+}
 const THREE = () => ({ gh: { files: { 'todo.md': '- [ ] one\n- [ ] two\n- [ ] three\n' } } });
 const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked));
 {
   const { gh, ctx, p } = await ready(THREE());
-  const seen = await slowPuts(ctx, p, 400);
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const seen = await slowPuts(ctx, p, gate);
   const before = gh.commits.length;
   for (let i = 0; i < 3; i++) await p.locator('#pin-list .task input').nth(i).click();
+  release();
   await H.settle(p, 4000);
   t.check('slow GitHub: three quick ticks all land',
     gh.files['todo.md'] === '- [x] one\n- [x] two\n- [x] three\n', JSON.stringify(gh.files['todo.md']));
@@ -200,10 +208,12 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
 }
 {
   const { gh, ctx, p } = await ready(THREE());
-  const seen = await slowPuts(ctx, p, 400);
+  const held = holdCommits();
+  const seen = await slowPuts(ctx, p, held.done);
   const box = p.locator('#pin-list .task input').nth(1);
   await box.click();
   await box.click();
+  held.release();
   await H.settle(p, 4000);
   t.check('slow GitHub: tick then untick ends as it began',
     gh.files['todo.md'] === '- [ ] one\n- [ ] two\n- [ ] three\n', JSON.stringify(gh.files['todo.md']));
@@ -213,10 +223,12 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
 }
 {
   const { gh, ctx, p } = await ready(THREE());
-  const seen = await slowPuts(ctx, p, 400);
+  const held = holdCommits();
+  const seen = await slowPuts(ctx, p, held.done);
   await p.locator('#pin-list .task input').nth(0).click();
   await p.fill('#pin-input', 'four');
   await p.press('#pin-input', 'Enter');
+  held.release();
   await H.settle(p, 4000);
   t.check('slow GitHub: a tick and a quick capture both land',
     gh.files['todo.md'] === '- [x] one\n- [ ] two\n- [ ] three\n- [ ] four\n', JSON.stringify(gh.files['todo.md']));
@@ -227,12 +239,15 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   // The first commit fails: what was waiting behind it is not sent on a
   // guess, the list goes back to what GitHub has, and the error is shown.
   const { gh, ctx, p } = await ready(THREE());
-  const seen = await slowPuts(ctx, p, 400, i => i === 0 && (r => r.fulfill({ status: 502,
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const seen = await slowPuts(ctx, p, gate, i => i === 0 && (r => r.fulfill({ status: 502,
     contentType: 'application/json', body: '{"message":"Server Error"}' })));
   await p.locator('#pin-list .task input').nth(0).click();
   await p.locator('#pin-list .task input').nth(1).click();
   await p.fill('#pin-input', 'four');
   await p.press('#pin-input', 'Enter');
+  release();
   await H.settle(p, 4000);
   t.check('failed commit: nothing sent after it', JSON.stringify(seen) === '[502]', JSON.stringify(seen));
   t.check('failed commit: the file is untouched', gh.files['todo.md'] === '- [ ] one\n- [ ] two\n- [ ] three\n');
@@ -246,11 +261,13 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
 {
   // A change made elsewhere is still a conflict: the queue never writes over it.
   const { gh, ctx, p } = await ready(THREE());
-  await slowPuts(ctx, p, 200);
+  const held = holdCommits();
+  await slowPuts(ctx, p, held.done);
   gh.files['todo.md'] = '- [ ] one\n- [ ] two\n- [ ] three\n- [ ] from the phone\n';
   gh.touch();
   await p.locator('#pin-list .task input').nth(0).click();
   await p.locator('#pin-list .task input').nth(1).click();
+  held.release();
   await H.settle(p, 4000);
   t.check('change elsewhere: kept', gh.files['todo.md'].endsWith('- [ ] from the phone\n')
     && !gh.files['todo.md'].includes('[x]'), JSON.stringify(gh.files['todo.md']));
@@ -303,7 +320,8 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   // Review: saving settings (same repository) while a commit is on its way
   // dropped what waited behind it, and the next tick was a conflict again.
   const { gh, ctx, p } = await ready(THREE());
-  const seen = await slowPuts(ctx, p, 800);
+  const held = holdCommits();
+  const seen = await slowPuts(ctx, p, held.done);
   await p.locator('#pin-list .task input').nth(0).click();
   await p.fill('#pin-input', 'milk');
   await p.press('#pin-input', 'Enter');
@@ -314,6 +332,7 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
     null, { timeout: 3000 }).then(() => true, () => false);
   t.check('settings saved mid-commit: the list keeps what is being written', kept);
   await p.locator('#pin-list .task input').nth(1).click();
+  held.release();
   await H.settle(p, 5000);
   t.check('settings saved mid-commit: nothing lost',
     gh.files['todo.md'] === '- [x] one\n- [x] two\n- [ ] three\n- [ ] milk\n', JSON.stringify(gh.files['todo.md']));
@@ -328,10 +347,12 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   // the person's own tick on the next save.
   const { gh, ctx, p } = await ready(THREE());
   await H.clickRow(p, 'todo.md');
-  await slowPuts(ctx, p, 500, i => i === 1 && (r => r.fulfill({ status: 502,
+  const held = holdCommits();
+  await slowPuts(ctx, p, held.done, i => i === 1 && (r => r.fulfill({ status: 502,
     contentType: 'application/json', body: '{"message":"Server Error"}' })));
   await p.locator('#pin-list .task input').nth(0).click();
   await p.locator('#pin-list .task input').nth(1).click();
+  held.release();
   await H.settle(p, 4000);
   t.check('failed follow-on commit: GitHub has the first',
     gh.files['todo.md'] === '- [x] one\n- [ ] two\n- [ ] three\n', JSON.stringify(gh.files['todo.md']));

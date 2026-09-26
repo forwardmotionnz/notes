@@ -311,8 +311,11 @@ for (const [label, fail] of [['offline', r => r.abort()],
 
   // A fresh sign-in in one tab (e.g. after its token was refused) hands the
   // new tokens to the others instead of signing them out.
+  const previousToken = await a.evaluate(() => cfg.token);
   await a.evaluate(() => signIn(true));
   await a.waitForURL(u => !u.search.includes('code='), { timeout: 5000 });
+  await a.waitForFunction(old => typeof cfg !== 'undefined' && cfg.token && cfg.token !== old,
+    previousToken, { timeout: 5000 });
   await a.waitForTimeout(600);                     // tab B would react to a storage event: fixed
   t.check('signing in again in one tab does not sign another out', !(await H.dialogOpen(b)));
   t.check('the other tab uses the new token', await b.evaluate(() => cfg.token) === await a.evaluate(() => cfg.token));
@@ -456,10 +459,13 @@ for (const how of ['forget me', 'sign out']) {
   await a.click('#btn-settings');
   await H.settle(a, 300);
   await a.click('#f-forget');
-  await H.settle(a, 700);
+  await a.waitForFunction(() => localStorage.getItem('notes.config.v2') === null &&
+    document.getElementById('settings').open && !document.getElementById('view-signin').hidden,
+    null, { timeout: 5000 });
   t.check('sign out clears storage', (await H.stored(a)).local === null);
   t.check('sign out lands on the sign-in view', await H.dialogOpen(a));
-  await H.settle(b, 300);
+  await b.waitForFunction(() => document.getElementById('settings').open &&
+    !document.getElementById('view-signin').hidden, null, { timeout: 5000 });
   t.check('other open tabs are signed out too', await H.dialogOpen(b));
   await ctx.close();
 }
@@ -476,6 +482,9 @@ for (const how of ['forget me', 'sign out']) {
   });
   t.check('sign-in button fits and is thumb-sized on a phone', fits);
   await H.signIn(p);
+  // Stored credentials precede the asynchronous repository listing.
+  await p.waitForFunction(() => [...document.querySelectorAll('#tree .row')]
+    .some(e => e.textContent.trim() === 'todo.md'), null, { timeout: 5000 }).catch(() => {});
   t.check('phone sign-in lands in the notes', (await H.rows(p)).includes('todo.md'));
   await ctx.close();
 }

@@ -120,6 +120,7 @@ await H.start();
   await p.waitForSelector('#f-signin:not([disabled])');
   await p.click('#f-signin');
   await H.settle(p, 800);
+  await p.waitForSelector('#signin-error:not([hidden])');
   t.check('mismatched state is refused', gh.log.exchanges === 0);
   t.check('user told to try again',
     (await p.textContent('#signin-error')).toLowerCase().includes('try again'),
@@ -162,6 +163,7 @@ await H.start();
   t.check('"Forget me" starts ticked there', await p.isChecked('#f-session-in'));
   await p.click('#f-signin');
   await p.waitForURL(u => !u.search.includes('code='), { timeout: 5000 });
+  await p.waitForFunction(() => typeof signedIn === "function" && signedIn(), null, { timeout: 5000 });
   await H.settle(p, 600);
   t.check('one click signs in, session-only unless they untick it', (await H.rows(p)).includes('todo.md') &&
     (await H.stored(p)).local === null && !!(await H.stored(p)).session);
@@ -252,7 +254,8 @@ await H.start();
     return r.fallback();
   });
   await p.click('#btn-settings');                  // slow list
-  await p.keyboard.press('Escape');
+  await p.click('#f-save');                        // keep the current choice while the list waits
+  await p.waitForFunction(() => !document.querySelector('#settings').open);
   await p.click('#btn-settings');                  // fast list
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/b' });
@@ -352,6 +355,7 @@ await H.start();
   t.check('after a cancel, "Forget me" is still ticked', await p.isChecked('#f-session-in'));
   await p.click('#f-signin');
   await p.waitForURL(u => !u.search.includes('code='), { timeout: 5000 });
+  await p.waitForFunction(() => typeof signedIn === "function" && signedIn(), null, { timeout: 5000 });
   await H.settle(p, 600);
   const st = await H.stored(p);
   t.check('so the retry leaves nothing on disk', st.local === null && !!st.session);

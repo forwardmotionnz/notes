@@ -1,14 +1,209 @@
 # notes
 
-Markdown notes in one HTML file, stored in a GitHub repository you own.
-Sign in with GitHub, pick the repository, write. Works in any browser, on any
-computer or phone, with nothing to install.
+## Try it
 
-- **Your notes are plain `.md` files in your repo.** No database, no export
-  step. Obsidian, nvim or github.com can edit the same files.
-- **One file is the whole app.** `index.html`, vanilla JavaScript, no build.
-- **Scoped access.** Sign-in goes through a GitHub App installed only on the
-  repositories you choose. It cannot see anything else in your account.
+**MVP preview:** sign-in is configured and the GitHub App is public.
+Final release checks and real-device smoke tests are still in progress;
+see the [release checklist](RELEASE_CHECKLIST.md) and [MVP progress](MVP.md).
+
+1. Open [Notes](https://forwardmotionnz.github.io/notes/) on your computer or
+   phone. You need a GitHub account and an internet connection.
+2. Choose **Sign in with GitHub**. When GitHub asks where to install Notes,
+   choose only the private repository you want to use for notes.
+   A repository is a folder of files on GitHub, with a history of your changes.
+   [No notes repository yet?](#no-notes-repository-yet) Follow the two steps
+   in Notes to create one and let the app use it.
+3. Back in Notes, choose your repository if asked, then press **Save** to
+   close settings. On a phone, open **☰ Files** first. Press **+** (*New note*)
+   in the file list, give your note a name such as `Hello.md`, write a few
+   words and press **Save** above the editor.
+   Your note is now a plain file in your repository; you can edit it in
+   Obsidian or on GitHub too.
+
+Read the [privacy note](PRIVACY.md) before signing in. Notes reads and writes
+files in repositories its GitHub App is installed on that you can access;
+this may include repositories someone else installed it on. The app's owner
+also has access through that installation. Only use a copy whose owner you
+trust. To run your own copy, see [Setup](#setup) below.
+
+## No notes repository yet
+
+Signed in, but Notes is on no repository? The app shows two steps and
+nothing else: **Create a repository** opens GitHub's form with the name
+`notes` and *Private* already filled in, and **Let Notes use it** opens the
+page where you choose that repository for the app. Both open in a new tab.
+Come back to the Notes tab and it notices by itself (or press *Check now*):
+with one private repository you go straight in, with several you choose
+(a private one called `notes` is offered first). A public repository is never
+chosen for you, and choosing one says that anyone can read what is saved
+there.
+
+## A brand new, empty repository
+
+A repository with no commits works: the file list says it is empty, and the
+first note you save (or the first task you add) creates its main branch. If
+the repository's main branch is later renamed, or your first push from
+elsewhere creates a differently named one, the app follows it and says so.
+
+## If a request fails
+
+If GitHub or the connection fails, the message stays visible until another
+action. Retry the same button: **Save** for a note, the file-list refresh
+button for the list, or the file name to open it again. A request that does
+not answer times out after 30 seconds. A temporary sign-in service outage
+keeps your sign-in; a rejected refresh token still asks you to sign in again.
+For a rate limit, wait for the time shown before retrying. Notes also holds
+requests during that wait. Repository rules may require the repository
+owner's help before a write can succeed.
+
+An interrupted save keeps your draft. If you reload or change repositories
+before its outcome is known, retrying may report a conflict with your own
+earlier save. Copy the latest text before using **Discard**, then paste it
+back and save. Notes does not silently replace a version it cannot verify.
+
+If a task save fails, every queued capture returns to the Add a task box,
+alongside any newer typing. After the wait shown for a rate limit, refresh
+the file list, then add again; each recovered line becomes a separate task.
+Changing repositories while tasks are saving keeps their pending text as a
+draft in the original repository. Return there and open the pinned file to
+recover it; copy the text before discarding if it reports a conflict.
+If browser storage is full, changing between remembered and session-only
+mode stops and explains why, keeping the drafts in their original storage.
+
+## Repositories you cannot change
+
+An archived repository, or one your GitHub account can only read, opens
+read-only: a red `read-only` badge says why, the editor is locked and there
+is nothing to save, so nothing is ever sent. If a repository is deleted,
+renamed or the app is removed from it, the file list says so and points you
+to settings.
+
+## Sharing your copy
+
+One deployment serves everyone: other people open your link, sign in with
+their own GitHub account, and install your GitHub App on their own
+repositories, personal or in an organisation. They never register an App
+or run a broker. For that the App must be installable by *any account*
+(step 2). Every repository the App can reach for them is offered, across
+all their installations, however many there are. An organisation may ask
+an owner to approve the install first (the app tells you when it has been
+asked); that is GitHub's rule, not the app's. If an organisation uses SAML
+single sign-on and its repositories do not appear, start an SSO session for
+it on github.com, revoke the app under Settings → Applications, and sign in
+again: GitHub only shows them to a sign-in made during an SSO session.
+
+## Using it on several computers
+
+It is a web page, so any browser works: home, work, phone. Sign in once per
+browser. On a phone, open the URL and choose *Add to Home Screen*.
+The home-screen shortcut is named **Notes**, uses the paper icon and opens
+the app in its own window. It still needs a connection to GitHub to load
+and commit notes.
+On iPhone or iPad, sign in again in the home-screen app. Save any browser
+drafts first; they stay in the browser. When GitHub opens in a browser to
+choose repositories, return to the Notes home-screen app afterwards.
+On a phone, the editor follows the space above the keyboard, keeping the
+caret and header controls visible. Pinch zoom remains available.
+
+On a work or shared computer, tick **Forget me when I close the browser**
+before signing in. The sign-in and drafts are kept for this browser session
+only, not in its lasting storage, and go when the tabs are closed. Drafts of
+unsaved changes still survive a reload in this mode, so save before you
+leave, and press **Sign out**: a browser set to reopen its tabs on start
+brings the session back with them (see [PRIVACY.md](PRIVACY.md)). A `session` badge in the
+header shows which mode you are in.
+
+Sign-ins last six months per browser; the app renews the short-lived token
+every eight hours without asking. Several tabs open at once share one sign-in
+and take turns renewing it, so they never sign each other out. They share
+settings too: choose another repository or pinned files in one tab and the
+others follow, after saving what was open in them to the repository it came
+from. Signing out, or choosing *Forget me*, in one tab signs the others out.
+
+## Using it with an existing Obsidian vault
+
+It reads the vault as it is. Nothing is converted, and nothing is written that
+Obsidian would not understand, so both can work on the same repository.
+
+- `.obsidian/`, `.trash/` and other dot-folders are hidden. They hold app
+  state, not notes.
+- Attachments (images, PDFs) are shown but cannot be opened: decoding them as
+  text and saving would corrupt them, so the app refuses.
+- `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are.
+- A wikilink opens the note it names: `Ctrl`+click (`Cmd`+click on a Mac),
+  or tap it on a phone. `[[Note]]`, `[[Note|shown text]]`,
+  `[[folder/Note]]` and `[[Note#Heading]]` all work (the heading is not
+  scrolled to). As in Obsidian, the name is matched against file names in
+  any case, `.md` is implied, and if two notes share a name the one with
+  the shortest path wins. A link to a note that does not exist yet asks
+  whether to create it (at the top of the repository, or in the link's
+  folder, spelt as the folder already is), always as a `.md` note, so
+  `[[Release 1.2]]` makes `Release 1.2.md`. Nothing is written until you
+  save it. If the list of notes has not loaded, or GitHub sent only part of
+  it (a very large repository), it does not offer to create one: the note
+  may exist already. On a phone a tap inside a link follows it; tap just
+  before or after it to type there.
+- Filenames with spaces and accents work.
+- Line endings are kept: a note written on Windows (CRLF) is saved with
+  CRLF, and an edit changes only the lines you touched, even in a file that
+  mixes endings. New lines take the ending most of the file uses. A
+  byte-order mark at the start of a file is kept too.
+- A file over 1 MB is shown but not opened: GitHub's API does not hand
+  over files that size, and opening one empty would let a save replace it.
+  A note is not saved past 1 MB either; it stays a draft until it is
+  shorter. If a file you had unsaved changes to has grown past 1 MB
+  elsewhere, your text opens as a new note beside it, `name (unsaved copy).md`.
+- A file stored with Git LFS is not opened: what the repository holds is a
+  pointer, and saving over it would replace the real file.
+- A text file that is not UTF-8 (an old Windows or Latin-1 file) is not
+  opened: shown here it would be garbled, and saved it would be destroyed.
+
+## What it does
+
+- Folder tree of the repository, collapse state remembered
+- Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
+- **Rename** beside the open note's name renames or moves it (type a new
+  path, folders included) in a single commit: it either happens completely
+  or not at all, and it never overwrites another file
+- **Delete** removes the open note in a single commit, after asking. Nothing
+  is lost for good: the note stays in the repository's history, and on
+  github.com the file's history (or the commit that deleted it) lets you
+  copy it back. If it changed elsewhere since you opened it, it is not
+  deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
+- Pinned files as a live task list with a one-line capture box. Ticks and
+  captures go to GitHub one at a time; clicks made while one is on its way
+  share the next commit. × removes a task (always shown on a phone, on
+  hover on a computer) and **Clear done** removes every ticked one, each
+  in one commit, with a few seconds to press **Undo**
+- Filter across every path in the repository
+- Light and dark, and a layout that works on a phone
+
+Each save is one commit. Notes save themselves two seconds after you stop
+typing, and straight away when you switch to another app or tab; **Save** and
+`Ctrl`/`Cmd`+`S` still work any time. A file you have only opened, or a
+restored draft you have not typed into yet, is never saved on its own.
+Switching to another file never asks anything: what you typed is committed
+on the way out, or, if that cannot happen yet (offline, a conflict), kept as
+a draft for when you come back.
+
+A write carries the version it was based on, so if
+the file changed underneath you GitHub rejects it: you are told, your text
+stays in the editor, and that file stops saving itself until you resolve it.
+Nothing is silently overwritten.
+
+Unsaved changes are kept in the browser as you type, one draft per file, so a
+reload, a closed tab or a phone closing the app in the background loses
+nothing. Open the file again and the draft is back, marked *unsaved draft*;
+saving commits it and removes it, **Discard** throws it away and loads the
+version on GitHub. A draft remembers which version it started from, so if the
+file changed on GitHub in the meantime, saving reports a conflict instead of
+overwriting. Signing out deletes every draft in that browser.
+
+## What it deliberately does not do
+
+No offline queue, no backlinks, no graph, no plugins,
+no attachment upload, no merge tool. Each of those is a common reason a notes
+app becomes unmaintainable.
 
 ## How it fits together
 
@@ -30,7 +225,7 @@ GitHub.
 
 ## Setup
 
-About twenty minutes, once. You need a GitHub account and a free Cloudflare
+Optional self-hosting: run your own copy of Notes. About twenty minutes, once. You need a GitHub account and a free Cloudflare
 account. The examples assume your GitHub user is `roldaof` and this repo is
 called `notes`; substitute your own.
 
@@ -135,163 +330,6 @@ install.) Arriving from a GitHub install never signs you in by itself: you
 are asked to sign in, with *Forget me* ticked, since the app cannot tell
 whether this is your own computer.
 
-## No notes repository yet
-
-Signed in, but Notes is on no repository? The app shows two steps and
-nothing else: **Create a repository** opens GitHub's form with the name
-`notes` and *Private* already filled in, and **Let Notes use it** opens the
-page where you choose that repository for the app. Both open in a new tab.
-Come back to the Notes tab and it notices by itself (or press *Check now*):
-with one private repository you go straight in, with several you choose
-(a private one called `notes` is offered first). A public repository is never
-chosen for you, and choosing one says that anyone can read what is saved
-there.
-
-## A brand new, empty repository
-
-A repository with no commits works: the file list says it is empty, and the
-first note you save (or the first task you add) creates its main branch. If
-the repository's main branch is later renamed, or your first push from
-elsewhere creates a differently named one, the app follows it and says so.
-
-## Repositories you cannot change
-
-An archived repository, or one your GitHub account can only read, opens
-read-only: a red `read-only` badge says why, the editor is locked and there
-is nothing to save, so nothing is ever sent. If a repository is deleted,
-renamed or the app is removed from it, the file list says so and points you
-to settings.
-
-## Sharing your copy
-
-One deployment serves everyone: other people open your link, sign in with
-their own GitHub account, and install your GitHub App on their own
-repositories, personal or in an organisation. They never register an App
-or run a broker. For that the App must be installable by *any account*
-(step 2). Every repository the App can reach for them is offered, across
-all their installations, however many there are. An organisation may ask
-an owner to approve the install first (the app tells you when it has been
-asked); that is GitHub's rule, not the app's. If an organisation uses SAML
-single sign-on and its repositories do not appear, start an SSO session for
-it on github.com, revoke the app under Settings → Applications, and sign in
-again: GitHub only shows them to a sign-in made during an SSO session.
-
-## Using it on several computers
-
-It is a web page, so any browser works: home, work, phone. Sign in once per
-browser. On a phone, open the URL and choose *Add to Home Screen* (on an
-iPhone, the Share button first; on Android, the browser's menu, where it may
-say *Install app*). It then opens from its own icon, in a window of its own,
-named Notes. It needs the network, as the app always does: there is no
-offline copy. On an iPhone the home-screen app usually has storage of its
-own, apart from Safari's. Then it is signed in and out separately (signing
-out in one leaves the other signed in), and unsaved changes stay where you
-typed them. When the app sends you to GitHub, for example to choose a
-repository, come back to the Notes app afterwards rather than signing in on
-the page GitHub returns you to.
-
-On a work or shared computer, tick **Forget me when I close the browser**
-before signing in. The sign-in and drafts are kept for this browser session
-only, not in its lasting storage, and go when the tabs are closed. Drafts of
-unsaved changes still survive a reload in this mode, so save before you
-leave, and press **Sign out**: a browser set to reopen its tabs on start
-brings the session back with them (see [PRIVACY.md](PRIVACY.md)). A `session` badge in the
-header shows which mode you are in.
-
-Sign-ins last six months per browser; the app renews the short-lived token
-every eight hours without asking. Several tabs open at once share one sign-in
-and take turns renewing it, so they never sign each other out. They share
-settings too: choose another repository or pinned files in one tab and the
-others follow, after saving what was open in them to the repository it came
-from. Signing out, or choosing *Forget me*, in one tab signs the others out.
-
-## Using it with an existing Obsidian vault
-
-It reads the vault as it is. Nothing is converted, and nothing is written that
-Obsidian would not understand, so both can work on the same repository.
-
-- `.obsidian/`, `.trash/` and other dot-folders are hidden. They hold app
-  state, not notes.
-- Attachments (images, PDFs) are shown but cannot be opened: decoding them as
-  text and saving would corrupt them, so the app refuses.
-- `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are.
-- A wikilink opens the note it names: `Ctrl`+click (`Cmd`+click on a Mac),
-  or tap it on a phone. `[[Note]]`, `[[Note|shown text]]`,
-  `[[folder/Note]]` and `[[Note#Heading]]` all work (the heading is not
-  scrolled to). As in Obsidian, the name is matched against file names in
-  any case, `.md` is implied, and if two notes share a name the one with
-  the shortest path wins. A link to a note that does not exist yet asks
-  whether to create it (at the top of the repository, or in the link's
-  folder, spelt as the folder already is), always as a `.md` note, so
-  `[[Release 1.2]]` makes `Release 1.2.md`. Nothing is written until you
-  save it. If the list of notes has not loaded, or GitHub sent only part of
-  it (a very large repository), it does not offer to create one: the note
-  may exist already. On a phone a tap inside a link follows it; tap just
-  before or after it to type there.
-- Filenames with spaces and accents work.
-- Line endings are kept: a note written on Windows (CRLF) is saved with
-  CRLF, and an edit changes only the lines you touched, even in a file that
-  mixes endings. New lines take the ending most of the file uses. A
-  byte-order mark at the start of a file is kept too.
-- A file over 1 MB is shown but not opened: GitHub's API does not hand
-  over files that size, and opening one empty would let a save replace it.
-  A note is not saved past 1 MB either; it stays a draft until it is
-  shorter. If a file you had unsaved changes to has grown past 1 MB
-  elsewhere, your text opens as a new note beside it, `name (unsaved copy).md`.
-- A file stored with Git LFS is not opened: what the repository holds is a
-  pointer, and saving over it would replace the real file.
-- A text file that is not UTF-8 (an old Windows or Latin-1 file) is not
-  opened: shown here it would be garbled, and saved it would be destroyed.
-
-## What it does
-
-- Folder tree of the repository, collapse state remembered
-- Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
-- **Rename** beside the open note's name renames or moves it (type a new
-  path, folders included) in a single commit: it either happens completely
-  or not at all, and it never overwrites another file
-- **Delete** removes the open note in a single commit, after asking. Nothing
-  is lost for good: the note stays in the repository's history, and on
-  github.com the file's history (or the commit that deleted it) lets you
-  copy it back. If it changed elsewhere since you opened it, it is not
-  deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
-- Pinned files as a live task list with a one-line capture box. Ticks and
-  captures go to GitHub one at a time; clicks made while one is on its way
-  share the next commit. × removes a task (always shown on a phone, on
-  hover on a computer) and **Clear done** removes every ticked one, each
-  in one commit, with a few seconds to press **Undo**
-- Filter across every path in the repository
-- Light and dark, and a layout that works on a phone: with the keyboard up,
-  the app fits the space above it, so the buttons stay at the top and the
-  line you are typing stays in view
-
-Each save is one commit. Notes save themselves two seconds after you stop
-typing, and straight away when you switch to another app or tab; **Save** and
-`Ctrl`/`Cmd`+`S` still work any time. A file you have only opened, or a
-restored draft you have not typed into yet, is never saved on its own.
-Switching to another file never asks anything: what you typed is committed
-on the way out, or, if that cannot happen yet (offline, a conflict), kept as
-a draft for when you come back.
-
-A write carries the version it was based on, so if
-the file changed underneath you GitHub rejects it: you are told, your text
-stays in the editor, and that file stops saving itself until you resolve it.
-Nothing is silently overwritten.
-
-Unsaved changes are kept in the browser as you type, one draft per file, so a
-reload, a closed tab or a phone closing the app in the background loses
-nothing. Open the file again and the draft is back, marked *unsaved draft*;
-saving commits it and removes it, **Discard** throws it away and loads the
-version on GitHub. A draft remembers which version it started from, so if the
-file changed on GitHub in the meantime, saving reports a conflict instead of
-overwriting. Signing out deletes every draft in that browser.
-
-## What it deliberately does not do
-
-No offline queue, no backlinks, no graph, no plugins,
-no attachment upload, no merge tool. Each of those is a common reason a notes
-app becomes unmaintainable.
-
 ## Design rules
 
 Keep these if you contribute:
@@ -310,17 +348,40 @@ Keep these if you contribute:
 ```sh
 npm install
 npx playwright install --with-deps chromium webkit
-npm test
 ```
 
-Runs every suite twice: in Chromium, and in WebKit, the engine of Safari and
-of every browser on iOS. (That is Playwright's WebKit build on Linux, which
+For the edit/test loop, select the feature you changed:
+
+```sh
+npm run test:dev -- drafts
+npm run test:dev -- mobile-new
+npm run test:dev -- drafts --suite switching
+```
+
+This runs only the named suites in Chromium and labels the result as a
+focused check. Names must match exactly; a typo or missing name fails rather
+than silently passing. `npm test -- --list` lists the available names.
+For an engine-specific fix, use `npm run test:webkit -- --suite drafts`.
+Run the affected tests while editing, then push one coherent change for CI.
+Do not repeat the whole suite after each small edit or test-only correction.
+
+Before merging, `npm test` runs every suite in Chromium and WebKit, the engine of Safari and
+of every browser on iOS. (That is Playwright's testing build of WebKit, which
 catches engine differences; it is not an iPhone, so iOS-only behaviour such
 as Safari's storage limits is not covered.) `npm run test:chromium` or `npm run test:webkit`
 runs one on purpose; a missing engine fails the run rather than being
 skipped. Suites run up to eight at a time (each has its own simulated
-GitHub and browser; `--jobs` changes it), and a run takes a little over a
-minute. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
+GitHub and browser; `--jobs` changes it). The runner reports the slowest
+suites so performance changes are visible. The full release run currently
+takes about four minutes locally; it is not the development loop.
+
+GitHub Actions runs the full suite in both engines for pull requests and
+pushes to `main`. A PR branch push starts one workflow, not duplicate push
+and PR workflows. New commits cancel obsolete runs. CI runs two suites at
+a time per engine to limit contention. For a release, use the manual tests
+workflow with `repeat: 3`; three complete runs are a release check, not a
+requirement for each development edit. A focused pass is never a substitute
+for the complete check before merging.
 
 The browser is headless, with GitHub simulated and the real broker code in
 the loop. The simulation verifies the PKCE challenge, expires tokens and
@@ -345,6 +406,15 @@ network.
   Applications.
   [PRIVACY.md](PRIVACY.md) says what the broker, GitHub and your browser
   each see and keep, and how to take access back.
+
+## Reporting a bug
+
+See the [changelog](CHANGELOG.md) for the MVP candidate and its known limitations.
+
+Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) to describe
+your device, browser, the steps you took, and what you expected to happen.
+Use made-up note text and remove private details from screenshots and messages.
+Copy your answers into [a new issue](https://github.com/forwardmotionnz/notes/issues/new).
 
 ## Licence
 

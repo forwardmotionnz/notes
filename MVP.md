@@ -1,6 +1,149 @@
 # MVP ledger
 
-Iterations: 26 / 30
+Iterations: 28 / 30
+
+## Current handover — 2026-09-27
+
+Account setup is complete. The owner has authorised merging the reconciled
+MVP into `main`; the earlier no-merge boundary no longer applies. Main's
+Safari fixes and task controls are preserved alongside MVP failure recovery,
+phone editor checks and documentation. Final combined validation passed three times in both engines.
+
+Use [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the remaining real-account
+and physical-device checks. Earlier dated gauntlet records below are history,
+including their old WebKit blocks and unfinished deployment instructions.
+They are not instructions to repeat completed setup.
+
+### Development loop — updated at the owner's request
+
+The owner explicitly requested faster iterations on 2026-09-27. Use
+`npm run test:dev -- <suite>` while editing, with `--suite <other-suite>`
+for related cases; use the affected engine for browser-specific changes.
+Do not repeat every suite three times for a small edit. Keep all assertions
+and run the complete two-engine suite once on the final PR. Reserve three
+full repeats for the release gate. This supersedes the older per-edit
+gauntlet workflow below. The three full release runs recorded here cover the
+earlier application baseline; the sign-out follow-up below uses focused
+regressions and a final full CI check, not another three-run edit loop.
+
+CI now runs once per PR update instead of twice (push plus PR), cancels
+superseded runs, and preserves full coverage in both engines. Manual repeat
+runs have a separate concurrency group from PR validation. The runner's
+focused mode rejects unknown, missing and empty selections, preserves
+selected failures, and labels focused results separately from full results.
+Per-suite timings expose slow tests without changing their assertions.
+
+Evidence: the new runner tests failed before implementation, then passed
+24/24 in each engine; runner plus documentation checks took 10 seconds.
+Actual development commands took 4.5 seconds for `mobile-new` (6/6) and
+24.6 seconds for `drafts` (45/45), versus 255–269 seconds for the full local
+run. Logs: `tests/screens/fast-runner-{before,after}.log` and
+`tests/screens/dev-{mobile,drafts}-timing.log`. Independent review found no
+blocker or weakened coverage. Full CI on 9586d76 passed twice per engine
+after the readiness corrections; application code remains unchanged.
+
+The final workflow check exposed a real sign-out race: a late account reply
+could restore credentials between storage removal and page destruction.
+The independent reviewer reproduced both tabs regaining their tokens.
+`auth-signout` first failed 0/3 in 3.5 seconds. Sign-out now invalidates live
+tokens immediately, configuration persistence requires sign-in, and pending
+repository lists are invalidated. The final regression holds the profile and
+final repository responses, keeps the old document alive through a
+same-document navigation, and then really reloads; it passes 4/4 in each
+engine in under three seconds. Removing each of the three safeguards
+independently fails its corresponding assertion in both engines.
+
+Related checks passed in both engines: auth-renewal 62/62, drafts 45/45,
+CSP 26/26. The earlier WebKit version of the new regression cancelled its
+own held request on navigation; the final cross-engine setup fixes that.
+Logs: `tests/screens/signout-{race-before,fix-targeted,race-restored}.log`
+and `tests/screens/signout-mutation-*.log`. The sign-out UI test now waits
+for the actual signed-out state instead of a short quiet-network interval.
+The app is 141,592 bytes with no new runtime dependency or host.
+
+### Integration and release review
+
+- The branch reconciliation preserves both independent manifest and keyboard
+  suites, with the MVP variants named `manifest-paths` and `keyboard-editor`.
+  The deployed broker URL and newer main fixes remain in the combined app.
+- A fresh whole-codebase adversarial review reproduced four inherited data
+  risks: queued captures disappearing after failure, deletion in the newly
+  selected repository, late reads crossing repository/selection boundaries,
+  and draft migration removing originals when storage is full. Fixes have
+  regression coverage; the reviewer confirmed no remaining blocker.
+- Follow-up review caught queued captures lost on repository change and a
+  combined repository/storage-mode failure. Pending task text now stays as
+  an original-repository draft without replacing dirty editor words; all
+  preparation happens before storage mode changes. The final independent
+  `release-races` checks passed 14/14, with the broken ordering caught by its
+  own mutation. Failed capture recovery passed 6/6; phone New passed 6/6.
+- Eight additional independent mutations were caught: capture restoration,
+  closing the phone drawer, latest selection, note repository scope, queued
+  delete scope, pin-read scope, draft-copy failure, and pending-task recovery.
+  Logs: `tests/screens/reconcile-worktree/tests/screens/mutation-*.log`.
+- The simulated phone first-run journey was saved and every screenshot
+  viewed in Chromium and WebKit, light and dark: welcome, create/install,
+  empty repository, first note, save and reload, plus 1280 px desktop views.
+  They are under `tests/screens/reconcile-worktree/tests/screens/release-*`.
+  The walkthrough found and fixed New leaving the phone drawer over the editor.
+- Test readiness fixes wait for the actual sign-in outcome. The stale-list
+  test closes settings through Save before opening a second list, preserving
+  its older-response assertion. No test or browser engine is skipped.
+- Repeat runs exposed task-queue tests assuming browser actions fit within
+  short response delays. Queue-race cases now hold responses on promises
+  until the intended actions finish; every original assertion is retained.
+  A fresh review confirmed the ordering, and removing serialisation caused
+  19 WebKit failures. The full-run count restarts after this test correction.
+- Owner handover: Android Chrome; basic phone save and reload already passed
+  before this merge. A second account is not currently available. Those
+  facts are recorded in the release checklist rather than asking for setup
+  or the completed basic journey again.
+- `index.html` is 141,352 bytes. No runtime host, build step, dependency or
+  service worker was added. The owner's root `package-lock.json` edit is
+  outside the isolated integration checkout and remains untouched.
+- Final combined full-suite evidence: all 34 suites passed three consecutive times in Chromium and WebKit (255 s, 269 s, 260 s; 8 suites at a time). Logs: `tests/screens/release-final-{1,2,3}.log`. The inline app stayed unchanged throughout. All MUST items are implemented; real-account/device checks in RELEASE_CHECKLIST.md remain the final release gate.
+- CI follow-up: one duplicate Chromium job failed the wikilink phone check
+  while the same-head PR job passed. Independent held-response probes proved
+  that the source could still be the previous note after 400 ms, or that
+  the correct target could still be loading after 500 ms. The test now waits
+  for the actual source path/text and phone target. Assertions are retained;
+  production code is unchanged from the three full green runs above.
+  The corrected wikilink suite passed 47/47 three times in each engine:
+  `tests/screens/wikilinks-final-{chromium,webkit}-{1,2,3}.log`. Both WebKit
+  CI jobs and the PR Chromium job passed on the preceding app-identical head.
+- A subsequent WebKit round exposed the same readiness issue in two sign-in
+  checks: stored credentials existed before the repository tree arrived.
+  Independent held-tree probes reproduced both failures; releasing the same
+  response produced the expected row without another sign-in, CSP violation
+  or page error. The phone sign-in and CSP tests now wait up to five seconds
+  for that row before their unchanged assertions. App code is unchanged.
+  Both suites passed three times in each engine (auth-renewal 62/62, CSP
+  26/26); logs: `tests/screens/signin-ready-{chromium,webkit}-{auth-renewal,csp}-{1,2,3}.log`.
+- The next PR Chromium run exposed an initial-editor race in the draft test
+  (the duplicate full Chromium run passed). Holding the first note response
+  reproduced the exact null-editor exception; releasing it created the editor
+  and the correct file-scoped draft. The test's typing helper now waits for
+  attachment, bounded at five seconds, before its unchanged typing operation.
+  All 45 draft checks passed three times per engine; logs:
+  `tests/screens/drafts-ready-{chromium,webkit}-{1,2,3}.log`.
+- A duplicate Chromium job then caught the first file-switch assertion
+  reading the previous editor before the return GET completed; the PR job
+  and both WebKit jobs passed. Independent response gating reproduced this
+  exactly. The first case now awaits the expected path and editor text;
+  every assertion and deliberate in-flight race case remains unchanged.
+  All 33 checks passed three times per engine; logs:
+  `tests/screens/switch-ready-final-{chromium,webkit}-{1,2,3}.log`.
+- A further duplicate Chromium failure was EOL setup editing the previous
+  note while its requested note was loading, leaving Save disabled when the
+  new note arrived. An independent held-response probe reproduced it and
+  confirmed the old note's text remained recoverable in its scoped draft.
+  EOL editing cases now await their requested path and completed opening;
+  the deliberate non-UTF-8 refusal is unchanged. All 31 checks passed three
+  times per engine: `tests/screens/eol-ready-final-{chromium,webkit}-{1,2,3}.log`.
+  CI now runs two independent suites at a time in each engine to limit CPU
+  contention; assertions, both engines, repeat counts and each suite's
+  deliberate concurrent operations are unchanged. Independent review
+  confirmed no weakened coverage or production change.
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -24,21 +167,18 @@ Iterations: 26 / 30
 | B2 | 12 | done | `tests/firstrun.test.mjs` 32/32: with the app on no repository, only the two steps, Check now and Sign out are on screen (step 1 focused); step 1 opens github.com/new with `notes` and Private filled in, step 2 the app's install page, both in a new tab; coming back, one repository is chosen by itself and its first note commits; with several, the usual choice; before one is in use nothing public is chosen for anyone, a private `notes` is preferred, a public one is named as public; failed or partly failed lists say so with Try again, on the steps or not; a slow list shows "looking"; Check now shows it is checking; fits a 390 px phone. Screens `tests/screens/b2-*.png`; commit 5bf6436 |
 | A2 | 14 | done | `tests/welcome.test.mjs` 19/19: at most three sentences of at most 20 words, above Sign in, saying what Notes is, that it reads and writes files only in repositories the app is installed on (which you choose), that notes stay there and whoever runs the copy's App can reach them; a Privacy link to `PRIVACY.html` (GitHub Pages publishes `PRIVACY.md` there) in a new tab; Sign in has the focus; Forget me promises no more than PRIVACY.md (the privacy test holds the README to that too); fits 320 px. Screens `tests/screens/a2-*.png`; commit d91783c |
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
-| F2 | 15 | done | `npm test` runs every suite in Chromium and WebKit (`tests/run.mjs`; a missing engine fails, never skips); `tests/runner.test.mjs` 14/14; GitHub Actions run 18 (https://github.com/forwardmotionnz/notes/actions/runs/36204886187): the whole suite three times in a row, green in both engines, on 72c1af2; three local Chromium runs green. WebKit found one real bug, a Safari sign-in race between tabs, fixed with tests that reproduce it in Chromium; review of that fix found and fixed the offline sign-out. Commits d2b0cec, aaa113f, 8424be2, c7db305, 2a86afd, 72c1af2 |
-| F1 | 16 | done | `manifest.webmanifest` (standalone, start and scope `./`, 192/512 and maskable icons), `icon-180.png` touch icon, `icon.svg`, theme colours light and dark, `manifest-src 'self'`; `tests/manifest.test.mjs` 25/25 (fields, real icon sizes, links, policy, Chromium parses it with no errors, start address equals the sign-in callback); GitHub Actions run 22 (https://github.com/forwardmotionnz/notes/actions/runs/36208864366): three runs in a row, both engines, green; three local Chromium runs green. Screen `tests/screens/f1-icon-shapes.png`. Commit 1326f8c; merged to `main` in forwardmotionnz/notes#1 |
-| F3 | 17 | done | `tests/keyboard.test.mjs` 29/29: with the keyboard up (faked `visualViewport` at real iPhone 14 and SE heights, and panned), the header buttons stay on screen and tappable, the editor ends at the keyboard and typing at the end of a long note keeps the caret in view, the pinned-tasks "Add a task" box and Add stay above it; pinch zoom leaves the layout alone; every field is 16px on phones; panning does not move the note; Android asked to resize (`interactive-widget`). GitHub Actions run 32 (https://github.com/forwardmotionnz/notes/actions/runs/36216435977): three in a row, both engines, green. Screens `tests/screens/f3-*.png`. Commits 7219a9b, 07173fe; merged in forwardmotionnz/notes#2 |
+| F2 | 15 | done | Combined app: all 34 suites passed three consecutive times in Chromium and WebKit; tests/screens/release-final-{1,2,3}.log (255 s, 269 s, 260 s). Earlier blocked attempt is historical. |
+| F1 | 16 | done | `tests/manifest.test.mjs` 20/20; full 22-suite Chromium gauntlet green three consecutive times; origin restriction mutation caught; viewed icon and `tests/screens/f1-{desktop,phone}-{light,dark}.png`; commit 83c1791 (pushed). |
+| F3 | 17 | done | `tests/keyboard.test.mjs` 22/22 using real CodeMirror and the fallback; full 23-suite Chromium gauntlet green three times; five independent mutations caught; `tests/screens/f3-{desktop,phone}-{light,dark}.png` viewed; commit 3486a8f (pushed). |
+| G3 | 18 | done | `tests/errors.test.mjs` 90/90; all 24 Chromium suites green three consecutive runs (`tests/screens/g3-gauntlet-2/`); 26 safeguards independently removed and caught; fresh review findings fixed or documented below; viewed `tests/screens/g3-{desktop,phone}-{light,dark}.png`; commit c57046d (pushed). |
+| H1 | 19 | done | `tests/docs.test.mjs` 10/10; all 25 Chromium suites green three times (`tests/screens/h1-gauntlet-2/`); four misleading wording variants caught; reviewed `tests/screens/h1-{desktop,phone}-{light,dark}.png`; fresh review fixes recorded below; commit a7b60d0 (pushed). |
+| H2 | 20 | done | `.github/ISSUE_TEMPLATE/bug_report.md`; `tests/docs.test.mjs` 20/20, five template mutations caught; all 25 Chromium suites green three times (`tests/screens/h2-gauntlet/`); fresh review and viewed `tests/screens/h2-{desktop,phone}-{light,dark}.png`; commit a66ce72 (pushed). |
+| H3 | 21 | done | `CHANGELOG.md`; `tests/docs.test.mjs` 30/30, six misleading wording variants caught; all 25 Chromium suites green three times (`tests/screens/h3-gauntlet/`); fresh review fix and viewed `tests/screens/h3-{desktop,phone}-{light,dark}.png`; commit 2a16de0 (pushed). |
 | N6 | 17a | done | a 32 px PNG tab icon beside the SVG (older Safari); `tests/manifest.test.mjs` 30/30 checks every tab-icon link (exists, type, real size, served type); run 32, both engines, green. Commit 74c2291; merged in forwardmotionnz/notes#2 |
 | N7 | 17b | done | a full local run about 300 s -> 73 s (8 suites at a time; three runs green); CI runs the repeats as side-by-side jobs, three over in both engines in 5 min 42 s instead of about 35 min (run 43, https://github.com/forwardmotionnz/notes/actions/runs/36221083063, green). 367 short fixed pauses became `H.settle`; four missing checks found and added; the review's hollow check restored. Commits 5574a13, 47b968c, b1a75bd, 66dbef4, ae130fa |
 | N8 | 17c | done | `tests/app.test.mjs` 70/70, new cases with GitHub slowed to 0.4-0.8 s a commit: three quick ticks all land with nothing refused and two commits; tick then untick ends as it began; a tick and a quick capture both land; a failed commit sends nothing after it, shows GitHub's state and the error, and puts the waiting capture back; a change made elsewhere is still a conflict and kept; changing repository mid-commit; saving settings mid-commit; the open note follows each commit. Commit in the log |
 | N9 | 17d | done | `tests/tasks.test.mjs` 52/52 (new suite): a remove control per task, named for it; removes that one line in one commit, no question; Undo puts it back exactly and goes after 8 s or once used; Clear done removes every ticked task and only them, in one commit, with Undo; CRLF kept; remove, untick and clear while GitHub is slow all land; a stale row removes nothing; a failed remove keeps the task and offers no Undo; Undo withdrawn on changing repository, switching list, or the repository becoming read-only; Undo refuses when lines were added above (incl. a blank line under each heading), still works after a tick or a capture, stays on offer while it cannot be sent yet, comes back after a refusal, and follows a rename; × always shown on a phone, on hover on a computer. `tests/access.test.mjs`: no task can be removed read-only. Screens `tests/screens/n9-{desktop,phone}-{light,dark}-{list,undo}.png`. Commit in the log |
-| G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review (offline refresh signing out): fixed in F2 (2a86afd). Also from F2: `broker()` has no timeout, so a stalled connection holds the refresh lock until the browser gives up. |
-| H1 | 19 | todo | |
-| H2 | 20 | todo | |
-| H3 | 21 | todo | |
-| N10 | 21a | todo | |
-| N11 | 21b | todo | |
-| N12 | 21c | todo | S1 brought forward as a MUST at the owner's request |
-| S1 | 22 | moved | now N12 |
+| S1 | 22 | todo | SHOULD |
 | S2 | 23 | todo | SHOULD |
 | S3 | 24 | todo | SHOULD |
 | S4 | 25 | todo | SHOULD |
@@ -119,51 +259,83 @@ Iterations: 26 / 30
 - Done looks like: the signed-out screen says, in at most three short sentences above the sign-in button, what Notes is, what it asks GitHub for (only the repositories you choose, their contents, read and write) and that notes stay in your repository, with a Privacy link to `PRIVACY.md` as GitHub Pages publishes it.
 - Proof: `tests/welcome.test.mjs` counts the sentences and words, checks each point and the link, and that it all fits a 320 px phone.
 
-### F2: plan
-- Done looks like: the harness takes the engine from `BROWSER` (chromium or webkit); `npm test` runs every suite in both engines, and an engine that is not installed fails the run with the fix named, never a silent skip; the whole suite passes in WebKit.
-- Proof: `tests/runner.test.mjs` for the runner and harness choosing (unknown engine refused, missing engine fails, every suite file picked up by itself). WebKit cannot be installed in this container (its download host is blocked by the environment's network policy), so the WebKit runs happen on GitHub Actions, in a workflow added here, and their results are the evidence.
+### F2: earlier attempt (historical; superseded by integration below)
+- 2026-09-26 resumed on `mvp`, created from `main` at 5ba9c81. Both Playwright engines are installed locally; tests require the normal Windows environment because the sandbox cannot access its browser cache. Baseline is running. Preserve the existing `package-lock.json` working-tree change.
+- Fresh reviewer found the WebKit-only CI job's runner fixtures demanded Chromium. Reproduced before editing: `tests/f2-isolated-before.log`, WebKit 11/14, three failures naming missing Chromium. Use the selected engine for the same failure/crash/continuation assertions; prove it with only WebKit available, then the full three-run gauntlet, mutation and screenshots.
+- Gauntlet attempt 1 failed: `tests/screens/f2-gauntlet/run-1.json`. The half-second sign-in helper returned before navigation/token exchange and silently clicked missing rows; WebKit's injected-outage wording also differs. New `tests/harness.test.mjs` failed 3/4 checks with delayed broker/tree responses before the readiness fix. A fresh second reviewer found loading-state tests that must opt out of waiting, an access-pending assertion that would otherwise lose coverage, and a valid task called `Loading...`; all have explicit coverage. WebKit can cancel a hide-triggered save before the test route sees it: its cancellation message is recognised only for the open dirty file during the forced reload, so unrelated CORS errors remain failures.
+- Gauntlet attempt 2 failed: the deliberately aborted Chromium fetch can include a stack after its message. The expected-error check now matches the exact first line, with or without a following stack (`tests/screens/f2-gauntlet-2/run-1-chromium-drafts.test.mjs.log`). No application assertion is removed or weakened.
+- Gauntlet attempt 3 failed: `tests/screens/f2-gauntlet-3/run-1-webkit-auth.test.mjs.log`, the second Settings click in the older-list test timed out because the dialog still intercepted clicks after Escape. No further F2 fixes were attempted, as required by the three-failure rule. The failed runs were stopped, the candidate saved as an ignored patch, and every unfinished F2 test/helper/README change reverted. Earlier paragraphs describe the attempted candidate, not shipped code. Continue F1 and the remaining items with Chromium gauntlets; F2 remains a release blocker.
+- Done looks like: the harness takes the engine from `NOTES_TEST_ENGINE` (chromium or webkit); `npm test` runs every suite in both engines, and an engine that is not installed fails the run with the fix named, never a silent skip; the whole suite passes in WebKit.
+- Proof: `tests/runner.test.mjs` for the runner and harness choosing (unknown engine refused, missing engine fails, every suite file picked up by itself). The previous session could not install WebKit; this Windows session can run both engines. The CI matrix must also work with only its chosen engine installed.
 
-### F1: plan
-- Done looks like: Add to Home Screen gives "Notes", the note icon and a standalone window, on Android (web app manifest, maskable icon) and iOS (apple-touch-icon, title). Small files in the repository root, no service worker; the page's security policy lets the manifest load; the home-screen app starts at exactly the address GitHub's sign-in returns to.
-- Proof: `tests/manifest.test.mjs`: the manifest's fields, every icon file's real pixel size, the page's links, the policy, the browser loading the manifest (Chromium reports it parsed with no errors), and the start address matching the sign-in callback.
+### F1: gauntlet record
+- Test first: `tests/f1-before.log` failed because the manifest, icons and links were absent. `tests/manifest.test.mjs` now passes 20/20 in Chromium, including actual browser manifest loading at `/notes/` and `/a-fork/` under CSP. It verifies relative start/scope, PNG dimensions, Apple metadata and no service worker.
+- Mutation: changing only `manifest-src 'self'` to `manifest-src *` sent the test's external manifest request and failed the browser security assertion (`tests/f1-mutation.log`); restored afterwards.
+- Fresh reviewer found no blocker. The iPhone/iPad home-screen app has separate sign-in and draft storage from Safari: README now says to save browser drafts first and sign in again; a test failed before that wording was added. This follows https://webkit.org/blog/14787/webkit-features-in-safari-17-2/ . Actual device installation and standalone OAuth still need the owner's real-phone smoke test; desktop emulation does not establish those behaviours.
+- Viewed `icon-512.png` and `tests/screens/f1-{desktop,phone}-{light,dark}.png`: clear paper icon, reachable controls and no horizontal overflow. Assets are static files beside the single HTML app; no build step, dependency, service worker or new external host. Full Chromium gauntlet passed three consecutive times, all 22 suites each time: `tests/screens/f1-gauntlet/run-{1,2,3}.json`. `index.html` is 119,216 bytes. WebKit remains blocked under F2.
 
-### N6: plan (asked by the owner, 2026-09-26)
-- The browser tab shows the Notes icon from F1 in every browser: the SVG where it is supported, and a PNG fallback (32 px, and the 192 px one) for browsers that do not use SVG tab icons (older Safari). The owner saw the generic globe on the live site right after the F1 merge; the SVG link is there, so check whether it was the favicon cache or a real gap, and cover both.
-- Proof: a test that every tab-icon link resolves to a real file of the stated type and size, and a screenshot of the tab icon where one can be taken.
+### F3: gauntlet record
+- Test first: `tests/f3-before.log`, 6/16; keyboard shrink and pan hid the caret/header in both editors. `tests/keyboard.test.mjs` now uses test-only copies of the exact CodeMirror 5.65.16 runtime and its CSS, plus the actual textarea fallback, with synthetic VisualViewport resize/scroll events at 390 px. No fake GitHub behaviour changed.
+- Fresh reviewer reproduced a mid-word caret clipped by the fallback mirror: removing the suffix changed word wrapping. The regression failed 21/22 (`tests/f3-review-before.log`), using the browser's native ArrowRight scroll adjustment as an independent check. Keeping the suffix passes 22/22 (`tests/f3-review-after.log`). The reviewer confirmed the fix and found no remaining concrete F3 defect.
+- Mutation proof: independently removing viewport height, viewport top, caret scrolling and safe mirror text each failed its intended assertion, with the inline script hash updated for each temporary variant; all restored (`tests/f3-mutation-{height,pan,caret,text}.log`). The suffix regression also fails with the original one-character suffix.
+- The marker's separate text sink was also changed alone to HTML and caught by the existing hostile-source test, 27/28 (`tests/f3-mutation-marker-text.log`); restored to the same verified source afterwards.
+- Viewed `tests/screens/f3-{desktop,phone}-{light,dark}.png`: real editor at 1280 px and 390 px, phone cropped to the 360 px area above a simulated keyboard. Header and final line fit, both themes are legible. Normal reading scroll and pinch-zoom layout are preserved by tests. The phone test does not launch a real OS keyboard.
+- Rules/docs: app remains one HTML file, 121,983 bytes, no new external request or runtime dependency. Test fixtures retain the upstream MIT licence and source URLs. README explains the phone layout. Full Chromium gauntlet passed three consecutive times, all 23 suites each time: `tests/screens/f3-gauntlet/run-{1,2,3}.json`. WebKit is still blocked under F2.
 
-### F3: plan
-- Done looks like: on a 390 px phone with the on-screen keyboard up, the app fits the area above the keyboard: the header buttons stay on screen and tappable, the editor ends at the keyboard so the caret stays visible while typing, and the pinned tasks' "Add a task" box stays visible. Android Chrome resizes the page for the keyboard (`interactive-widget=resizes-content`); iOS Safari does not, so the app follows `visualViewport`, as iOS reports the visible area.
-- Proof: `tests/keyboard.test.mjs` fakes the visible area shrinking (and iOS panning the page) exactly as `visualViewport` reports it, types at the end of a long note, and checks what is on screen; and a short window, as Android gives, for the resize path. Screenshots with the keyboard's space marked.
+### G3: plan
+- Done looks like: connection failures, invalid outage responses, server errors and rate limits use fixed human messages with a clear retry action. Temporary refresh failures keep sign-in and drafts; only a rejected refresh token signs out. Rate-limited requests wait for the documented cooldown. Failed writes keep drafts and existing lost-reply safeguards; repository rules do not falsely instruct Discard.
+- Proof: new error tests inject outages and documented rate-limit responses, retry reads/writes, preserve drafts and sign-in, distinguish genuine conflicts, and prevent requests during cooldown. Existing hostile-error tests will continue checking that payloads neither become DOM elements nor execute, while requiring human wording instead of raw server text.
 
-### N7: plan (asked by the owner, 2026-09-26)
-- Done looks like: a full run takes about a minute or two instead of five, and is less sensitive to a slow machine. The 394 fixed pauses (about 232 s of waiting per run) become waits for the condition each one stands for, and the runner runs several suites at once (each has its own fake GitHub and browser). No check is weakened or removed; every check still fails for the right reason.
-- Proof: timings before and after; every suite passes three runs in a row in both engines; a sample of each suite's checks reverted against the app still caught (G-2 across the suites, not only one); the runner's own tests extended for parallel runs (a failure in one suite still fails the run, output stays per suite).
+### G3: gauntlet record
+- Test-first evidence: `tests/g3-before.log` failed 22/36 checks for raw errors, lost sign-in on refresh outages, rate-limit retries and repository-rule wording. Further failing regressions (`g3-review-before.log`, `g3-shapes-before.log`, `g3-optional-refresh-before.log`) cover malformed replies, hanging requests and the review findings. `tests/errors.test.mjs` now covers network/server errors, retry, preserved drafts/credentials, cooldown headers and queued requests, uncertain saves/moves/deletes, each Git data response boundary, persistent messages, protected writes and genuine outside edits.
+- Fresh reviewer found: (1) a request awaiting token refresh bypassed a newly imposed cooldown; the guard is now checked immediately before fetch too. (2) A later offline save overwrote knowledge of an earlier possibly landed save; retry now reads back before sending newer text, and a failed read keeps that knowledge. (3) Malformed broker token payloads replaced credentials; the complete payload is validated first. (4) A write can land before a 503; 5xx outcomes now use the existing conservative recovery checks. (5) Empty successful replies exposed raw exceptions or false empty lists; explicit response guards reject them. Each has an automated regression.
+- The reviewer also confirmed by independent experiments that a recovery read failure sends no PUT, a real outside edit sends no PUT and preserves both versions, and a repository change during recovery sends no delayed PUT. Recovery metadata deliberately remains in memory: after a reload or repository switch, an uncertain earlier commit may conservatively report a conflict. This is not a silent overwrite or lost draft; C1/C3 tests retain the old-SHA draft and give Copy/Discard recovery. README and the repository-change message now explicitly explain that limitation rather than promising effortless recovery across reloads.
+- Existing hostile tests first failed 26/28 because they required displaying the server's supplied strings. They now require fixed human retry wording and absence of those strings; every payload-element, execution-tripwire and unexpected-error assertion remains. `tests/switching.test.mjs` passed 33/33 with the new read-before-retry path.
+- Full gauntlet attempt 1 failed only `tests/large.test.mjs`: an uncertain save whose remote file grew too large no longer entered the established conflict/Discard state. The test was left unchanged. A refused recovery read now retains that conflict pause; transient read failures still preserve the retry path. Evidence: `tests/screens/g3-gauntlet/run-1.json`.
+- Mutation evidence is in `tests/screens/g3-mutations/`: each variant is served in a separate browser process with its own valid CSP hash, leaving the workspace source unchanged. Removing the repository guard alone really wrote alpha's text into beta in the fake and failed the switching assertion; the unmodified app writes nothing there. Other variants cover refresh preservation, token validation, deadlines, both cooldown guards, cooldown duration, JSON/shape guards, every rename boundary, uncertain outcomes, matched/outside versions and persistent messages.
+- Viewed `tests/screens/g3-{desktop,phone}-{light,dark}.png`: the persistent outage message and Save button remain visible at 390 px, the draft stays in the real editor and no horizontal overflow occurs. No runtime dependency, build step, new storage key or external host was added. No broker change or deployment is needed for this item. The 90/90 error checks and all 24 Chromium suites passed three consecutive full runs: `tests/screens/g3-gauntlet-2/run-{1,2,3}.json`. All 26 distinct safeguard mutations failed their intended assertions (`tests/g3-mutations.log`, `tests/g3-extra-mutations.log`, `tests/g3-refused-mutation.log`). `index.html` is 127,373 bytes. WebKit remains blocked under F2.
 
-### Owner's requests (2026-09-26), in the order agreed
-Reviewed with the owner before adding; decisions: pinned files move into the file tree and the side panel goes; daily notes follow the vault's Obsidian settings.
+### H1: plan
+- Done looks like: README opens with a plain-language Try it section, the shared app link and steps to the first saved note. It clearly says the current shared copy cannot sign in until the owner configures the broker; privacy and shared-owner access are explained without claiming readiness. Self-hosting and architecture follow the user guidance.
+- Proof: a test first checks section order, concrete shared link, first-note steps, privacy and deployment-readiness wording; fresh review, all suites three times and four viewed app screenshots.
 
-### N8: plan: quick clicks on a pinned task end in "Conflict"
-- Cause (found in the code): each tick is a commit naming the version of the file it replaces, and the app learns the new version only when GitHub answers; a second tick in that time names the old version, GitHub refuses it (409), and the app reloads, losing that tick. The simulated GitHub accepted it ("rapid toggles all land" passes), which breaks rule 6.
-- Done looks like: first the fake refuses a stale sha as GitHub does, and the test fails for this bug; then pinned-task writes go to GitHub one at a time per file, each waiting for the last, several quick clicks may share one commit carrying the latest state, and no click is lost or reported as a conflict.
+### H1: gauntlet record
+- Test first: `tests/h1-before.log` failed 0/8 because the README began with deployment details. `tests/docs.test.mjs` now passes 10/10 for the shared link, plain first-note steps, honest unfinished sign-in, trust/privacy and section order.
+- Fresh reviewer found two exact first-run gaps: New is actually the + button behind Files on phones, and the repository picker needs Save to close. Both steps are now explicit. The phone regression failed before the correction (`tests/h1-review-before.log`); removing either corrected step independently now fails (`tests/screens/h1-mutation-{phone,picker-save}.log`).
+- Gauntlet attempt 1 failed the new docs test: a multiline-regex end anchor read only the first line of step 3. Paragraph extraction now uses its blank-line boundary. The owner-trust assertion also formerly matched the preview's unrelated owner mention; it now checks the actual access sentence. The corrected suite is green, and four independent misleading variants (readiness, owner access, phone navigation, picker Save) all fail (`tests/h1-mutations.log`). No runtime safeguard was changed.
+- Viewed `tests/screens/h1-{desktop,phone}-{light,dark}.png`: the existing app fits both widths, with Save reachable and clear text. The README now names the phone menu and creation icon seen there. App code stays 127,373 bytes; no build step, runtime dependency or host changed. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h1-gauntlet-2/run-{1,2,3}.json`. WebKit remains blocked under F2.
 
-### N9: plan: remove tasks
-- Done looks like: each task has a remove control (always visible on a phone, on hover on desktop) that removes that one line in one commit, with a short "Removed · Undo"; and "Clear done" removes every ticked task in one commit. No confirmation step (the history keeps every line). Goes through the same one-at-a-time writing as N8.
+### H2: plan
+- Done looks like: GitHub offers a Bug report template asking for device, browser/version, steps, expected result and actual result, without asking people to share private notes or credentials.
+- Proof: add failing documentation checks, create the minimal Markdown issue template, fresh review, four viewed screenshots and three full Chromium passes. No runtime change is planned.
 
-### N10: plan: today's daily note
-- Done looks like: a Today button opens today's note, creating it only when first saved (like New). Folder, date format and template come from the vault's `.obsidian/daily-notes.json` when there is one (read, never written), otherwise `Daily/YYYY-MM-DD.md` with a heading. Obsidian's date tokens that matter (YYYY, MM, DD, and common variants) are honoured; an unsupported format falls back to the default and says so.
+### H2: gauntlet record
+- Test first: `tests/h2-before.log` failed the nine new template checks (10/19 overall). The Markdown template now requests device/OS, browser/version and home-screen context, reproducible steps, expected result and actual result; the final docs suite passes 20/20.
+- Fresh reviewer found no data, credential or sign-in defect. The reviewer noted that the README template link alone left beginners to find the issue composer; a new failing check (`tests/h2-review-before.log`, 19/20) preceded an explicit new-issue link. No issue was created or sent.
+- GitHub documents the name/about frontmatter, directory and default-branch requirement at https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates . The template becomes selectable only after the owner's future merge into main; mvp does not activate it yet.
+- Five independent removals (public-report privacy guidance, frontmatter, device, browser, expected result) failed their checks: `tests/h2-mutations.log` and `tests/screens/h2-mutation-*.log`. These variants only changed test-local strings; the files remained intact. No runtime safeguard changed.
+- Viewed `tests/screens/h2-{desktop,phone}-{light,dark}.png`: clear existing app layout and reachable Save, no overflow. No runtime code, dependency, build or request changed; index.html remains 127,373 bytes. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h2-gauntlet/run-{1,2,3}.json`. WebKit remains blocked under F2.
 
-### N11: plan: pin and unpin; pinned files at the top of the tree
-- Done looks like: a pin toggle beside the open note's name; a "Pinned" section at the top of the file tree; opening a pinned file shows it as a checklist (tick, add, remove, as now) in the main area; the right-hand pins panel is removed (and the phone's bottom sheet with it). Pins stay per browser, stored with the settings, and the app says so; the Settings field for pins goes.
-- Decision: pins are not written into the repository (rule 2: no app-specific files in the user's repo). Syncing them between devices is left for later.
+### H3: plan
+- Done looks like: CHANGELOG.md describes the MVP candidate and its known limits, plainly marked unreleased. It does not imply WebKit, real-phone testing or shared sign-in are ready while F2 and owner setup remain outstanding.
+- Proof: failing documentation checks before creation; compare each claim with app behaviour and the ledger, fresh review, four viewed screenshots and all Chromium suites three times. No runtime change is planned.
 
-### N12: plan: rendered preview (was S1)
-- Done looks like: a Preview toggle beside Save shows the note rendered (headings, tables, task lists, links, code), read-only; frontmatter shown as a small box; wikilinks open notes as E1 does. Rendered with `marked` and sanitised with `DOMPurify`, both from cdnjs, with the page's policy allowing exactly those two files (hashes pinned where cdnjs can be reached); no script from a note ever runs (tested with hostile notes). If the CDN is down, Preview says so and the text stays as it is.
+### H3: gauntlet record
+- Test first: `tests/h3-before.log` failed all nine new changelog checks (20/29 overall). The entry now states implemented features, browser draft/conflict limits, files and network limits, separate home-screen storage, CDN fallback and owner trust, with an explicit unreleased status. The final docs suite passes 30/30.
+- Fresh reviewer found that "Sign out removes that browser's drafts" overstated cleanup for duplicated session-only tabs. The new regression failed 29/30 (`tests/h3-review-before.log`); the entry now distinguishes shared remembered drafts from the current tab's session drafts and requires signing out in each session-only tab separately. The reviewer confirmed Discard waits for a successful read and the rename itself is atomic; the entry also clarifies that unsaved edits are saved before the rename commit.
+- Six misleading wording variants independently failed their checks: release gate, owner setup, copy before Discard, sign-out draft removal, independent session tabs and separate phone storage (`tests/h3-mutations.log`, `tests/screens/h3-mutation-*.log`). No runtime safeguard changed.
+- Viewed `tests/screens/h3-{desktop,phone}-{light,dark}.png`: readable app, reachable controls and no overflow. No app code, dependency, build step or request changed; index.html remains 127,373 bytes. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h3-gauntlet/run-{1,2,3}.json`. WebKit F2 and the owner's real-phone/real-GitHub tests remain outstanding; the changelog says so.
 
 ## Needs the owner
-(exact steps for human-only actions)
-- **Make the GitHub App installable by anyone (A1).** github.com → Settings → Developer settings → GitHub Apps → your app → *Advanced* → **Make public** (or, when creating it, "Where can this GitHub App be installed?" → *Any account*). Until then only your own account can install it, and nobody else can use your deployment.
-- **Optional, hardening: pin the CodeMirror files by hash (Subresource Integrity).** This container cannot reach cdnjs, so the hashes could not be computed here. Open https://cdnjs.com/libraries/codemirror/5.65.16, and for each of `codemirror.min.css`, `codemirror.min.js`, `mode/xml/xml.min.js` and `mode/markdown/markdown.min.js` use "Copy SRI". Add `integrity="sha512-…" crossorigin="anonymous" referrerpolicy="no-referrer"` to the matching `<link>` and `<script>` tags in `index.html`. The app script's hash does not change (those tags are outside it). If a hash is wrong, the editor falls back to the plain text box with its `plain` badge, which is how you would notice.
-- ~~Give Claude push access to `forwardmotionnz/notes`.~~ Done by the owner on 2026-09-25; branch pushed.
+
+Account setup has already been completed. Do not repeat login, deployment,
+secret generation or App visibility changes as part of this release.
+
+- **Broker and CLIENT_SECRET: complete.** The owner confirmed the secret name and deployed Worker at https://notes-token-broker.forwardmotionnz.workers.dev. Live probes on 2026-09-27 confirmed allowed-origin OPTIONS 204, empty POST 400 bad_request, and unrelated-origin OPTIONS 403. The existing live Pages site already uses this broker. A real sign-in remains part of the smoke test; these probes did not exchange a token.
+- **GitHub App visibility: complete.** The owner confirmed on 2026-09-27 that forwardmotion-notes had already been made public the previous day. Client ID, callback and authorisation settings were also checked during the walkthrough.
+- **Merge authorised.** On 2026-09-27 the owner explicitly asked to update these stale instructions, merge mvp into main and continue. Integrate the newer main fixes and validate the combined app, then use the repository's pull-request flow. Do not bypass branch protections.
+- **Real-device and real-GitHub smoke tests remain.** Follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): second account on a phone, empty repository, organisation repository, Obsidian attachments, session-only mode, revocation and two tabs overnight. These checks need the owner's accounts and physical devices; automated simulations do not establish them.
+- **Optional hardening, not an account-setup blocker:** CodeMirror Subresource Integrity remains a separate improvement. No broker deployment is needed when only the static app changes.
 
 ### C1: gauntlet record
 - G-1: full suite green three runs in a row, Chromium (WebKit arrives with F2).
@@ -301,6 +473,62 @@ Reviewed with the owner before adding; decisions: pinned files move into the fil
 - G-3 findings, all taken: (1) The README still promised "Nothing is written to disk" for Forget me, against PRIVACY.md (browsers that reopen tabs bring the session back): the README is corrected and the privacy test now holds the README to it too. The checkbox text in the app said the same and was already changed in this item. (2) "Only the repositories you choose" is not true when an organisation installs the app for its members: now "only in repositories the app is installed on, which you choose"; test. (3) "Your notes stay in your repository" hid the one thing that changes the risk on someone else's copy: the third sentence now says whoever runs this copy's GitHub App can reach them too, as PRIVACY.md does; test. (4) The README pointed to the wrong place for the link: it now names `id="about"`.
 - G-4: `tests/screens/a2-{desktop,phone,small}-{light,dark}.png`: fits at 320 px with Sign in in view and focused; the link is visible in both themes. G-5: markup and one CSS rule, outside the hashed script; no request added. G-6: README says where the privacy note is published, and the Forget me paragraph matches PRIVACY.md.
 
+## Decisions
+- 2026-09-27: Latest owner instruction explicitly authorises merging mvp into main after reconciliation. This supersedes the earlier no-main-merge boundary. Public App setup is confirmed complete; no account setup is outstanding. Preserve both branches' tests, task controls, Safari token race handling, real-editor keyboard checks and G3 failure recovery. Integration takes place in an isolated checkout so the existing package-lock.json change remains untouched.
+- 2026-09-27: Owner walkthrough exposed stale local evidence. The live site and origin/main already use the deployed broker, and CLIENT_SECRET exists. Origin/main advanced to 03f7311 while mvp remains separate (13 mvp-only and 32 main-only commits at this check). Refreshed remote refs and corrected this checklist; no app code, secret, GitHub App setting or live deployment was changed by the assistant. The earlier deployment instructions repeated work already completed; future steps must check live state and current remote history first.
+- 2026-09-26: F1, F3, G3 and H1–H3 are complete on mvp. The only unfinished MUST is F2, blocked after its three failed gauntlet attempts. Stop this checklist run at that boundary and the owner-only deployment steps above. The release gate has not started: both-engine validation, whole-codebase release review, the first-run phone walkthrough and RELEASE_CHECKLIST.md remain for after F2 is resolved. No main commit, merge, broker deployment, secret handling or GitHub App settings change was performed. The pre-existing package-lock.json working-tree change was left unstaged and untouched.
+- 2026-09-26: The current request supersedes the earlier branch exception: work is on `mvp`, created from `main` at 5ba9c81. No commit or push to `main` is permitted. The old branch notes below remain historical.
+- 2026-09-26: F2's attempted local gauntlet ran all 22 suite entry points in both engines in isolated Node processes, four at a time. Each complete pass finished before the next could begin, and any non-zero suite exit stopped the three-pass attempt. The normal `npm test` entry point was also run. All output stays under ignored `tests/screens/` or `*.log` paths. After the third failure, its unfinished changes were reverted.
+- 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
+
+- 2026-09-25: Drafts are written on every change, not on `pagehide`/`visibilitychange`: iOS can discard a background page without firing either.
+- 2026-09-25: A restored draft keeps the sha it was based on, so it goes through GitHub's conflict check; a **Discard** button appears for a restored draft or a conflict, as the way out.
+- 2026-09-25: Autosave waits 2 s after the last keystroke and commits at once on `visibilitychange` to hidden. It only saves text typed since the file was opened: restored drafts and New templates wait for a keystroke or Save.
+- 2026-09-25: Leaving a file commits it rather than asking. A person switching files wants their words kept, and the history holds anything they regret; offline or in conflict, the draft keeps it instead.
+- 2026-09-25: No `innerHTML` at all, rather than "only with static strings": a rule a test can enforce beats a judgement each reader must repeat.
+- 2026-09-25: Review findings outside the current item become ledger items (N1–N4) rather than widening the item. They go straight after G1 because three of them touch data or sign-in.
+- 2026-09-25: The policy is a `<meta>` tag because GitHub Pages cannot send headers, and it comes in two parts. The app's part pins its one inline script by sha256 rather than allowing `'unsafe-inline'`. Deployment settings moved into a JSON data block so that a fork's edits never touch the hash.
+- 2026-09-25: Line endings are kept per line, by diffing the editor text against the text as read, rather than by picking one ending per file. A notes app must never change bytes the user did not touch.
+- 2026-09-25: A return from GitHub's install flow never signs anyone in. Where the app cannot know whether the computer is shared, it defaults to "Forget me": the cost is signing in again, while the other mistake leaves a six-month token on someone else's disk.
+- 2026-09-25: Remembered tabs share one set of settings and follow each other; session-only tabs keep their own. Two remembered tabs on different repositories cannot be kept apart without per-tab storage, and the last writer silently winning was worse.
+- 2026-09-25: Rename uses the Git Data API in one commit and a fast-forward-only branch update, rather than the contents API's create-then-delete, so there is no moment with both copies or neither. All GitHub requests skip the browser cache, since GitHub marks answers cacheable for 60 seconds.
+- 2026-09-25: A link that names no existing note is only offered for creation when the whole list of notes is loaded and fresh. Otherwise "not found" may be wrong, and creating would end in a conflict at best.
+- 2026-09-25: Before a repository is in use, a public one is never chosen for anyone, even when it is the only one: notes are private by default, and the other mistake cannot be undone.
+- 2026-09-25: A3 goes before A2: the signed-out screen links to the privacy note, so the note has to exist first.
+- 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
+- 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
+
+## Log
+(one line per iteration: date, item, result, commit)
+- 2026-09-26 · H3 · done · 2a16de0 (pushed)
+- 2026-09-26 · H2 · done · a66ce72 (pushed)
+- 2026-09-26 · H1 · done · a7b60d0 (pushed)
+- 2026-09-26 · G3 · done · c57046d (pushed)
+- 2026-09-26 · F3 · done · 3486a8f (pushed)
+- 2026-09-26 · F1 · done · 83c1791 (pushed)
+- 2026-09-26 · F2 · blocked after three gauntlet failures; unfinished changes reverted · 1f6e274 (pushed)
+- 2026-09-25 · C1 · done · daa2754
+- 2026-09-25 · C2 · done · 493850a
+- 2026-09-25 · C3 · done · ec26502 (pushed once the owner granted access)
+- 2026-09-25 · G2 · done · 981fd4d
+- 2026-09-25 · G1 · done · 3290031
+- 2026-09-25 · N1 · done · 4dec41f
+- 2026-09-25 · N2 · done · 4f5062d
+- 2026-09-25 · N3 · done · f23b584
+- 2026-09-25 · N4 · done · 045b181
+- 2026-09-25 · N5 · done · 42315db
+- 2026-09-25 · B1 · done · 800e3ed
+- 2026-09-25 · B3 · done · d32c97f
+- 2026-09-25 · A1 · done · 7a955b3
+- 2026-09-25 · D1 · done · c77ef15
+- 2026-09-25 · D2 · done · d762495
+- 2026-09-25 · E1 · done · 918ad02
+- 2026-09-25 · B2 · done · 5bf6436
+- 2026-09-25 · A3 · done · 211e75b (taken before A2, which links to it)
+- 2026-09-25 · A2 · done · d91783c
+
+## Upstream integration evidence (historical main at 03f7311)
+
 ### F2: gauntlet record
 - Environment: WebKit cannot be installed in the session this was built in (the environment's network policy blocks Playwright's download host, `cdn.playwright.dev`), so WebKit runs on GitHub Actions (`.github/workflows/test.yml`, both engines on every push, `repeat` input for runs in a row); results read back through the Actions API. The owner may allow that host in the environment's network settings to run WebKit locally too.
 - G-1: GitHub Actions run 18, three runs in a row in both engines, green; three local Chromium runs green (72c1af2).
@@ -355,55 +583,3 @@ Reviewed with the owner before adding; decisions: pinned files move into the fil
 - G-3 findings, all taken: (1) Undo put lines back by number after lines were added above, into another section; first fixed with a line-above check, which the re-review showed fooled by a blank line under each heading; now the whole-file check above. (2) Undo lost when refused (access check running, list loading): kept on offer. (3) Undo lost on rename: follows it. (4) Undo left up over another list, or on a read-only repository: withdrawn. Re-review: (5) Undo lost after a conflict with another tab: offered again, and then explains. Also taken: the × on a phone is a finger-sized target (about 31 x 33 px).
 - G-4: screens above; the rows keep their old spacing (the row is now a div around the label, and the settings form's label margin no longer leaks in). No overflow at 390 px.
 - G-5: 131 KB, no new dependency. G-6: README's feature list.
-
-## Decisions
-- 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
-
-- 2026-09-25: Drafts are written on every change, not on `pagehide`/`visibilitychange`: iOS can discard a background page without firing either.
-- 2026-09-25: A restored draft keeps the sha it was based on, so it goes through GitHub's conflict check; a **Discard** button appears for a restored draft or a conflict, as the way out.
-- 2026-09-25: Autosave waits 2 s after the last keystroke and commits at once on `visibilitychange` to hidden. It only saves text typed since the file was opened: restored drafts and New templates wait for a keystroke or Save.
-- 2026-09-25: Leaving a file commits it rather than asking. A person switching files wants their words kept, and the history holds anything they regret; offline or in conflict, the draft keeps it instead.
-- 2026-09-25: No `innerHTML` at all, rather than "only with static strings": a rule a test can enforce beats a judgement each reader must repeat.
-- 2026-09-25: Review findings outside the current item become ledger items (N1–N4) rather than widening the item. They go straight after G1 because three of them touch data or sign-in.
-- 2026-09-25: The policy is a `<meta>` tag because GitHub Pages cannot send headers, and it comes in two parts. The app's part pins its one inline script by sha256 rather than allowing `'unsafe-inline'`. Deployment settings moved into a JSON data block so that a fork's edits never touch the hash.
-- 2026-09-25: Line endings are kept per line, by diffing the editor text against the text as read, rather than by picking one ending per file. A notes app must never change bytes the user did not touch.
-- 2026-09-25: A return from GitHub's install flow never signs anyone in. Where the app cannot know whether the computer is shared, it defaults to "Forget me": the cost is signing in again, while the other mistake leaves a six-month token on someone else's disk.
-- 2026-09-25: Remembered tabs share one set of settings and follow each other; session-only tabs keep their own. Two remembered tabs on different repositories cannot be kept apart without per-tab storage, and the last writer silently winning was worse.
-- 2026-09-25: Rename uses the Git Data API in one commit and a fast-forward-only branch update, rather than the contents API's create-then-delete, so there is no moment with both copies or neither. All GitHub requests skip the browser cache, since GitHub marks answers cacheable for 60 seconds.
-- 2026-09-25: A link that names no existing note is only offered for creation when the whole list of notes is loaded and fresh. Otherwise "not found" may be wrong, and creating would end in a conflict at best.
-- 2026-09-25: Before a repository is in use, a public one is never chosen for anyone, even when it is the only one: notes are private by default, and the other mistake cannot be undone.
-- 2026-09-25: A3 goes before A2: the signed-out screen links to the privacy note, so the note has to exist first.
-- 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
-- 2026-09-26: `main` is protected by a ruleset (pull requests only); merges now go through a pull request, the first being forwardmotionnz/notes#1 (F2 and F1), merged at the owner's request.
-- 2026-09-26: F3 and N6 merged into `main` in forwardmotionnz/notes#2 at the owner's request, before N7.
-- 2026-09-26: Owner's requests N8-N12 added after review with the owner: the two bugs they hit (N8, N9) go before G3; the rest after the MUSTs; S1 (preview) is now N12. Pinned files move into the file tree and the side panel goes; pins stay per browser (rule 2).
-- 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
-
-## Log
-(one line per iteration: date, item, result, commit)
-- 2026-09-25 · C1 · done · daa2754
-- 2026-09-25 · C2 · done · 493850a
-- 2026-09-25 · C3 · done · ec26502 (pushed once the owner granted access)
-- 2026-09-25 · G2 · done · 981fd4d
-- 2026-09-25 · G1 · done · 3290031
-- 2026-09-25 · N1 · done · 4dec41f
-- 2026-09-25 · N2 · done · 4f5062d
-- 2026-09-25 · N3 · done · f23b584
-- 2026-09-25 · N4 · done · 045b181
-- 2026-09-25 · N5 · done · 42315db
-- 2026-09-25 · B1 · done · 800e3ed
-- 2026-09-25 · B3 · done · d32c97f
-- 2026-09-25 · A1 · done · 7a955b3
-- 2026-09-25 · D1 · done · c77ef15
-- 2026-09-25 · D2 · done · d762495
-- 2026-09-25 · E1 · done · 918ad02
-- 2026-09-25 · B2 · done · 5bf6436
-- 2026-09-25 · A3 · done · 211e75b (taken before A2, which links to it)
-- 2026-09-25 · A2 · done · d91783c
-- 2026-09-26 · F2 · done · d2b0cec…72c1af2 (WebKit runs in GitHub Actions)
-- 2026-09-26 · F1 · done · 1326f8c
-- 2026-09-26 · F3 · done · 7219a9b, 07173fe
-- 2026-09-26 · N6 · done · 74c2291
-- 2026-09-26 · N7 · done · 5574a13…ae130fa
-- 2026-09-26 · N8 · done · 9d690c3 (CI run 50: 5 of 6 jobs green; the delete suite's wait was too short on one runner, fixed on its own in the next commit)
-- 2026-09-26 · N9 · done · 6d53c3d; the delete suite's wait fixed in 30c52b7. CI run 52 (three runs, both engines) then failed once each in auth (WebKit), drafts (Chromium) and keyboard (WebKit), all tests waiting a fixed time on a busy runner; each now waits for what it measures (b062db7). CI run 53: all six jobs green (Chromium and WebKit, three runs each).

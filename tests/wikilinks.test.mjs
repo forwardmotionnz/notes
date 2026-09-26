@@ -47,7 +47,11 @@ async function run(label, ctxOpts) {
   const p = await H.page(ctx);
   await H.signIn(p);
   await H.settle(p, 400);
-  const open = () => p.evaluate(() => openFile('Daily/2026-09-25.md')).then(() => H.settle(p, 400));
+  const open = async () => {
+    await p.evaluate(() => openFile('Daily/2026-09-25.md'));
+    await p.waitForFunction(text => current?.path === 'Daily/2026-09-25.md' && editor.getValue() === text,
+      DAILY, { timeout: 5000 });
+  };
   p.asked = [];
   p.removeAllListeners('dialog');
   p.removeAllListeners('dialog');
@@ -76,6 +80,8 @@ async function run(label, ctxOpts) {
 
   await open();
   await hit(p, 'Holflo hardware]] today', 'tap');
+  await p.waitForFunction(() => current?.path === 'Projects/Holflo/Holflo hardware.md' &&
+    editor.getValue().includes('the right one'), null, { timeout: 5000 });
   t.check(`${label}: a tap on a phone opens it`, (await name(p)) === 'Holflo hardware.md');
 
   await open();
@@ -115,7 +121,11 @@ async function run(label, ctxOpts) {
   p.on('dialog', d => { p.asked.push(d.message()); return d.dismiss(); });
   await H.signIn(p);
   await H.settle(p, 400);
-  const open = () => p.evaluate(() => openFile('Home.md')).then(() => H.settle(p, 400));
+  const open = async () => {
+    await p.evaluate(() => openFile('Home.md'));
+    await p.waitForFunction(text => current?.path === 'Home.md' && editor.getValue() === text,
+      gh.files['Home.md'], { timeout: 5000 });
+  };
   await open();
   await hit(p, 'Beta]] and', 'ctrl');   // not there: the second link on the line
   await hit(p, 'Beta]].', 'ctrl');

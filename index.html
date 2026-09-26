@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ViQis2CnaV9r1RHBq6liAnH1BitsKMsYUUjyW4q05FI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rKI+GS5RMEQYIsFOXP5cczgVGZg+y7U5gaH4t6NzS2Y=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -138,7 +138,7 @@
 
   /* ---- shell ---------------------------------------------------- */
 
-  #shell { display: flex; flex-direction: column; height: 100%; }
+  #shell { position: relative; display: flex; flex-direction: column; height: 100%; }
 
   header {
     display: flex;
@@ -256,6 +256,7 @@
   #editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   #editor-pane .CodeMirror {
     flex: 1;
+    min-height: 0;
     height: auto;
     font-family: var(--mono);
     font-size: 14px;
@@ -266,6 +267,7 @@
   }
   .fallback-editor {
     flex: 1;
+    min-height: 0;
     width: 100%;
     border: 0;
     border-radius: 0;
@@ -320,7 +322,7 @@
   }
   #pin-tabs button.active { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
   #pin-add { padding: 8px; display: flex; gap: 6px; }
-  #pin-add input { font-size: 13.5px; }
+  #pin-add textarea { font-size: 13.5px; resize: none; }
   #pin-list { flex: 1; overflow: auto; padding: 0 8px 40px; -webkit-overflow-scrolling: touch; }
   .task {
     display: flex;
@@ -493,9 +495,10 @@
   @media (max-width: 820px) {
     /* iOS Safari zooms the page into any field whose text is under 16px
        when it is tapped, and stays zoomed. Here every field is 16px. */
-    input, textarea, select, #filter, #pin-add input,
+    input, textarea, select, #filter, #pin-add textarea,
     #editor-pane .CodeMirror, .fallback-editor { font-size: 16px; }
     .only-narrow { display: inline-block; }
+    #editor-pane .CodeMirror, .fallback-editor { font-size: 16px; }
 
     #sidebar {
       position: absolute;
@@ -585,7 +588,7 @@
     <aside id="pins">
       <div id="pin-tabs"></div>
       <div id="pin-add">
-        <input id="pin-input" placeholder="Add a task" autocomplete="off">
+        <textarea id="pin-input" rows="1" placeholder="Add a task" autocomplete="off"></textarea>
         <button id="pin-go" class="primary">Add</button>
       </div>
       <div id="pin-undo" hidden><span></span><button type="button">Undo</button></div>
@@ -908,13 +911,26 @@ function forgetDrafts() {
 
 // On changing mode, drafts follow the settings into the other store and no
 // copy is left behind in the one being left.
-function moveDrafts() {
-  var from = sessionOnly ? localStorage : sessionStorage;
-  var to = draftStore();
-  draftKeys(from).forEach(function (k) {
-    try { to.setItem(k, from.getItem(k)); } catch (e) {}
-    try { from.removeItem(k); } catch (e) {}
-  });
+function moveDrafts(nextSessionOnly) {
+  var from = nextSessionOnly ? localStorage : sessionStorage;
+  var to = nextSessionOnly ? sessionStorage : localStorage;
+  var keys = draftKeys(from), previous = [];
+  try {
+    keys.forEach(function (k) {
+      previous.push({ key: k, value: to.getItem(k) });
+      to.setItem(k, from.getItem(k));
+    });
+  } catch (e) {
+    previous.forEach(function (old) {
+      try {
+        if (old.value === null) to.removeItem(old.key);
+        else to.setItem(old.key, old.value);
+      } catch (ignored) {}
+    });
+    return false;
+  }
+  keys.forEach(function (k) { try { from.removeItem(k); } catch (e) {} });
+  return true;
 }
 
 function signedIn() {
@@ -925,7 +941,7 @@ function configured() {
   return !!(cfg.token && cfg.owner && cfg.repo && cfg.branch);
 }
 
-function saveCfg() { persist(CFG_KEY, cfg); }
+function saveCfg() { if (signedIn()) persist(CFG_KEY, cfg); }
 
 /* ================================================================
    AUTH  -  GitHub App user tokens via the broker.
@@ -1024,23 +1040,48 @@ function showSignInAgain(message, session) {
   $("f-session-in").checked = typeof session === "boolean" ? session : true;
 }
 
+// The deadline covers the body as well as the headers. A timeout never
+// proves that a write did not land; callers retain their draft for retry.
+function fetchJSON(url, options) {
+  var controller = new AbortController();
+  var timer = setTimeout(function () { controller.abort(); }, 30000);
+  options.signal = controller.signal;
+  return fetch(url, options).then(function (res) {
+    return res.text().then(function (text) {
+      var data = null;
+      try { data = JSON.parse(text); } catch (e) {}
+      return { res: res, data: data };
+    });
+  }).then(function (reply) { clearTimeout(timer); return reply; }, function (err) {
+    clearTimeout(timer); throw err;
+  });
+}
+
 function broker(body) {
-  return fetch(DEPLOYMENT.broker, {
+  return fetchJSON(DEPLOYMENT.broker, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
-  }).then(function (res) {
-    return res.json().catch(function () { return {}; }).then(function (data) {
-      if (!res.ok || !data.access_token) {
-        var err = new Error(data.error_description || data.error || ("Sign-in failed (" + res.status + ")"));
+  }).then(function (reply) {
+      var res = reply.res, data = reply.data;
+      if (!data || typeof data !== "object") data = {};
+      function token(value) { return typeof value === "string" && value.length > 0 && value.length <= 512 && /^[\w.~-]+$/.test(value); }
+      var valid = token(data.access_token) && Number.isFinite(data.expires_in) && data.expires_in >= 0 &&
+                  (!data.expires_in || token(data.refresh_token)) &&
+                  (data.refresh_token === undefined || data.refresh_token === "" || token(data.refresh_token));
+      if (!res.ok || !valid) {
+        var message = "The sign-in service is temporarily unavailable. Try again.";
+        if (data.error === "bad_verification_code") message = "Sign-in expired. Please sign in again.";
+        if (data.error === "bad_refresh_token") message = "Your sign-in has expired. Sign in again.";
+        if (data.error === "incorrect_client_credentials") message = "The sign-in service needs attention from this app's owner. Try again after it is fixed.";
+        var err = new Error(message);
         err.code = data.error || "";
         err.status = res.status;
         throw err;
       }
       return data;
-    });
   }, function () {
-    var err = new Error("Could not reach the sign-in service.");
+    var err = new Error("Could not reach the sign-in service. Check your connection, then try again.");
     err.status = 0;
     throw err;
   });
@@ -1121,18 +1162,11 @@ function refreshTokens(stale) {
       applyTokens(t);
       return cfg.token;
     }, function (err) {
-      // Not a refusal from GitHub (offline, the broker or GitHub down): the
-      // refresh token was never spent and still works. Keep the sign-in.
-      if (err.status !== 400) {
-        var retry = new Error(err.status === 0
-          ? "Offline, or the sign-in service cannot be reached. Nothing is lost; try again in a moment."
-          : "The sign-in service is having trouble (" + err.status + "). Nothing is lost; try again in a moment.");
-        retry.retryable = true;
-        throw retry;
-      }
-      // Refused: the token is dead, or another tab spent it first and its
-      // new tokens have not reached us yet (no Web Locks, or WebKit's storage
-      // arriving late). Give them a moment before signing out.
+      // Only a rejected refresh token proves sign-in has expired.
+      // Outages and malformed replies keep credentials and drafts for retry.
+      if (err.code !== "bad_refresh_token") { err.retryable = true; throw err; }
+      // Safari storage may arrive after the refresh lock; allow its newer
+      // token to arrive even while this tab holds the lock.
       return waitForNewer(stale, 2000).then(function (token) {
         if (token) return token;
         if (waited) {
@@ -1225,13 +1259,27 @@ window.addEventListener("storage", function (e) {
    ================================================================ */
 
 var API = "https://api.github.com";
+var apiRetryAt = 0;
+
+function rateLimitError() {
+  var err = new Error("GitHub is limiting requests. Wait " + Math.max(1, Math.ceil((apiRetryAt - Date.now()) / 1000)) + " seconds, then try again.");
+  err.status = 429;
+  return err;
+}
+
+function incompleteReply() {
+  return new Error("GitHub returned an incomplete response. Try again.");
+}
 
 function request(path, options, retried) {
   options = options || {};
+  if (Date.now() < apiRetryAt) return Promise.reject(rateLimitError());
   var used = "";
   return currentToken().then(function (token) {
+    // Another request may have hit a limit while this one awaited refresh.
+    if (Date.now() < apiRetryAt) throw rateLimitError();
     used = token;
-    return fetch(API + path, {
+    return fetchJSON(API + path, {
       method: options.method || "GET",
       // GitHub marks its answers cacheable for 60 s; a stale branch head,
       // file list or file would make a move or a save act on the past.
@@ -1243,32 +1291,58 @@ function request(path, options, retried) {
         "Content-Type": "application/json"
       },
       body: options.body ? JSON.stringify(options.body) : undefined
+    }).catch(function () {
+      throw new Error("Could not reach GitHub. Check your connection, then try again.");
     });
-  }).then(function (res) {
+  }).then(function (reply) {
+    var res = reply.res;
     // A token GitHub no longer accepts: refresh once and try again.
     if (res.status === 401 && !retried && cfg.refresh) {
       return refreshTokens(used).then(function () { return request(path, options, true); });
     }
     if (res.status === 404 && options.allow404) return null;
     if (!res.ok) {
-      return res.json().catch(function () { return {}; }).then(function (body) {
-        var msg = body.message || res.statusText || ("HTTP " + res.status);
+      return Promise.resolve(reply.data).then(function (body) {
+        if (!body || typeof body !== "object") body = {};
+        var detail = typeof body.message === "string" ? body.message : "";
+        // GitHub documents 403/429, Retry-After, remaining/reset and a
+        // minimum one-minute wait when a secondary limit has no headers.
+        // https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api#rate-limit-errors
+        if (res.status === 429 || (res.status === 403 && (res.headers.get("x-ratelimit-remaining") === "0" || /rate limit/i.test(detail)))) {
+          var after = Number(res.headers.get("retry-after"));
+          var reset = Number(res.headers.get("x-ratelimit-reset")) * 1000;
+          var delay = null;
+          if (res.headers.has("retry-after") && Number.isFinite(after) && after >= 0) delay = after * 1000;
+          if (res.headers.get("x-ratelimit-remaining") === "0" && Number.isFinite(reset) && reset > Date.now()) delay = Math.max(delay || 0, reset - Date.now());
+          if (delay === null) delay = 60000;
+          apiRetryAt = Math.max(apiRetryAt, Date.now() + Math.max(1000, delay));
+          throw rateLimitError();
+        }
+        var msg = "GitHub could not complete that action. Try again.";
+        if (res.status >= 500) msg = "GitHub is temporarily unavailable. Try again shortly.";
         if (res.status === 401) msg = "Signed out. Sign in again to continue.";
         if (res.status === 403) msg = "GitHub refused. Is the app installed on this repository?";
         // A file over GitHub's 1 MB limit for this API is refused with
         // code "too_large": say that, not that the app is not installed.
-        var tooBig = (body.errors || []).some(function (e) { return e && e.code === "too_large"; });
+        var tooBig = (Array.isArray(body.errors) ? body.errors : []).some(function (e) { return e && e.code === "too_large"; });
         if (tooBig) msg = "That file is larger than 1 MB, too large to edit here, so it is left alone.";
         if (res.status === 409) msg = "Conflict. The file changed on the server.";
+        var writeBlocked = /protected branch|branch protection|repository rule|ruleset/i.test(detail);
+        if (writeBlocked) msg = "GitHub's repository rules refused this change. Ask the repository owner about its rules, then try again.";
         var err = new Error(msg);
         err.status = res.status;
-        err.detail = body.message || "";     // GitHub's own words, for telling 409s apart
+        err.detail = detail;     // Internal only, for telling 409s apart.
         err.refused = tooBig;
+        err.writeBlocked = writeBlocked;
         throw err;
       });
     }
-    if (res.status === 204) return null;
-    return res.json();
+    if (res.status === 204) {
+      if (options.method === "DELETE") return null;
+      throw incompleteReply();
+    }
+    if (!reply.data || typeof reply.data !== "object") throw incompleteReply();
+    return reply.data;
   });
 }
 
@@ -1342,7 +1416,8 @@ function allPages(path, key) {
   var out = [];
   function page(n) {
     return request(path + "?per_page=100&page=" + n).then(function (d) {
-      var items = (d && d[key]) || [];
+      if (!d || !Array.isArray(d[key])) throw incompleteReply();
+      var items = d[key];
       out = out.concat(items);
       var total = d && typeof d.total_count === "number" ? d.total_count : null;
       var more = items.length > 0 && (total === null || out.length < total);
@@ -1397,6 +1472,7 @@ function listTree() {
     }
     throw err;
   }).then(function (data) {
+    if (!data || !Array.isArray(data.tree)) throw incompleteReply();
     repoEmpty = !!data.empty;
     if (data.truncated) flash("Repository is large; the file list is partial.", true);
     var list = (data.tree || []).map(function (n) {
@@ -1425,6 +1501,7 @@ function readFile(path) {
     // Over 1 MB GitHub leaves the content out (encoding "none"). Opening
     // that as an empty note would let a save replace the whole file.
     if (data.encoding === "none") throw refused(tooLargeMessage(path));
+    if (typeof data.sha !== "string" || !data.sha || typeof data.content !== "string") throw incompleteReply();
     var text;
     try { text = fromBase64(data.content || ""); }
     catch (e) {
@@ -1454,6 +1531,7 @@ function writeFile(path, text, sha) {
   if (sha) body.sha = sha;                                  // optimistic concurrency
   var url = repoPath() + "/contents/" + encodePath(path);
   return request(url, { method: "PUT", body: body }).then(function (data) {
+    if (!data || !data.content || typeof data.content.sha !== "string" || !data.content.sha) throw incompleteReply();
     return { sha: data.content.sha };
   });
 }
@@ -1466,7 +1544,7 @@ function deleteFile(path, sha) {
   return request(url, { method: "DELETE", body: { message: "Delete " + path, sha: sha, branch: cfg.branch } })
     .catch(function (err) {
       if (err.status === 404) return null;   // already gone: what was asked for
-      if (err.status) throw err;
+      if (err.status && err.status < 500) throw err;
       return readFile(path).then(function (r) {
         if (r.sha === null) return null;
         throw err;
@@ -1484,14 +1562,15 @@ function deleteFile(path, sha) {
    commit landing meanwhile (the branch would not fast-forward) is retried
    on top of it. */
 function moveFile(from, to, sha, mode) {
-  var git = repoPath() + "/git";
+  var root = repoPath(), git = root + "/git";
   var ref = "heads/" + encodePath(cfg.branch);
   function contentsAt(path, head) {
-    return request(repoPath() + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(head),
+    return request(root + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(head),
                    { allow404: true });
   }
   function attempt(tries) {
     return request(git + "/ref/" + ref).then(function (r) {
+      if (!r || !r.object || typeof r.object.sha !== "string" || !r.object.sha) throw incompleteReply();
       var head = r.object.sha;
       return Promise.all([contentsAt(from, head), contentsAt(to, head), request(git + "/commits/" + head)])
         .then(function (got) {
@@ -1500,18 +1579,21 @@ function moveFile(from, to, sha, mode) {
                             "open it again, then rename it.");
           }
           if (got[1]) throw new Error(to + " already exists.");
+          if (!got[2] || !got[2].tree || typeof got[2].tree.sha !== "string" || !got[2].tree.sha) throw incompleteReply();
           return request(git + "/trees", { method: "POST", body: { base_tree: got[2].tree.sha, tree: [
             { path: to, mode: mode || "100644", type: "blob", sha: sha },
             { path: from, mode: mode || "100644", type: "blob", sha: null }
           ] } }).then(function (tree) {
+            if (!tree || typeof tree.sha !== "string" || !tree.sha) throw incompleteReply();
             return request(git + "/commits", { method: "POST",
               body: { message: "Rename " + from + " to " + to, tree: tree.sha, parents: [head] } });
           }).then(function (commit) {
+            if (!commit || typeof commit.sha !== "string" || !commit.sha) throw incompleteReply();
             return request(git + "/refs/" + ref, { method: "PATCH", body: { sha: commit.sha, force: false } })
               .catch(function (err) {
                 // No answer at all: the move may have landed. It did if the
                 // new path now holds this version and the old one is gone.
-                if (err.status) throw err;
+                if (err.status && err.status < 500) throw err;
                 return request(git + "/ref/" + ref).then(function (r2) {
                   return Promise.all([contentsAt(to, r2.object.sha), contentsAt(from, r2.object.sha)]);
                 }).then(function (after) {
@@ -1670,13 +1752,12 @@ function flash(msg, isError, ms) {
   el.textContent = msg;                    // may carry a path or GitHub's message: text
   el.className = isError ? "err" : "";
   clearTimeout(statusTimer);
-  if (msg) {
+  if (msg && !isError) {
     statusTimer = setTimeout(function () { el.textContent = ""; }, ms || (isError ? 7000 : 2500));
   }
 }
 
 function fail(err) {
-  console.error(err);
   flash(err.message || String(err), true);
   if (err && err.signedOut) showSignIn();
 }
@@ -1733,13 +1814,16 @@ function checkAccess() {
   });
 }
 
+var treeSeq = 0;
 function refreshTree() {
   if (!configured()) return Promise.resolve();
+  var sequence = ++treeSeq, epoch = pinEpoch;
   flash("Loading...");
   checkAccess();
   treeState = "loading";
   if (!files.length) renderTree();
   return listTree().then(function (list) {
+    if (sequence !== treeSeq || epoch !== pinEpoch || !configured()) return;
     if (list.movedTo) {
       // Follow the repository to its default branch, as if chosen in settings.
       var changed = pointAt(cfg.owner, cfg.repo, list.movedTo, cfg.pins);
@@ -1752,9 +1836,11 @@ function refreshTree() {
     files = list;
     treeState = "ok";
     renderTree();
+    if (activePin() && !pinCache[activePin()]) renderPins();
     flash(loadNote);
     loadNote = "";
   }).catch(function (err) {
+    if (sequence !== treeSeq || epoch !== pinEpoch) return;
     treeState = "failed";
     treeError = err.unreachable ? err.message : "";
     if (err.unreachable) {
@@ -1937,6 +2023,28 @@ function textareaEditor(host) {
     setValue: function (v) { ta.value = v; },
     clearHistory: function () {},
     refresh: function () {},
+    scrollIntoView: function () {
+      // Measure the caret without changing the value, selection or focus.
+      // A text node and span wrap exactly as the textarea does, including
+      // long lines. The temporary mirror is hidden and never parsed as HTML.
+      var mirror = document.createElement("div"), marker = document.createElement("span");
+      var style = getComputedStyle(ta);
+      ["font", "lineHeight", "letterSpacing", "padding", "border", "boxSizing", "wordSpacing", "tabSize"].forEach(function (key) {
+        mirror.style[key] = style[key];
+      });
+      mirror.style.cssText += ";position:fixed;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;";
+      mirror.style.width = ta.getBoundingClientRect().width + "px";
+      var caret = ta.selectionDirection === "backward" ? ta.selectionStart : ta.selectionEnd;
+      mirror.textContent = ta.value.slice(0, caret);
+      // Keep the suffix: truncating the word can move it to the line above.
+      marker.textContent = ta.value.slice(caret) || "\u200b";
+      mirror.appendChild(marker);
+      document.body.appendChild(mirror);
+      var top = marker.offsetTop, bottom = top + parseFloat(style.lineHeight);
+      if (bottom > ta.scrollTop + ta.clientHeight - 12) ta.scrollTop = bottom - ta.clientHeight + 12;
+      else if (top < ta.scrollTop + 12) ta.scrollTop = Math.max(0, top - 12);
+      mirror.remove();
+    },
     focus: function () { ta.focus(); },
     on: function (ev, fn) { if (ev === "change") handlers.push(fn); },
     setOption: function (k, v) { if (k === "readOnly") ta.readOnly = !!v; },
@@ -2136,13 +2244,15 @@ function setCrumb(path, tag) {
 // `discarding`: the user asked to throw this file's draft away. It is only
 // dropped once GitHub's version is in hand, so a failed fetch leaves the
 // draft, and the editor still tracking it, exactly as they were.
+var openSeq = 0;
 function openFile(path, discarding) {
   // Guards the restore-on-boot path as well as a click.
   if (!isTextFile(path)) {
     flash(path.split("/").pop() + " is not a text file.", true);
     return;
   }
-  var left = current;
+  var left = current, sequence = ++openSeq, epoch = pinEpoch;
+  function stillHere() { return sequence === openSeq && epoch === pinEpoch && signedIn(); }
   if (discarding) {
     // Nothing on screen may be committed while GitHub's version loads.
     if (current) current.leaving = true;
@@ -2155,7 +2265,8 @@ function openFile(path, discarding) {
   // Read it only once that has settled, so the editor starts from what
   // GitHub really holds and never from the version before it.
   var ahead = inflight && inflight.key === draftKey(path) ? inflight.done : Promise.resolve();
-  ahead.then(function () { return readNote(path); }).then(function (r) {
+  ahead.then(function () { if (stillHere()) return readNote(path); }).then(function (r) {
+    if (!r || !stillHere()) return;
     ensureEditor();
     if (discarding) dropDraft(path);
     var draft = readDraft(path);
@@ -2190,6 +2301,7 @@ function openFile(path, discarding) {
   }).catch(function (err) {
     // Unsaved text for a file that can no longer be opened here (it grew
     // past 1 MB elsewhere, say) must not become unreachable.
+    if (!stillHere()) return;
     var draft = err.refused && readDraft(path);
     if (draft) { rescueDraft(path, draft, err.message); return; }
     // Still on the old file after all: it is live again.
@@ -2283,22 +2395,32 @@ function saveCurrent(auto) {
   saving = true;
   doc.pending = text;
 
-  var done = writeFile(path, raw, doc.sha).catch(function (err) {
-    // A commit whose reply was lost (a dropped connection, a page suspended
-    // mid-request) leaves us on the old sha, and the next save looks like a
-    // conflict with ourselves. If GitHub holds exactly what we last sent,
-    // it was ours: carry on from there. Anything else is a real conflict.
-    var own = doc.unsure;
-    if ((err.status !== 409 && err.status !== 422) || typeof own !== "string") throw err;
-    // The check reads through cfg; after a change of repository it would
-    // read, and write, the wrong one.
-    if (draftKey(path) !== key) throw err;
-    return readFile(path).then(function (r) {
-      if (r.text !== own) throw err;       // byte for byte, endings included
-      doc.sha = r.sha;
-      return writeFile(path, raw, r.sha);
-    }, function () { throw err; });       // cannot even read it back: still a conflict
-  }).then(function (r) {
+  var attempted = false;
+  // Resolve the previous uncertain write before sending newer text. If a
+  // second attempt is offline too, it must not erase what may have landed.
+  var ready = typeof doc.unsure === "string" ? readFile(path).then(function (r) {
+    if (r.text === doc.unsure) doc.sha = r.sha;  // our exact bytes, endings included
+    else if (r.sha !== doc.sha) {
+      var conflict = new Error("The file changed since the last save.");
+      conflict.status = 409;
+      throw conflict;
+    }
+    doc.unsure = null;
+  }, function (err) {
+    // A file that grew past the limit (or became binary/LFS) cannot be
+    // compared safely. Keep the existing conflict pause and draft recovery.
+    if (err.refused) err.status = 409;
+    throw err;
+  }) : null;
+  function write() {
+    // Recovery waits for a read: settings may have changed while it waited.
+    if (draftKey(path) !== key) throw new Error("The repository changed before retrying. Reopen the draft in its original repository and try again. If a conflict appears, copy your text before using Discard.");
+    attempted = true;
+    return writeFile(path, raw, doc.sha);
+  }
+  // Start an ordinary write before leaving the file can change settings;
+  // writeFile captures this repository and branch synchronously.
+  var done = (ready ? ready.then(write) : write()).then(function (r) {
     doc.unsure = null;
     doc.base = baseOf(raw);              // the next save compares with what this wrote
     if (current === doc) {
@@ -2332,8 +2454,8 @@ function saveCurrent(auto) {
     flash("Saved");
   }).catch(function (err) {
     $("btn-save").disabled = false;
-    if (!err.status) doc.unsure = raw;  // may or may not have landed
-    if (err.status === 409 || err.status === 422) {
+    if (attempted && (!err.status || err.status >= 500)) doc.unsure = raw;  // may or may not have landed
+    if (!err.writeBlocked && (err.status === 409 || err.status === 422)) {
       if (current === doc) {
         current.conflict = true;
         setCrumb(path, "(conflict, not saved)");
@@ -2365,6 +2487,8 @@ function newFile() {
 }
 
 function startNote(path) {
+  document.body.classList.remove("tree-open");
+  openSeq++;
   // A note already there, or one typed but never committed: open it, never
   // replace its draft with a fresh template.
   if (readDraft(path) || files.some(function (f) { return f.path === path; })) {
@@ -2398,7 +2522,7 @@ var moveChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel(
 function renameCurrent() {
   if (!current || !current.sha || readOnly || moving) return;
   if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
-  var doc = current, from = doc.path;
+  var doc = current, from = doc.path, epoch = pinEpoch;
   var to = prompt("Rename or move to (the full path in the repository)", from);
   if (!to) return;
   to = to.replace(/^\/+/, "").trim();
@@ -2419,6 +2543,7 @@ function renameCurrent() {
     editorLock();
     return moveFile(from, to, doc.sha, modeOf(from));
   }).then(function () {
+    if (epoch !== pinEpoch || !signedIn()) return;
     followMove(from, to);
     if (moveChannel) moveChannel.postMessage({ kind: "moved", repo: describe(), from: from, to: to });
     loadNote = "Renamed to " + to + ".";
@@ -2483,7 +2608,7 @@ if (moveChannel) {
 function deleteCurrent() {
   if (!current || !current.sha || readOnly || moving) return;
   if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
-  var doc = current, path = doc.path, name = path.split("/").pop();
+  var doc = current, path = doc.path, name = path.split("/").pop(), epoch = pinEpoch;
   if (!confirm("Delete " + name + "?\n\nIt is removed from the repository in a new commit. As long as " +
                "the repository's history is kept, it can be recovered: on GitHub, open the commit " +
                "\"Delete " + path + "\" and copy the note back from there." +
@@ -2496,8 +2621,10 @@ function deleteCurrent() {
   // pinned task still on its way.
   var ahead = Promise.all([inflight ? inflight.done : null, pinWriting]);
   ahead.then(function () {
+    if (epoch !== pinEpoch || !signedIn()) throw new Error("The repository changed. Reopen the note before deleting it.");
     return deleteFile(path, doc.sha);  // the sha after any save in flight
   }).then(function () {
+    if (epoch !== pinEpoch || !signedIn()) return;
     var pinned = cfg.pins.indexOf(path) !== -1;
     followDelete(path, false);
     if (pinned) {
@@ -2513,7 +2640,7 @@ function deleteCurrent() {
     loadNote = said;                   // said again once the list has reloaded
     refreshTree();
   }).catch(function (err) {
-    flash("Not deleted: " + (err.status === 409 || err.status === 422
+    flash("Not deleted: " + (!err.writeBlocked && (err.status === 409 || err.status === 422)
       ? name + " has changed on GitHub since it was opened, or your unsaved draft is based on an " +
         "older version. Discard your changes to load the current one, then delete it."
       : err.message || "could not reach GitHub."), true);
@@ -2609,7 +2736,9 @@ function emptyNote(text) {
   return e;
 }
 
+var pinReadSeq = 0;
 function renderPins() {
+  var sequence = ++pinReadSeq, epoch = pinEpoch;
   var host = $("pin-list");
   var path = activePin();
   host.textContent = "";
@@ -2623,9 +2752,11 @@ function renderPins() {
   if (!cached) {
     host.appendChild(emptyNote("Loading..."));
     readNote(path).then(function (r) {
+      if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
       pinCache[path] = r;
       if (activePin() === path) renderPins();
     }).catch(function (err) {
+      if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
       host.textContent = "";
       var e = document.createElement("div");
       e.className = "empty";
@@ -2782,14 +2913,19 @@ function addTask() {
   if (!cached) { flash("Still loading that file.", true); return; }
 
   var body = cached.text.replace(/\s*$/, "");
-  var next = (body ? body + "\n" : "") + "- [ ] " + text + "\n";
+  var next = (body ? body + "\n" : "") + text.split(/\r?\n/).filter(function (line) {
+    return line.trim();
+  }).map(function (line) { return "- [ ] " + line; }).join("\n") + "\n";
 
   // Refused, or failed to save: the task goes back in the box.
-  var ok = commitPin(path, next, function () { if (!input.value) input.value = text; });
-  if (ok !== false) input.value = "";
+  var ok = commitPin(path, next, function () {
+    input.value = (input.value ? input.value + "\n" : "") + text;
+    input.rows = Math.min(4, input.value.split("\n").length);
+  }, text);
+  if (ok !== false) { input.value = ""; input.rows = 1; }
 }
 
-function commitPin(path, text, onFail) {
+function commitPin(path, text, onFail, capture) {
   if (accessPending) { flash("Checking whether this repository can be changed...", true); return false; }
   var cached = pinCache[path];
   var sha = cached ? cached.sha : null;
@@ -2804,16 +2940,19 @@ function commitPin(path, text, onFail) {
      known only once GitHub answers. So writes to a pinned file go one at a
      time: clicks while one is on its way wait, and share one commit that
      carries the latest state. https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents */
-  var job = pinNext[path] || { onFail: [] };
+  var job = pinNext[path] || { onFail: [], captures: [] };
   job.raw = raw;
   job.text = text;
   if (onFail) job.onFail.push(onFail);
+  if (capture) job.captures.push(capture);
   pinNext[path] = job;
   if (!pinBusy[path]) pinWriting = Promise.all([pinWriting, sendPin(path)]);
 }
 
+var pinActive = pathMap();
 function sendPin(path) {
   var job = pinNext[path];
+  pinActive[path] = job;
   var epoch = pinEpoch;
   delete pinNext[path];
   pinBusy[path] = true;
@@ -2831,6 +2970,7 @@ function sendPin(path) {
     }
     if (pinNext[path]) return sendPin(path);
     delete pinBusy[path];
+    delete pinActive[path];
     if (!files.some(function (f) { return f.path === path; })) refreshTree();   // a new file
     flash("Saved");
   }).catch(function (err) {
@@ -2839,6 +2979,7 @@ function sendPin(path) {
     var waiting = pinNext[path];
     delete pinNext[path];
     delete pinBusy[path];
+    delete pinActive[path];
     delete pinCache[path];       // drop bad state and reload from the server
     renderPins();
     job.onFail.concat(waiting ? waiting.onFail : []).forEach(function (f) { f(); });
@@ -3057,9 +3198,37 @@ function checkRepos() {
 /* Point this tab at a repository and pinned files. The open file is
    committed (or kept as a draft) first, while cfg still names the
    repository it came from. Returns whether the repository changed. */
-function pointAt(owner, repo, branch, pins) {
+function prepareRepositoryChange() {
+  leaveCurrent();
+  try {
+    // A queued capture has not reached GitHub yet. Keep it under its old
+    // repository before replacing the queue, without erasing editor drafts.
+    Object.keys(pinBusy).forEach(function (path) {
+      var cached = pinCache[path];
+      if (!cached) return;
+      var draft = readDraft(path);
+      var captures = (pinActive[path] ? pinActive[path].captures : []).concat(
+        pinNext[path] ? pinNext[path].captures : []);
+      if (draft && captures.length) draft.text += "\n" + captures.map(function (text) {
+        return text.split(/\r?\n/).map(function (line) { return "- [ ] " + line; }).join("\n");
+      }).join("\n") + "\n";
+      try {
+        draftStore().setItem(draftKey(path), JSON.stringify(draft || {
+          text: cached.text, sha: cached.sha, at: Date.now()
+        }));
+      } catch (e) {
+        throw new Error("Could not keep pending tasks. Wait for them to save before changing repository.");
+      }
+    });
+  } catch (err) {
+    if (current) current.leaving = false;
+    throw err;
+  }
+}
+
+function pointAt(owner, repo, branch, pins, prepared) {
   var changedRepo = owner !== cfg.owner || repo !== cfg.repo || branch !== cfg.branch;
-  if (changedRepo) leaveCurrent();
+  if (changedRepo && !prepared) prepareRepositoryChange();
   cfg.owner = owner;
   cfg.repo = repo;
   cfg.branch = branch;
@@ -3075,7 +3244,7 @@ function showPointed(changedRepo) {
   var keep = pathMap();
   if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
   pinCache = keep;
-  if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); hideUndo(); }
+  if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinActive = pathMap(); hideUndo(); }
   ui.pin = 0;
   if (changedRepo) {
     files = [];                  // the old repository's list is not this one's
@@ -3100,7 +3269,9 @@ function followSettings() {
   if (!s.owner || !s.repo || !s.branch) return;
   var pins = Array.isArray(s.pins) ? s.pins : cfg.pins;
   var pinsChanged = JSON.stringify(pins) !== JSON.stringify(cfg.pins);
-  var changedRepo = pointAt(s.owner, s.repo, s.branch, pins);
+  var changedRepo;
+  try { changedRepo = pointAt(s.owner, s.repo, s.branch, pins); }
+  catch (err) { fail(err); return; }
   if (changedRepo || pinsChanged) showPointed(changedRepo);
 }
 
@@ -3108,15 +3279,27 @@ function saveSettings() {
   var pick = repoChoices[Number($("f-repo").value)];
   if (!pick) return;
 
+  var nextSessionOnly = $("f-session").checked;
+  syncDraft();
+  try {
+    if (pick.owner !== cfg.owner || pick.repo !== cfg.repo || pick.branch !== cfg.branch) prepareRepositoryChange();
+  } catch (err) { $("settings").close(); fail(err); return; }
+  if (!moveDrafts(nextSessionOnly)) {
+    if (current) current.leaving = false;
+    $("settings").close();
+    flash("Settings were not changed: browser storage is full or blocked. Your drafts remain in their original storage. Save them before trying again.", true);
+    return;
+  }
+
+  sessionOnly = nextSessionOnly;
   var changedRepo = pointAt(pick.owner, pick.repo, pick.branch,
     $("f-pins").value.split(",").map(function (s) {
       return s.trim().replace(/^\/+/, "");
-    }).filter(Boolean));
+    }).filter(Boolean), true);
 
   // Switching mode clears the store we are leaving (persist() below does
   // it), so nothing is left on disk after choosing session-only.
-  sessionOnly = $("f-session").checked;
-  moveDrafts();
+  sessionOnly = nextSessionOnly;
   document.body.classList.toggle("session-only", sessionOnly);
 
   saveCfg();
@@ -3136,6 +3319,10 @@ function forget() {
       ". Cancel and save them first if you want to keep them."
     : "";
   if (!confirm("Sign out on this browser?" + warn)) return;
+  // Replies can finish before the replacement page loads. Invalidate this
+  // page's credentials too, so a late profile or refresh cannot restore them.
+  cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
+  repoListSeq++;
   forgetStored(CFG_KEY);
   forgetStored(UI_KEY);
   forgetDrafts();

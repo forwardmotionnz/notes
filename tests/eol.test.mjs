@@ -30,18 +30,24 @@ async function ready() {
   await H.signIn(p);
   return { gh, ctx, p };
 }
+// Editing cases require the requested note to finish opening first.
+async function open(p, path) {
+  await H.clickRow(p, path);
+  await p.waitForFunction(path => current?.path === path && editor &&
+    document.getElementById('status').textContent !== 'Opening...', path, { timeout: 5000 });
+}
 const drafts = p => p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('notes.draft.')).length);
 const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textContent || '');
 
 {
   const { gh, ctx, p } = await ready();
   for (const f of ['win.md', 'mac.md', 'mixed.md']) {
-    await H.clickRow(p, f);
+    await open(p, f);
     await H.settle(p, 100);
     t.check(`${f} opens clean`, await p.isDisabled('#btn-save') && (await drafts(p)) === 0 && !(await tag(p)),
       `draft=${await drafts(p)} tag=${await tag(p)}`);
   }
-  await H.clickRow(p, 'win.md');
+  await open(p, 'win.md');
   await p.reload({ waitUntil: 'load' });
   await H.settle(p, 700);
   t.check('and is not "restored" after a reload', !/draft/i.test(await tag(p)) && await p.isDisabled('#btn-save'));
@@ -54,7 +60,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
 /* ===== an edit keeps the file's own endings ===== */
 {
   const { gh, ctx, p } = await ready();
-  await H.clickRow(p, 'win.md');
+  await open(p, 'win.md');
   const v = await H.editorValue(p);
   t.check('the editor shows plain lines', v === '# Windows\n\nfirst line\nsecond line\n', JSON.stringify(v));
   await H.setEditor(p, v.replace('second line', 'second line, edited'));
@@ -64,21 +70,21 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   t.check('CRLF file saved with CRLF, only the edited line changed',
     gh.files['win.md'] === '# Windows\r\n\r\nfirst line\r\nsecond line, edited\r\n', JSON.stringify(gh.files['win.md']));
 
-  await H.clickRow(p, 'mac.md');
+  await open(p, 'mac.md');
   await H.setEditor(p, (await H.editorValue(p)) + 'three\n');
   await H.settle(p, 60);
   await p.click('#btn-save');
   await H.settle(p, 400);
   t.check('CR file saved with CR', gh.files['mac.md'] === '# Old Mac\r\rone\rtwo\rthree\r', JSON.stringify(gh.files['mac.md']));
 
-  await H.clickRow(p, 'unix.md');
+  await open(p, 'unix.md');
   await H.setEditor(p, (await H.editorValue(p)) + 'second\n');
   await H.settle(p, 60);
   await p.click('#btn-save');
   await H.settle(p, 400);
   t.check('LF file stays LF', gh.files['unix.md'] === '# Unix\n\nfirst line\nsecond\n', JSON.stringify(gh.files['unix.md']));
 
-  await H.clickRow(p, 'mixed.md');
+  await open(p, 'mixed.md');
   await H.setEditor(p, (await H.editorValue(p)) + 'four\n');
   await H.settle(p, 60);
   await p.click('#btn-save');
@@ -87,7 +93,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
     gh.files['mixed.md'] === '# Mixed\r\none\r\ntwo\nthree\r\nfour\r\n', JSON.stringify(gh.files['mixed.md']));
 
   const edit = async (name, from, to) => {
-    await H.clickRow(p, name);
+    await open(p, name);
     await H.setEditor(p, (await H.editorValue(p)).replace(from, to));
     await H.settle(p, 60);
     await p.click('#btn-save');
@@ -102,7 +108,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   t.check('a trailing lone CR survives', gh.files['trailing.md'] === 'A\r\nb\r\nc\r', JSON.stringify(gh.files['trailing.md']));
   await edit('twoedits.md', 'one', 'ONE');
   await edit('twoedits.md', 'five', 'FIVE');
-  await H.clickRow(p, 'twoedits2.md');
+  await open(p, 'twoedits2.md');
   await H.setEditor(p, (await H.editorValue(p)).replace('one', 'ONE').replace('two\n', 'two\nnew\n')
     .replace('five', 'FIVE'));
   await H.settle(p, 60);
@@ -118,7 +124,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
 /* ===== a lost reply is recognised by its exact bytes ===== */
 {
   const { gh, ctx, p } = await ready();
-  await H.clickRow(p, 'win.md');
+  await open(p, 'win.md');
   let lose = true;
   await p.route('https://api.github.com/**/contents/**', r => {
     if (!lose || r.request().method() !== 'PUT') return r.fallback();
@@ -204,7 +210,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await H.clickRow(p, 'h.md');
+  await open(p, 'h.md');
   await H.setEditor(p, 'X\nH\nA\nB\n');
   await H.settle(p, 60);
   await p.click('#btn-save');
@@ -225,7 +231,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await H.clickRow(p, 'big.md');
+  await open(p, 'big.md');
   const took = await p.evaluate(() => {
     const t0 = performance.now();
     rawFor(Array.from({ length: 30000 }, (_, i) => 'other ' + i).join('\n') + '\n', current.base);
@@ -238,7 +244,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
 /* ===== byte-order mark, and text that is not UTF-8 ===== */
 {
   const { gh, ctx, p } = await ready();
-  await H.clickRow(p, 'bom.txt');
+  await open(p, 'bom.txt');
   t.check('a BOM file opens clean, the mark not shown', await p.isDisabled('#btn-save') &&
     (await H.editorValue(p)) === 'first\nsecond\n', JSON.stringify(await H.editorValue(p)));
   await H.setEditor(p, 'first\nsecond, edited\n');

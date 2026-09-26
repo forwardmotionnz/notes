@@ -27,7 +27,7 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
     await H.status(p));
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
-  await p.fill('#f-pins', 'big.md');
+  await H.setPins(p, 'big.md');
   await p.click('#f-save');
   await H.settle(p, 500);
   t.check('pinned, it shows the reason instead of an empty list', /1 MB/.test(await p.textContent('#pin-list')),

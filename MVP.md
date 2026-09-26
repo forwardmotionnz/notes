@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 29 / 30
+Iterations: 30 / 30
 
 ## Current handover — 2026-09-27
 
@@ -184,8 +184,8 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N7 | 17b | done | a full local run about 300 s -> 73 s (8 suites at a time; three runs green); CI runs the repeats as side-by-side jobs, three over in both engines in 5 min 42 s instead of about 35 min (run 43, https://github.com/forwardmotionnz/notes/actions/runs/36221083063, green). 367 short fixed pauses became `H.settle`; four missing checks found and added; the review's hollow check restored. Commits 5574a13, 47b968c, b1a75bd, 66dbef4, ae130fa |
 | N8 | 17c | done | `tests/app.test.mjs` 70/70, new cases with GitHub slowed to 0.4-0.8 s a commit: three quick ticks all land with nothing refused and two commits; tick then untick ends as it began; a tick and a quick capture both land; a failed commit sends nothing after it, shows GitHub's state and the error, and puts the waiting capture back; a change made elsewhere is still a conflict and kept; changing repository mid-commit; saving settings mid-commit; the open note follows each commit. Commit in the log |
 | N9 | 17d | done | `tests/tasks.test.mjs` 52/52 (new suite): a remove control per task, named for it; removes that one line in one commit, no question; Undo puts it back exactly and goes after 8 s or once used; Clear done removes every ticked task and only them, in one commit, with Undo; CRLF kept; remove, untick and clear while GitHub is slow all land; a stale row removes nothing; a failed remove keeps the task and offers no Undo; Undo withdrawn on changing repository, switching list, or the repository becoming read-only; Undo refuses when lines were added above (incl. a blank line under each heading), still works after a tick or a capture, stays on offer while it cannot be sent yet, comes back after a refusal, and follows a rename; × always shown on a phone, on hover on a computer. `tests/access.test.mjs`: no task can be removed read-only. Screens `tests/screens/n9-{desktop,phone}-{light,dark}-{list,undo}.png`. Commit in the log |
-| N10 | 21a | doing | Today’s daily note, using Obsidian daily-note folder, date format and template; create on first save. |
-| N11 | 21b | todo | Pin/unpin beside the open note; browser-local Pinned section in the tree; checklist in the main area; remove side panel, phone sheet and Settings pins field. |
+| N10 | 21a | done | Today’s daily note; `daily-notes` 23/23 in both engines; all 36 suites passed both engines in CI 36277448756 on `8e2b0fb`; PR #6 merged as `4f4a279`. |
+| N11 | 21b | doing | Pin/unpin beside the open note; browser-local Pinned section in the tree; checklist in the main area; remove side panel, phone sheet and Settings pins field. |
 | N12 | 21c | todo | Rendered preview toggle beside Save; sanitised Markdown, frontmatter box and wikilinks; CDN libraries with source-preserving fallback. Promoted from S1. |
 | S1 | 22 | moved | Rendered preview is now MUST N12. |
 | S2 | 23 | todo | SHOULD: search inside note contents, not only file paths. First SHOULD after all MUSTs. |
@@ -203,7 +203,41 @@ The app is 141,592 bytes with no new runtime dependency or host.
   confirmed S1–S4 from `.claude/commands/gauntlet.md` on 2026-09-27.
   G3 and H1–H3 are already complete and are not reopened.
 
+### N11: plan — 2026-09-27
+- Pin/unpin beside the note name; a Pinned list above the file tree opens
+  tasks in the main area. Source editing remains available through Edit note.
+  Pins stay browser-local; remove the Settings field and separate task sheet.
+- Proof: focused `pinned-tree`, existing task/save/Undo/navigation/keyboard
+  regressions, adversarial review, viewed phone/desktop light/dark screens,
+  then one full CI check on the final PR.
+- Old Settings pin-field test calls now populate persisted fixtures through
+  `H.setPins`; the new suite tests the actual toggle and reload persistence.
+  Editor fixtures select source, and Undo tests return through Tasks. The
+  release-race tests invoke delayed task handlers directly after source is
+  shown, retaining every draft/capture preservation assertion.
+
+### N11: verification
+- `pinned-tree` failed 0/4 before implementation; final 23/23 in Chromium
+  and WebKit, about 10 seconds total. Related app 70/70, tasks 52/52,
+  auth-renewal 62/62 and keyboard suites passed focused Chromium checks.
+  Both engines passed the affected file-operation, hostile-content, vault,
+  line-ending, daily-note, CSP and release-race suites. Documentation passed.
+- Independent review reproduced mismatched header/checklist selection after
+  a failed pin read, and a rescued draft hidden behind Tasks. New regressions
+  failed for both, then passed after fixes; follow-up found no blocker.
+- Four deliberate mutations were caught: premature pin selection, hidden
+  rescue, skipping source-save protection, and a late view change overriding
+  a clean newer selection. Logs: `tests/screens/n11-mutation-*.log`.
+- Viewed all `tests/screens/n11-{1280,390}-{light,dark}-{tasks,source,files}.png`:
+  task capture and note controls fit; no separate phone sheet or side panel.
+- `index.html` is 148,499 bytes; no new dependency, host or build step.
+  The owner's lockfile hash is unchanged. Full CI is the final PR gate.
+
 ### N10: verification — 2026-09-27
+- Completed: [PR #6](https://github.com/forwardmotionnz/notes/pull/6) merged
+  into main as `4f4a279`. All 36 suites passed Chromium and WebKit in
+  [CI 36277448756](https://github.com/forwardmotionnz/notes/actions/runs/36277448756)
+  on final feature head `8e2b0fb`. Next item: N11.
 - New `daily-notes` suite failed before the button existed, then passed 23/23
   in Chromium and WebKit (final focused run: 13 seconds total). Related
   `drafts` 45/45, `switching` 33/33, CSP 26/26 and phone New 6/6 passed in

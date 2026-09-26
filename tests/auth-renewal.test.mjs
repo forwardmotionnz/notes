@@ -355,7 +355,7 @@ for (const [label, fail] of [['offline', r => r.abort()],
   await a.click('#btn-settings');
   await a.waitForSelector('#f-save:not([disabled])');
   await a.selectOption('#f-repo', { label: 'roldaof/work' });
-  await a.fill('#f-pins', 'work.md');
+  await H.setPins(a, 'work.md');
   await a.click('#f-save');
   await H.settle(a, 700);
   t.check('the other tab follows to the new repository', (await b.textContent('#crumb')).includes('roldaof/work'),
@@ -386,7 +386,7 @@ for (const [label, fail] of [['offline', r => r.abort()],
   await H.settle(b, 600);
   await a.click('#btn-settings');
   await a.waitForSelector('#f-save:not([disabled])');
-  await a.fill('#f-pins', 'todo.md, later.md');
+  await H.setPins(a, 'todo.md, later.md');
   await a.click('#f-save');
   await H.settle(a, 600);
   t.check('the other tab shows the new pins', JSON.stringify(await b.$$eval('#pin-tabs button',

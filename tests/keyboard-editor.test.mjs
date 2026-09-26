@@ -51,7 +51,7 @@ for (const fallback of [false, true]) {
     const shell = document.querySelector('#shell').getBoundingClientRect();
     const host = editor.getWrapperElement(), rect = host.getBoundingClientRect();
     const header = document.querySelector('header').getBoundingClientRect();
-    const buttons = ['btn-save', 'btn-settings', 'btn-tree', 'btn-pins'].map(id => document.getElementById(id)).filter(Boolean);
+    const buttons = ['btn-save', 'btn-settings', 'btn-tree', 'btn-pin'].map(id => document.getElementById(id)).filter(Boolean);
     const caret = editor.cursorCoords ? editor.cursorCoords(null, 'window') : {
       top: rect.top + host.scrollHeight - host.scrollTop - parseFloat(getComputedStyle(host).paddingBottom) - parseFloat(getComputedStyle(host).lineHeight),
       bottom: rect.top + host.scrollHeight - host.scrollTop - parseFloat(getComputedStyle(host).paddingBottom)

@@ -598,9 +598,15 @@ export const editorValue = p => p.evaluate(
 export const still = p => p.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'),
   null, { timeout: 5000 }).catch(() => {});
 export const setEditor = (p, v) => p.evaluate(v => {
+  if (typeof taskView === 'function') taskView(false);
   const ta = document.querySelector('#cm-stub, .fallback-editor');
   ta.value = v; ta.dispatchEvent(new Event('input', { bubbles: true }));
 }, v);
+// Fixture setup for persisted pin lists; pin/unpin UI is covered by pinned-tree.
+export const setPins = (p, pins) => p.evaluate(pins => {
+  cfg.pins = pins.split(',').map(p=>p.trim().replace(/^\/+/, '')).filter(Boolean);
+  ui.pin = 0; saveCfg(); persist(UI_KEY,ui); renderPinTabs(); renderPins();
+}, pins);
 export const status = p => p.evaluate(() => document.getElementById('status').textContent);
 export const dialogOpen = p => p.evaluate(() => document.getElementById('settings').open);
 export const stored = p => p.evaluate(() => ({

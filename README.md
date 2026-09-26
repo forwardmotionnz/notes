@@ -182,7 +182,13 @@ invalid settings show an explanation and leave the current note alone.
   github.com the file's history (or the commit that deleted it) lets you
   copy it back. If it changed elsewhere since you opened it, it is not
   deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
-- Pinned files as a live task list with a one-line capture box. Ticks and
+- Pin or unpin the open note using the star beside its name. Pinned files
+  appear at the top of Files and open as a checklist in the main area.
+  **Edit note** opens the Markdown source; **Tasks** returns to the checklist
+  after saving any edits. Pins stay in this browser's settings, not in the
+  repository, and do not sync between devices. The old side panel, phone
+  sheet and Settings pins field have been removed.
+- Pinned files have a live task list with a one-line capture box. Ticks and
   captures go to GitHub one at a time; clicks made while one is on its way
   share the next commit. × removes a task (always shown on a phone, on
   hover on a computer) and **Clear done** removes every ticked one, each

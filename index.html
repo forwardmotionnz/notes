@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ItInKnDf84crTQArPk3oB95HVn7bZYrXAynsV2mk+d4=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-//hG9Xw+e8JJTcFkLV1G0GS4cpRcrj3g+SV8CsaeADY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -296,31 +296,17 @@
 
   /* ---- pinned pane ---------------------------------------------- */
 
-  #pins {
-    width: 300px;
-    flex: none;
-    border-left: 1px solid var(--line);
-    background: var(--bg-soft);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  #pin-tabs {
-    display: flex;
-    gap: 4px;
-    padding: 8px 8px 0;
-    overflow-x: auto;
-  }
-  #pin-tabs button {
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    padding: 4px 8px 6px;
-    color: var(--fg-soft);
-    white-space: nowrap;
-  }
-  #pin-tabs button.active { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  #pins { flex: 1; min-width: 0; min-height: 0; display: none; flex-direction: column; }
+  body.task-view #pins { display: flex; }
+  body.task-view #editor-pane { display: none; }
+  #pin-tabs { display: flex; flex-direction: column; padding: 0 8px; gap: 2px; }
+  #pin-tabs button { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; border: none; }
+  #pin-tabs button.active { background: var(--bg); color: var(--accent); }
+  #pin-help { font-size: 12px; color: var(--fg-soft); padding: 0 12px; }
+  #pinned-files { border-bottom: 1px solid var(--line); max-height: 35%; overflow: auto; flex: none; }
+  #task-tools { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid var(--line); }
+  #task-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #btn-pin { padding: 2px 5px; flex: none; }
   #pin-add { padding: 8px; display: flex; gap: 6px; }
   #pin-add textarea { font-size: 13.5px; resize: none; }
   #pin-list { flex: 1; overflow: auto; padding: 0 8px 40px; -webkit-overflow-scrolling: touch; }
@@ -511,25 +497,7 @@
     }
     body.tree-open #sidebar { transform: none; }
 
-    #pins {
-      position: absolute;
-      z-index: 20;
-      left: 0; right: 0; bottom: 0;
-      width: auto;
-      height: min(70vh, 460px);
-      border-left: none;
-      border-top: 1px solid var(--line);
-      border-radius: 12px 12px 0 0;
-      transform: translateY(102%);
-      transition: transform .18s ease;
-      box-shadow: 0 -4px 40px rgba(0,0,0,.25);
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-    /* Never taller than the space there is: with the keyboard up that is
-       much less than the screen, and the "Add a task" box is at the top. */
-    #pins { max-height: 100%; }
-    .task .rm { opacity: 1; padding: 6px 12px; margin: -6px -4px -6px 0; }   /* a finger-sized target */
-    body.pins-open #pins { transform: none; }
+    .task .rm { opacity: 1; padding: 6px 12px; margin: -6px -4px -6px 0; }
 
     #scrim {
       position: absolute;
@@ -538,7 +506,7 @@
       background: rgba(0,0,0,.35);
       display: none;
     }
-    body.tree-open #scrim, body.pins-open #scrim { display: block; }
+    body.tree-open #scrim { display: block; }
 
     main { position: relative; overflow: hidden; }
     #crumb { font-size: 12px; }
@@ -567,7 +535,7 @@
     <button class="plain" id="btn-delete" hidden title="Delete this note (it stays in the repository's history)" aria-label="Delete"><span class="ic" aria-hidden="true">&#128465;&#xFE0E;</span><span class="lbl">Delete</span></button>
     <button id="btn-discard" hidden title="Throw away your unsaved changes and load the version on GitHub">Discard</button>
     <button id="btn-save" class="primary" disabled>Save</button>
-    <button class="plain only-narrow" id="btn-pins" title="Pinned">&#9745;</button>
+    <button class="plain" id="btn-tasks" hidden>Tasks</button>
     <button class="plain" id="btn-settings" title="Settings">&#9881;</button>
   </header>
 
@@ -579,6 +547,11 @@
         <button class="plain" id="btn-today" title="Open today's daily note">Today</button>
         <button class="plain" id="btn-refresh" title="Refresh">&#8635;</button>
       </div>
+      <section id="pinned-files" aria-label="Pinned files">
+        <div class="task-head">Pinned</div>
+        <div id="pin-tabs"></div>
+        <p id="pin-help">Pins stay in this browser. They do not sync between devices.</p>
+      </section>
       <div id="tree"></div>
     </aside>
 
@@ -587,7 +560,7 @@
     </section>
 
     <aside id="pins">
-      <div id="pin-tabs"></div>
+      <div id="task-tools"><span id="task-title"></span><button id="btn-source">Edit note</button></div>
       <div id="pin-add">
         <textarea id="pin-input" rows="1" placeholder="Add a task" autocomplete="off"></textarea>
         <button id="pin-go" class="primary">Add</button>
@@ -675,7 +648,6 @@
         (on GitHub, in a new tab; this list updates when you come back here)
       </p>
 
-      <label><span>Pinned files (comma separated)</span><input id="f-pins" placeholder="todo.md, scratch.md" autocomplete="off"></label>
 
       <label class="check">
         <input type="checkbox" id="f-session">
@@ -2234,6 +2206,17 @@ function setCrumb(path, tag) {
   name.textContent = path.split("/").pop();   // text: a file name is never markup
   el.appendChild(name);
 
+  var pin = document.createElement("button");
+  pin.id = "btn-pin";
+  pin.className = "plain";
+  var pinned = cfg.pins.indexOf(path) !== -1;
+  pin.textContent = pinned ? "\u2605" : "\u2606";
+  pin.title = pinned ? "Unpin from this browser" : "Pin in this browser";
+  pin.setAttribute("aria-label", pin.title);
+  pin.setAttribute("aria-pressed", String(pinned));
+  pin.onclick = togglePin;
+  el.appendChild(pin);
+
   if (tag) {
     var t = document.createElement("span");
     t.className = "tag";
@@ -2288,6 +2271,14 @@ function openFile(path, discarding) {
     showDiscard(!!draft);
     ui.last = path;
     persist(UI_KEY, ui);
+    if (cfg.pins.indexOf(path) !== -1 && !draft) {
+      ui.pin = cfg.pins.indexOf(path);
+      persist(UI_KEY, ui);
+      if (!pinBusy[path]) pinCache[path] = r;
+      renderPinTabs();
+      renderPins();
+      taskView(true);
+    } else taskView(false);
     renderTree();
     if (!draft) flash("");
     else if ((draft.sha || null) !== r.sha) {
@@ -2314,6 +2305,7 @@ function openFile(path, discarding) {
 // Open a draft as a new note beside the file it belonged to, and move it
 // there: the original is left alone, the words stay within reach.
 function rescueDraft(path, draft, reason) {
+  taskView(false);
   var copy = path.replace(/(\.[^./]*)?$/, function (ext) { return " (unsaved copy)" + ext; });
   ensureEditor();
   current = { path: copy, sha: null, saved: "\u0000" };   // new file: always saveable
@@ -2573,6 +2565,7 @@ async function todayNote() {
 }
 
 function startNote(path, text) {
+  taskView(false);
   document.body.classList.remove("tree-open");
   openSeq++;
   // A note already there, or one typed but never committed: open it, never
@@ -2803,13 +2796,49 @@ function renderPinTabs() {
     if (i === ui.pin) b.className = "active";
     b.onclick = function () {
       if (ui.pin !== i) hideUndo();       // it would undo in a list no longer shown
-      ui.pin = i;
-      persist(UI_KEY, ui);
-      renderPinTabs();
-      renderPins();
+      // Header actions and tasks must still target the same file while loading.
+      openFile(path);
+      document.body.classList.remove("tree-open");
     };
     host.appendChild(b);
   });
+}
+
+function taskView(show) {
+  document.body.classList.toggle("task-view", show);
+  $("btn-tasks").hidden = show || !current || cfg.pins.indexOf(current.path) === -1;
+  if (!show && editor) editor.refresh();
+}
+
+function togglePin() {
+  if (!current || !signedIn()) return;
+  var path = current.path, at = cfg.pins.indexOf(path);
+  if (at === -1) cfg.pins.push(path);
+  else { cfg.pins.splice(at, 1); hideUndo(); }
+  ui.pin = Math.max(0, cfg.pins.indexOf(path));
+  saveCfg();
+  persist(UI_KEY, ui);
+  setCrumb(path, dirty() ? "(unsaved)" : "");
+  renderPinTabs();
+  renderPins();
+  if (at !== -1) taskView(false);
+  else taskView(document.body.classList.contains("task-view"));
+}
+
+async function showTasks() {
+  if (!current || cfg.pins.indexOf(current.path) === -1) return;
+  var doc = current, epoch = pinEpoch;
+  if (dirty()) {
+    saveCurrent();
+    if (inflight) await inflight.done;
+    if (current !== doc || epoch !== pinEpoch) return;
+    if (dirty()) { flash("Save or resolve this note's changes before opening Tasks.", true); return; }
+  }
+  ui.pin = cfg.pins.indexOf(doc.path);
+  if (!pinBusy[doc.path]) pinCache[doc.path] = {text: editor.getValue(), sha: doc.sha, base: doc.base};
+  renderPinTabs();
+  renderPins();
+  taskView(true);
 }
 
 function activePin() {
@@ -2828,6 +2857,8 @@ function renderPins() {
   var sequence = ++pinReadSeq, epoch = pinEpoch;
   var host = $("pin-list");
   var path = activePin();
+  $("task-title").textContent = path || "Pinned tasks";
+  $("btn-source").disabled = !path;
   host.textContent = "";
 
   if (!path || !configured()) {
@@ -3106,7 +3137,6 @@ function openSettings() {
   if (!signedIn()) { showSignIn(); return; }
   $("view-signin").hidden = true;
   $("view-account").hidden = false;
-  $("f-pins").value = cfg.pins.join(", ");
   $("f-session").checked = sessionOnly;
   $("f-install").href = $("fr-install").href = "https://github.com/apps/" +
     encodeURIComponent(DEPLOYMENT.appSlug) + "/installations/new";
@@ -3341,7 +3371,9 @@ function showPointed(changedRepo) {
     editorLock();
     showDiscard(false);
   }
-  $("crumb").textContent = describe();
+  if (current) setCrumb(current.path, dirty() ? "(unsaved)" : "");
+  else $("crumb").textContent = describe();
+  taskView(!current);
   renderPinTabs();
   renderPins();
   refreshTree();
@@ -3379,10 +3411,7 @@ function saveSettings() {
   }
 
   sessionOnly = nextSessionOnly;
-  var changedRepo = pointAt(pick.owner, pick.repo, pick.branch,
-    $("f-pins").value.split(",").map(function (s) {
-      return s.trim().replace(/^\/+/, "");
-    }).filter(Boolean), true);
+  var changedRepo = pointAt(pick.owner, pick.repo, pick.branch, cfg.pins, true);
 
   // Switching mode clears the store we are leaving (persist() below does
   // it), so nothing is left on disk after choosing session-only.
@@ -3496,20 +3525,26 @@ $("pin-input").addEventListener("keydown", function (e) {
 });
 
 $("filter").addEventListener("input", renderTree);
+$("btn-tasks").onclick = showTasks;
+$("btn-source").onclick = async function () {
+  var path = activePin(), epoch = pinEpoch;
+  if (!path) return;
+  if (!current || current.path !== path) {
+    var opening = openFile(path), sequence = openSeq;
+    await opening;
+    if (sequence !== openSeq) return;
+  }
+  if (epoch !== pinEpoch || !current || current.path !== path) return;
+  taskView(false);
+  editor.focus();
+};
 
 $("btn-tree").onclick = function () {
-  document.body.classList.remove("pins-open");
   document.body.classList.toggle("tree-open");
 };
 
-$("btn-pins").onclick = function () {
-  document.body.classList.remove("tree-open");
-  document.body.classList.toggle("pins-open");
-  if (document.body.classList.contains("pins-open")) $("pin-input").focus();
-};
-
 $("scrim").onclick = function () {
-  document.body.classList.remove("tree-open", "pins-open");
+  document.body.classList.remove("tree-open");
 };
 
 document.addEventListener("keydown", function (e) {
@@ -3533,6 +3568,7 @@ window.addEventListener("beforeunload", function (e) {
 /* ---- boot ------------------------------------------------------ */
 
 function start() {
+  taskView(true);
   document.body.classList.toggle("session-only", sessionOnly);
   renderPinTabs();
 

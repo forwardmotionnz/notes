@@ -24,7 +24,7 @@ async function ready(opts = {}) {
 async function setPins(p, pins) {
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
-  await p.fill('#f-pins', pins);
+  await H.setPins(p, pins);
   await p.click('#f-save');
   await H.settle(p, 450);
 }
@@ -418,11 +418,13 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
     return { text: n.textContent, cut: n.scrollWidth > n.clientWidth + 1 };
   });
   t.check('filename stays legible', crumb.text === 'inbox.md' && !crumb.cut);
-  await p.click('#btn-pins');
-  await p.waitForTimeout(260);                      // outlasts the sheet's 180 ms slide: fixed
-  t.check('pins open as a bottom sheet with capture focused', await p.evaluate(
+  await p.click('#btn-tree');
+  await p.locator('#pin-tabs button').first().click();
+  await p.waitForFunction(()=>document.body.classList.contains('task-view'));
+  await p.focus('#pin-input');
+  t.check('pinned checklist opens in the main area with reachable capture', await p.evaluate(
     () => document.getElementById('pins').getBoundingClientRect().top < innerHeight - 10 &&
-          document.activeElement.id === 'pin-input'));
+          document.activeElement.id === 'pin-input' && !document.body.classList.contains('tree-open')));
   t.check('no horizontal overflow', await p.evaluate(
     () => document.documentElement.scrollWidth <= innerWidth + 1));
   await ctx.close();

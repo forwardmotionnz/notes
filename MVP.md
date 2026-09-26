@@ -55,6 +55,15 @@ They are not instructions to repeat completed setup.
   service worker was added. The owner's root `package-lock.json` edit is
   outside the isolated integration checkout and remains untouched.
 - Final combined full-suite evidence: all 34 suites passed three consecutive times in Chromium and WebKit (255 s, 269 s, 260 s; 8 suites at a time). Logs: `tests/screens/release-final-{1,2,3}.log`. The inline app stayed unchanged throughout. All MUST items are implemented; real-account/device checks in RELEASE_CHECKLIST.md remain the final release gate.
+- CI follow-up: one duplicate Chromium job failed the wikilink phone check
+  while the same-head PR job passed. Independent held-response probes proved
+  that the source could still be the previous note after 400 ms, or that
+  the correct target could still be loading after 500 ms. The test now waits
+  for the actual source path/text and phone target. Assertions are retained;
+  production code is unchanged from the three full green runs above.
+  The corrected wikilink suite passed 47/47 three times in each engine:
+  `tests/screens/wikilinks-final-{chromium,webkit}-{1,2,3}.log`. Both WebKit
+  CI jobs and the PR Chromium job passed on the preceding app-identical head.
 
 ## Items
 | ID | Priority | Status | Evidence |

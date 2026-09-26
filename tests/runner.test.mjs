@@ -42,6 +42,13 @@ const fxOut = fx.stdout + fx.stderr;
 t.check('a failing suite fails the run', fx.status === 1 && new RegExp(`FAILED: .*bad\\.test\\.mjs \\[${here}\\]`).test(fxOut), fxOut);
 t.check('so does one that crashes before reporting', new RegExp(`FAILED: .*crash\\.test\\.mjs \\[${here}\\]`).test(fxOut), fxOut);
 t.check('and the rest still run', new RegExp(`ok \\[${here}\\]: 1/1 passed`).test(fxOut), fxOut);
+// Several at once: each suite's output still comes out in one piece.
+t.check('run in parallel, each suite\'s output stays together',
+  new RegExp(`── bad\\.test\\.mjs \\[${here}\\] ──\\nbad \\[${here}\\]: 0/1 passed`).test(fxOut) &&
+  new RegExp(`── ok\\.test\\.mjs \\[${here}\\] ──\\nok \\[${here}\\]: 1/1 passed`).test(fxOut), fxOut);
+const one = run([here, '--dir', 'tests/fixtures/runner', '--jobs', '1']);
+t.check('one at a time gives the same verdict', one.status === 1 && /FAILED: .*bad.*crash|FAILED: .*crash.*bad/.test(one.stdout));
+t.check('--jobs must be a whole number from 1', run([here, '--jobs', '0']).status === 2 && run([here, '--jobs', 'x']).status === 2);
 t.check('the fixtures are not part of the real suite', !run(['--list']).stdout.includes('bad.test.mjs'));
 
 // The harness launches the engine it is told to: in the WebKit run this is

@@ -11,14 +11,14 @@ async function ready(opts = {}) {
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   return { gh, ctx, p };
 }
 const renameTo = async (p, target) => {
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept(target) : d.accept());
   await p.click('#btn-rename');
-  await p.waitForTimeout(700);
+  await H.settle(p, 700);
 };
 
 /* ===== the move itself ===== */
@@ -28,7 +28,7 @@ const renameTo = async (p, target) => {
   await p.waitForSelector('#f-save:not([disabled])');
   await p.fill('#f-pins', 'todo.md, inbox.md');
   await p.click('#f-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');
   t.check('a Rename button is offered for the open file', await p.isVisible('#btn-rename'));
   const before = gh.commits.length;
@@ -46,9 +46,9 @@ const renameTo = async (p, target) => {
   t.check('a pin follows it', JSON.stringify(await p.$$eval('#pin-tabs button', b => b.map(x => x.textContent))) ===
     '["todo.md","inbox old.md"]');
   await H.setEditor(p, '# Inbox\n\nkeep me, edited after the move\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('and saves go to the new path', gh.files['archive/2026/inbox old.md'] === '# Inbox\n\nkeep me, edited after the move\n' &&
     !('inbox.md' in gh.files));
   t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));
@@ -91,9 +91,13 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
 {
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
+  let gitCalls = 0;
+  p.on('request', r => { if (r.url().startsWith('https://api.github.com/')) gitCalls++; });
   await renameTo(p, 'plan.md');
   t.check('an existing file is never overwritten by a move', gh.files['plan.md'] === '# Plan\n' && 'inbox.md' in gh.files);
   t.check('and the person is told', /already/i.test(await H.status(p)), await H.status(p));
+  // A file already in the list is refused before anything is asked of GitHub.
+  t.check('refused at once, before any request to GitHub', gitCalls === 0, String(gitCalls));
   await ctx.close();
 }
 
@@ -120,7 +124,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('moved.md') : d.accept());
   await p.click('#btn-rename');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('the note is locked while it moves', await p.evaluate(() => document.querySelector('#cm-stub').readOnly));
   await p.waitForTimeout(2500);
   t.check('and unlocked once it has moved', !(await p.evaluate(() => document.querySelector('#cm-stub').readOnly)) &&
@@ -153,9 +157,9 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, '# Inbox\n\nunsaved words\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await renameTo(p, 'moved.md');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('unsaved words go with the file', gh.files['moved.md'] === '# Inbox\n\nunsaved words\n' && !('inbox.md' in gh.files),
     JSON.stringify(gh.files['moved.md']));
   await ctx.close();
@@ -166,15 +170,15 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
   const b = await H.page(ctx);
-  await b.waitForTimeout(700);                     // tab B reopens inbox.md
+  await H.settle(b, 700);                     // tab B reopens inbox.md
   await renameTo(p, 'moved.md');
-  await b.waitForTimeout(400);
+  await H.settle(b, 400);
   t.check('the other tab follows the file to its new name', (await b.textContent('#crumb .name')) === 'moved.md',
     await b.textContent('#crumb'));
   await H.setEditor(b, '# Inbox\n\ntyped in the other tab\n');
-  await b.waitForTimeout(60);
+  await H.settle(b, 60);
   await b.click('#btn-save');
-  await b.waitForTimeout(500);
+  await H.settle(b, 500);
   t.check('and saves there, never recreating the old path', !('inbox.md' in gh.files) &&
     gh.files['moved.md'] === '# Inbox\n\ntyped in the other tab\n');
   await ctx.close();
@@ -206,9 +210,9 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('moved.md') : d.accept());
   await p.click('#btn-rename');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   await p.click('#btn-refresh');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('a refresh while it moves leaves the note locked', await p.evaluate(() => document.querySelector('#cm-stub').readOnly));
   await p.waitForTimeout(2000);
   await ctx.close();
@@ -227,7 +231,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
     return r.abort();                             // ...and the reply never arrives
   });
   await renameTo(p, 'moved.md');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('it moved, and the app says so rather than "Not renamed"', 'moved.md' in gh.files && !('inbox.md' in gh.files) &&
     (await p.textContent('#crumb .name')) === 'moved.md' && !/not renamed/i.test(await H.status(p)), await H.status(p));
   await ctx.close();
@@ -253,7 +257,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   const { gh, ctx, p } = await ready();
   gh.modes = { 'inbox.md': '120000' };
   await p.click('#btn-refresh');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');
   await renameTo(p, 'moved.md');
   t.check('a symbolic link is not renamed here', 'inbox.md' in gh.files && !('moved.md' in gh.files) &&

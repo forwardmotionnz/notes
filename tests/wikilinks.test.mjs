@@ -36,7 +36,7 @@ async function hit(p, needle, how) {
     else ta.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'mouse', bubbles: true }));
     ta.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: how === 'ctrl', metaKey: how === 'meta' }));
   }, { needle, how });
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
 }
 const name = p => p.textContent('#crumb .name');
 const dir = p => p.textContent('#crumb .dir');
@@ -46,8 +46,8 @@ async function run(label, ctxOpts) {
   const ctx = await H.context(gh, ctxOpts);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(400);
-  const open = () => p.evaluate(() => openFile('Daily/2026-09-25.md')).then(() => p.waitForTimeout(400));
+  await H.settle(p, 400);
+  const open = () => p.evaluate(() => openFile('Daily/2026-09-25.md')).then(() => H.settle(p, 400));
   p.asked = [];
   p.removeAllListeners('dialog');
   p.removeAllListeners('dialog');
@@ -92,9 +92,9 @@ async function run(label, ctxOpts) {
   t.check(`${label}: saying yes opens it as a new note`, (await name(p)) === 'Missing note.md' &&
     /new/i.test(await p.textContent('#crumb')));
   await H.setEditor(p, '# Missing note\n\nnow it exists\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check(`${label}: and saving creates it`, gh.files['Missing note.md'] === '# Missing note\n\nnow it exists\n');
   t.check(`${label}: no page errors`, p.errors.length === 0, p.errors.join(' | '));
   await ctx.close();
@@ -114,8 +114,8 @@ async function run(label, ctxOpts) {
   p.removeAllListeners('dialog');
   p.on('dialog', d => { p.asked.push(d.message()); return d.dismiss(); });
   await H.signIn(p);
-  await p.waitForTimeout(400);
-  const open = () => p.evaluate(() => openFile('Home.md')).then(() => p.waitForTimeout(400));
+  await H.settle(p, 400);
+  const open = () => p.evaluate(() => openFile('Home.md')).then(() => H.settle(p, 400));
   await open();
   await hit(p, 'Beta]] and', 'ctrl');   // not there: the second link on the line
   await hit(p, 'Beta]].', 'ctrl');
@@ -149,7 +149,7 @@ async function run(label, ctxOpts) {
   p.on('dialog', d => { p.asked.push(d.message()); return d.type() === 'prompt' ? d.accept('Scratch') : d.dismiss(); });
   await H.signIn(p);
   await p.click('#btn-new');
-  await p.waitForTimeout(200);
+  await H.settle(p, 200);
   await H.setEditor(p, '# Scratch\n\nsee [[Plans/Q4]]\n');
   p.asked = [];
   await hit(p, 'Plans/Q4', 'ctrl');
@@ -157,7 +157,7 @@ async function run(label, ctxOpts) {
     (await name(p)) === 'Scratch.md' && /not loaded/i.test(await H.status(p)), await H.status(p));
   held = false;
   release();
-  await p.waitForTimeout(800);
+  await H.settle(p, 800);
   await hit(p, 'Plans/Q4', 'ctrl');
   t.check('once it has, the link opens the note', (await name(p)) === 'Q4.md' &&
     (await H.editorValue(p)) === 'the real plans\n', await name(p));
@@ -174,9 +174,9 @@ async function run(label, ctxOpts) {
   p.removeAllListeners('dialog');
   p.on('dialog', d => { p.asked.push(d.message()); return d.accept(); });
   await H.signIn(p);
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   await p.evaluate(() => openFile('Home.md'));
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await hit(p, 'Nowhere', 'ctrl');
   t.check('read-only: an unresolved link does not offer to create', p.asked.length === 0 &&
     (await name(p)) === 'Home.md' && /archived/i.test(await H.status(p)), await H.status(p));
@@ -195,11 +195,11 @@ async function run(label, ctxOpts) {
   p.removeAllListeners('dialog');
   p.on('dialog', d => { p.asked.push(d.message()); return d.type() === 'prompt' ? d.accept(p.reply) : d.accept(); });
   await H.signIn(p);
-  await p.waitForTimeout(400);
-  const open = () => p.evaluate(() => openFile('Home.md')).then(() => p.waitForTimeout(400));
+  await H.settle(p, 400);
+  const open = () => p.evaluate(() => openFile('Home.md')).then(() => H.settle(p, 400));
   const saveAs = async text => {
-    await H.setEditor(p, text); await p.waitForTimeout(60);
-    await p.click('#btn-save'); await p.waitForTimeout(500);
+    await H.setEditor(p, text); await H.settle(p, 60);
+    await p.click('#btn-save'); await H.settle(p, 500);
   };
 
   await open();
@@ -235,25 +235,25 @@ async function run(label, ctxOpts) {
       }
     }
   });
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('a tap just before or after a link stays put', (await name(p)) === 'Home.md' && p.asked.length === 0,
     (await name(p)) + ' ' + JSON.stringify(p.asked));
 
   // + with a name that looks like it has an extension.
   p.reply = 'Release 2.0';
   await p.click('#btn-new');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('+ "Release 2.0" makes a note too, not a file it could never reopen', (await name(p)) === 'Release 2.0.md',
     await name(p));
   p.reply = 'notes.txt';
   await p.click('#btn-new');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('+ still makes a text file by its own extension', (await name(p)) === 'notes.txt', await name(p));
 
   // A list GitHub cut short: missing from it is not missing.
   gh.truncate = ['Huge/Hidden.md'];
   await p.click('#btn-refresh');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   await H.setEditor(p, 'see [[Hidden]] and [[Other]]\n');
   p.asked = [];
   await hit(p, 'Hidden', 'ctrl');
@@ -266,7 +266,7 @@ async function run(label, ctxOpts) {
   gh.truncate = null;
   await p.route('**/git/trees/**', r => r.abort());
   await p.click('#btn-refresh');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   await H.setEditor(p, 'other\nsee [[Brand new]]\n');
   p.asked = [];
   await hit(p, 'Brand new', 'ctrl');

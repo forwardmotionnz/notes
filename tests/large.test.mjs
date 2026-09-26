@@ -22,19 +22,19 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
 
   // Reached some other way: the last file reopened on load, or a pin.
   await p.evaluate(() => openFile('big.md'));
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('opening it directly is refused too', (await H.editorValue(p)) === null && /1 MB/.test(await H.status(p)),
     await H.status(p));
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
   await p.fill('#f-pins', 'big.md');
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('pinned, it shows the reason instead of an empty list', /1 MB/.test(await p.textContent('#pin-list')),
     await p.textContent('#pin-list'));
   await p.fill('#pin-input', 'a task');
   await p.press('#pin-input', 'Enter');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('and no task can be added over it', gh.files['big.md'] === BIG && gh.commits.length === 0,
     String(gh.commits.length));
   await ctx.close();
@@ -65,12 +65,12 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
   await p.evaluate(() => localStorage.setItem('notes.draft.v1:roldaof/obsidian-vault@main:big.md',
     JSON.stringify({ text: '# Big\n\nmy offline paragraph\n', sha: 'old', at: 0 })));
   await p.evaluate(() => openFile('big.md'));
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('the stranded draft opens as a new note beside it', (await H.editorValue(p)) === '# Big\n\nmy offline paragraph\n' &&
     (await p.textContent('#crumb .name')) === 'big (unsaved copy).md', await p.textContent('#crumb'));
   t.check('with the reason', /1 MB/.test(await H.status(p)), await H.status(p));
   await p.click('#btn-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('saving it creates the copy and leaves the big file alone',
     gh.files['big (unsaved copy).md'] === '# Big\n\nmy offline paragraph\n' && gh.files['big.md'] === BIG);
   t.check('and no draft is left behind', await p.evaluate(() =>
@@ -86,9 +86,9 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
   await H.signIn(p);
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'y'.repeat(1100 * 1024));
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('saving past 1 MB is refused, with the reason', gh.files['inbox.md'] === 'small\n' &&
     /1 MB/.test(await H.status(p)), await H.status(p));
   t.check('and the text is kept as a draft', await p.evaluate(() =>
@@ -110,14 +110,14 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
     return r.abort();
   });
   await H.setEditor(p, 'mine\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   gh.files['inbox.md'] = BIG;                      // grew past 1 MB elsewhere meanwhile
   await H.setEditor(p, 'mine, more\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('it is reported as a conflict, with Discard offered', /conflict/i.test(await H.status(p)) &&
     await p.isVisible('#btn-discard'), await H.status(p));
   t.check('and the big file is untouched', gh.files['inbox.md'] === BIG);
@@ -131,10 +131,10 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await p.fill('#pin-input', 'one task too many');
   await p.press('#pin-input', 'Enter');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('a task that would take the file past 1 MB is refused', gh.files['todo.md'] === NEAR &&
     gh.commits.length === 0 && /1 MB/.test(await H.status(p)), await H.status(p));
   t.check('and the task text stays in the box', (await p.inputValue('#pin-input')) === 'one task too many');

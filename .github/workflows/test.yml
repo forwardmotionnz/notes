@@ -1,6 +1,10 @@
 # The whole suite in both engines: Chromium, and WebKit (Safari's engine,
 # which every browser on iOS uses). Nothing here talks to real GitHub; the
 # tests serve the app and fake GitHub locally.
+#
+# `repeat` runs the suite several times over, as separate jobs side by side
+# rather than one after another (a flaky test is a failing test either way,
+# and side by side it takes the time of one run).
 name: tests
 
 on:
@@ -9,20 +13,36 @@ on:
   workflow_dispatch:
     inputs:
       repeat:
-        description: Runs in a row (a flaky test is a failing test)
+        description: How many times over (a flaky test is a failing test)
         default: "1"
 
 permissions:
   contents: read
 
 jobs:
-  suite:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    outputs:
+      runs: ${{ steps.plan.outputs.runs }}
+    steps:
+      - id: plan
+        env:
+          REPEAT: ${{ inputs.repeat || '1' }}
+        run: |
+          # Anything but a whole number from 1 to 20 would run nothing, or too much.
+          [[ "$REPEAT" =~ ^([1-9]|1[0-9]|20)$ ]] || { echo "repeat must be a whole number from 1 to 20, not '$REPEAT'"; exit 1; }
+          echo "runs=[$(seq -s, 1 "$REPEAT")]" >> "$GITHUB_OUTPUT"
+
+  suite:
+    needs: plan
+    name: suite (${{ matrix.engine }}, run ${{ matrix.run }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         engine: [chromium, webkit]
+        run: ${{ fromJSON(needs.plan.outputs.runs) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,14 +50,8 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.engine }}
+      # GitHub's runners have 4 slower CPUs: at twelve at a time sign-ins and
+      # loads ran out of time (run 37); at four, Chromium passed and WebKit,
+      # which is heavier, did not (run 39). Chromium 4, WebKit 2.
       - name: Suite in ${{ matrix.engine }}
-        env:
-          REPEAT: ${{ inputs.repeat || '1' }}
-        run: |
-          # Anything but a whole number from 1 would run nothing and pass.
-          [[ "$REPEAT" =~ ^[1-9][0-9]*$ ]] || { echo "repeat must be a whole number from 1, not '$REPEAT'"; exit 1; }
-          for i in $(seq 1 "$REPEAT"); do
-            echo "::group::Run $i of $REPEAT"
-            node tests/run.mjs ${{ matrix.engine }} || exit 1
-            echo "::endgroup::"
-          done
+        run: node tests/run.mjs ${{ matrix.engine }} --jobs ${{ matrix.engine == 'webkit' && '2' || '4' }}

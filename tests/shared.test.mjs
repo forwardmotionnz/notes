@@ -35,15 +35,15 @@ const moreOrgs = Array.from({ length: 100 }, (_, i) => ({ id: 1000 + i, account:
 
   await p.selectOption('#f-repo', { label: 'acme/team-notes' });
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('hello') : d.accept());
   await p.click('#btn-new');
-  await p.waitForTimeout(200);
+  await H.settle(p, 200);
   await H.setEditor(p, '# Hello from acme\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   const c = gh.commits.at(-1);
   t.check('and writes a note in an organisation repository', !!c && c.repo === 'acme/team-notes' &&
     c.path === 'hello.md', JSON.stringify(c));
@@ -77,12 +77,12 @@ for (const [label, set] of [['smaller pages than asked for', gh => { gh.maxPerPa
     contentType: 'application/json', body: JSON.stringify({ message: 'This installation has been suspended' }) }));
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(800);
+  await H.settle(p, 800);
   const opts = await p.$$eval('#f-repo option', o => o.map(x => x.textContent.trim()));
   t.check('the installations that answered are still offered', opts.includes('someone-else/mine') || !(await H.dialogOpen(p)),
     JSON.stringify(opts));
   await p.click('#btn-settings').catch(() => {});
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('and the person is told some could not be listed', /could not be listed/i.test(await p.textContent('#repo-hint')),
     await p.textContent('#repo-hint'));
   await ctx.close();
@@ -121,16 +121,16 @@ for (const [label, set] of [['smaller pages than asked for', gh => { gh.maxPerPa
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'me/r3' });
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   gh.repos.splice(3, 1);                           // gone from the list (or skipped between pages)
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   const sel = await p.$eval('#f-repo', s => s.options[s.selectedIndex].textContent);
   t.check('a current repository missing from the list stays selected', sel.includes('me/r3'), sel);
   await p.fill('#f-pins', 'todo.md, more.md');
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('so saving other settings does not switch repository', (await p.textContent('#crumb')).includes('me/r3'),
     await p.textContent('#crumb'));
   await ctx.close();
@@ -142,14 +142,14 @@ for (const [label, set] of [['smaller pages than asked for', gh => { gh.maxPerPa
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   await ctx.route('**/user/installations**', async r => { await new Promise(res => setTimeout(res, 3000)); return r.fallback(); });
   await p.click('#btn-settings');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('with a repository already chosen, Save works before the list arrives', await p.isEnabled('#f-save'));
   await p.fill('#f-pins', 'todo.md, quick.md');
   await p.click('#f-save');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('and keeps that repository', (await p.textContent('#crumb')).includes('me/notes') &&
     JSON.stringify(await p.$$eval('#pin-tabs button', b => b.map(x => x.textContent))) === '["todo.md","quick.md"]');
   await ctx.close();
@@ -162,7 +162,7 @@ for (const [label, set] of [['smaller pages than asked for', gh => { gh.maxPerPa
   const p = await H.page(ctx);
   await H.signIn(p);
   const q = await H.page(ctx, H.APP() + '?setup_action=request');
-  await q.waitForTimeout(600);
+  await H.settle(q, 600);
   t.check('a request for approval is not described as done', /approv/i.test(await q.evaluate(() => document.body.innerText)),
     await H.status(q));
   await ctx.close();

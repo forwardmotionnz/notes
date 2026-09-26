@@ -67,7 +67,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
 
   // pins, including a hostile pinned name
   await p.click('#btn-settings');
@@ -75,10 +75,10 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   t.check('hostile login shown as text', (await p.textContent('#who-login')) === '@' + IMG);
   await p.fill('#f-pins', `todo.md, ${IMG}.md, hasOwnProperty, ${SVG}-missing.md, ${IFR}-broken.md`);
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('hostile branch shown as text in the header', (await p.textContent('#crumb')).includes(BRANCH));
   await p.locator('#pin-tabs button').nth(2).click();
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('a pin named like an object property loads at once',
     (await p.textContent('#pin-list')).includes('awkward name'), await p.textContent('#pin-list'));
   await p.locator('#pin-tabs button').nth(0).click();
@@ -93,7 +93,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   const inner = await H.rows(p);
   t.check('and open', inner.includes('a.md') && inner.includes('b.md'), JSON.stringify(inner));
   await p.reload({ waitUntil: 'load' });
-  await p.waitForTimeout(700);
+  await H.settle(p, 700);
   const again = await H.rows(p);
   t.check('and stay open after a reload', again.includes('a.md') && again.includes('b.md'), JSON.stringify(again));
   t.check('an untouched folder named like one stays closed', !again.includes('d.md'), JSON.stringify(again));
@@ -105,14 +105,14 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   t.check('hostile folder is text in the header', (await p.textContent('#crumb .dir')) === IFR + '/');
 
   await p.fill('#filter', '<');
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   t.check('filter results render as text', (await H.rows(p)).length >= 3);
   await p.fill('#filter', '');
 
   t.check('pinned tasks render as text', (await p.textContent('#pin-list')).includes(`${IMG} task`));
   const tabs = await p.$$eval('#pin-tabs button', b => b.map(x => x.textContent));
   t.check('hostile pinned name is a text tab', tabs.includes(`${IMG}.md`), JSON.stringify(tabs));
-  const pinTab = async i => { await p.locator('#pin-tabs button').nth(i).click(); await p.waitForTimeout(300); };
+  const pinTab = async i => { await p.locator('#pin-tabs button').nth(i).click(); await H.settle(p, 300); };
   await pinTab(2);
   t.check('a pin named like an object property loads', (await p.textContent('#pin-list')).includes('awkward name'));
   await pinTab(3);
@@ -139,19 +139,19 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
     : r.fallback());
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'changed');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check("GitHub's error message shown as text", (await H.status(p)).includes(IMG), await H.status(p));
 
   // A new note with a hostile name.
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept(`${SVG}`) : d.accept());
   await p.click('#btn-new');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('a hostile new name is text in the header', (await p.textContent('#crumb .name')) === `${SVG}.md`);
 
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('no payload element created anywhere', (await dangerous(p)) === 0, String(await dangerous(p)));
   t.check('no payload ever ran', (await pwned(p)) === 0, String(await pwned(p)));
   // The 500 above is logged on purpose, with its message; nothing else may be.
@@ -167,7 +167,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   const gh = H.fakeGitHub();
   const ctx = await H.context(gh);
   const p = await H.page(ctx, H.APP() + '?error=access_denied&error_description=' + encodeURIComponent(IMG));
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('error_description from the URL is never shown', !(await p.evaluate(() => document.body.innerText)).includes('onerror'));
   t.check('and never runs', (await pwned(p)) === 0 && (await dangerous(p)) === 0);
   await ctx.close();

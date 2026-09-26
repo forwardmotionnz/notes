@@ -52,8 +52,7 @@ try {
     const { gh, ctx, p } = await ready();
     await H.clickRow(p, 'inbox.md');
     const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
-    await p.fill('#pin-input', 'task in flight');
-    await p.click('#pin-go');
+    await p.evaluate(()=>{document.querySelector('#pin-input').value='task in flight';addTask();});
     await hold.started;
     await p.click('#btn-delete');
     await p.waitForFunction(() => moving);
@@ -170,8 +169,9 @@ try {
       route.request().method() === 'PUT' ? route.abort() : route.fallback());
     await H.setEditor(p, 'COMBINED SETTINGS DRAFT');
     const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
-    await p.fill('#pin-input', 'PENDING DURING MODE CHANGE');
-    await p.click('#pin-go');
+    // A delayed task handler can outlive switching to source. Exercise the
+    // same save path without making the now-hidden checklist visible.
+    await p.evaluate(()=>{document.querySelector('#pin-input').value='PENDING DURING MODE CHANGE';addTask();});
     await hold.started;
     // Existing editor drafts fit, but preserving the pending task does not.
     // Migration must not strand the editor draft in the unselected store.
@@ -212,8 +212,7 @@ try {
     await H.setEditor(p, '- [ ] one\nEDITOR WORDS TO PRESERVE\n');
     const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
     for (const text of ['CAPTURE WITH DIRTY EDITOR', 'QUEUED WITH DIRTY EDITOR']) {
-      await p.fill('#pin-input', text);
-      await p.click('#pin-go');
+      await p.evaluate(text=>{document.querySelector('#pin-input').value=text;addTask();},text);
       if (text === 'CAPTURE WITH DIRTY EDITOR') await hold.started;
     }
     await pickBeta(p);

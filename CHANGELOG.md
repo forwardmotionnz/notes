@@ -12,6 +12,11 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
+- Pin/unpin beside the note name and a Pinned section at the top of Files.
+  Pinned notes open as a checklist in the main area, with Edit note and Tasks
+  controls to switch views. Pins remain local to this browser. This replaces
+  the right-hand panel, phone bottom sheet and Settings pins field.
+
 - Today opens or prepares the day's note, using the vault's Obsidian daily-note
   folder, date format and template where configured. Nothing is created until
   saved. Common date/time template placeholders work; unsupported filename

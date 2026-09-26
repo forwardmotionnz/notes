@@ -55,7 +55,7 @@ for (const pan of [0, 120]) {
   await p.evaluate(([k, pan]) => window.keyboard(k, pan), [KEYBOARD, pan]);
   await H.settle(p, 200);
   await H.still(p);
-  for (const b of ['#btn-tree', '#btn-save', '#btn-pins', '#btn-settings']) {
+  for (const b of ['#btn-tree', '#btn-save', '#btn-pin', '#btn-settings']) {
     t.check(`${label}: ${b} stays on screen and tappable`, (await onScreen(p, b)) === 'ok', await onScreen(p, b));
   }
   t.check(`${label}: the editor ends at the keyboard`, (await onScreen(p, '#cm-stub')) === 'ok' ||
@@ -99,7 +99,7 @@ for (const pan of [0, 120]) {
   await ctx.close();
 }
 
-/* ===== the pinned tasks sheet, at real keyboard heights ===== */
+/* ===== pinned tasks in the main area, at real keyboard heights ===== */
 // What is left above the keyboard on real phones: an iPhone 14 with Safari's
 // form bar (417 of 844), and an iPhone SE (343 of 667).
 for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPhone SE', 667, 667 - 343]]) {
@@ -114,9 +114,10 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   const p = await H.page(ctx);
   await H.signIn(p);
   await H.settle(p, 300);
-  await p.click('#btn-pins');
+  await p.click('#btn-tree');
+  await p.locator('#pin-tabs button').first().click();
   await H.settle(p, 300);
-  await H.still(p);                                 // the sheet has finished sliding in
+  await H.still(p);                                 // Files has finished sliding away
   await p.focus('#pin-input');
   await p.evaluate(k => window.keyboard(k), keyboard);
   await H.settle(p, 250);

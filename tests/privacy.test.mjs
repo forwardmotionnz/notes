@@ -107,11 +107,11 @@ for (const remember of [true, false]) {
   const p = await H.page(ctx);
   await H.signIn(p, { remember });
   await H.settle(p, 500);
-  await H.clickRow(p, 'inbox.md');
-  await H.setEditor(p, 'hello\nunsaved words\n');               // a draft
   await p.fill('#pin-input', 'a task');
   await p.click('#pin-go');
   await H.settle(p, 600);
+  await H.clickRow(p, 'inbox.md');
+  await H.setEditor(p, 'hello\nunsaved words\n');               // a draft
   const k = await keysOf(p);
   const all = [...k.local, ...k.session].map(family);
   t.check(`${label}: every key in storage is named in the note`, all.length >= 3 && all.every(inTable),

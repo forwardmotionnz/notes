@@ -73,7 +73,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
   t.check('hostile login shown as text', (await p.textContent('#who-login')) === '@' + IMG);
-  await p.fill('#f-pins', `todo.md, ${IMG}.md, hasOwnProperty, ${SVG}-missing.md, ${IFR}-broken.md`);
+  await H.setPins(p, `todo.md, ${IMG}.md, hasOwnProperty, ${SVG}-missing.md, ${IFR}-broken.md`);
   await p.click('#f-save');
   await H.settle(p, 500);
   t.check('hostile branch shown as text in the header', (await p.textContent('#crumb')).includes(BRANCH));
@@ -122,8 +122,8 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
     ? r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: IFR }) })
     : r.fallback());
   await pinTab(4);
-  t.check("a pin's hostile error is replaced by fixed retry wording", !(await p.textContent('#pin-list')).includes(IFR) && /GitHub is temporarily unavailable\. Try again/.test(await p.textContent('#pin-list')),
-    await p.textContent('#pin-list'));
+  t.check("a pin's hostile error is replaced by fixed retry wording", !(await H.status(p)).includes(IFR) && /GitHub is temporarily unavailable\. Try again/.test(await H.status(p)),
+    await H.status(p));
   await pinTab(0);
 
   await H.clickRow(p, `${IMG}.md`);

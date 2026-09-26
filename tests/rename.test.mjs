@@ -26,7 +26,7 @@ const renameTo = async (p, target) => {
   const { gh, ctx, p } = await ready();
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
-  await p.fill('#f-pins', 'todo.md, inbox.md');
+  await H.setPins(p, 'todo.md, inbox.md');
   await p.click('#f-save');
   await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');

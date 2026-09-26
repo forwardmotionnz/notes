@@ -256,7 +256,7 @@ const answer = (p, yes) => {
   const { gh, ctx, p } = await ready();
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
-  await p.fill('#f-pins', 'todo.md, inbox.md');
+  await H.setPins(p, 'todo.md, inbox.md');
   await p.click('#f-save');
   await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');
@@ -275,12 +275,12 @@ const answer = (p, yes) => {
     if (r.request().method() === 'PUT') await new Promise(res => setTimeout(res, 1200));
     return r.fallback();
   });
-  await H.clickRow(p, 'inbox.md');
   const order = [];
   p.on('request', r => { if (r.url().includes('/contents/') && r.method() !== 'GET') order.push('start ' + r.method()); });
   p.on('requestfinished', r => { if (r.url().includes('/contents/') && r.method() !== 'GET') order.push('end ' + r.method()); });
   await p.fill('#pin-input', 'a task');
   await p.press('#pin-input', 'Enter');
+  await H.clickRow(p, 'inbox.md');
   answer(p, true);
   await p.click('#btn-delete');
   await p.waitForTimeout(2500);

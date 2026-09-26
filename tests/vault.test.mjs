@@ -33,7 +33,7 @@ async function ready(pins) {
   if (pins) {
     await p.click('#btn-settings');
     await p.waitForSelector('#f-save:not([disabled])');
-    await p.fill('#f-pins', pins);
+    await H.setPins(p, pins);
     await p.click('#f-save');
     await H.settle(p, 450);
   }

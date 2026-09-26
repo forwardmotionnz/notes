@@ -128,7 +128,7 @@ for (const [label, set] of [['smaller pages than asked for', gh => { gh.maxPerPa
   await H.settle(p, 400);
   const sel = await p.$eval('#f-repo', s => s.options[s.selectedIndex].textContent);
   t.check('a current repository missing from the list stays selected', sel.includes('me/r3'), sel);
-  await p.fill('#f-pins', 'todo.md, more.md');
+  await H.setPins(p, 'todo.md, more.md');
   await p.click('#f-save');
   await H.settle(p, 500);
   t.check('so saving other settings does not switch repository', (await p.textContent('#crumb')).includes('me/r3'),
@@ -147,7 +147,7 @@ for (const [label, set] of [['smaller pages than asked for', gh => { gh.maxPerPa
   await p.click('#btn-settings');
   await H.settle(p, 300);
   t.check('with a repository already chosen, Save works before the list arrives', await p.isEnabled('#f-save'));
-  await p.fill('#f-pins', 'todo.md, quick.md');
+  await H.setPins(p, 'todo.md, quick.md');
   await p.click('#f-save');
   await H.settle(p, 300);
   t.check('and keeps that repository', (await p.textContent('#crumb')).includes('me/notes') &&

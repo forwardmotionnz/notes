@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 23 / 30
+Iterations: 24 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -27,8 +27,8 @@ Iterations: 23 / 30
 | F2 | 15 | blocked | Three failed gauntlet attempts on 2026-09-26. Latest: WebKit `auth.test.mjs`, older repository-list test, second Settings click blocked by a still-open dialog after Escape (candidate line 253). Logs: `tests/screens/f2-gauntlet{,-2,-3}/`; candidate patch: `tests/screens/f2-unfinished.patch`, extra regression suite: `tests/screens/f2-harness-regression.mjs.txt`. All unfinished F2 code/test/README changes reverted; no test removed from the baseline. |
 | F1 | 16 | done | `tests/manifest.test.mjs` 20/20; full 22-suite Chromium gauntlet green three consecutive times; origin restriction mutation caught; viewed icon and `tests/screens/f1-{desktop,phone}-{light,dark}.png`; commit 83c1791 (pushed). |
 | F3 | 17 | done | `tests/keyboard.test.mjs` 22/22 using real CodeMirror and the fallback; full 23-suite Chromium gauntlet green three times; five independent mutations caught; `tests/screens/f3-{desktop,phone}-{light,dark}.png` viewed; commit 3486a8f (pushed). |
-| G3 | 18 | doing | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
-| H1 | 19 | todo | |
+| G3 | 18 | done | `tests/errors.test.mjs` 90/90; all 24 Chromium suites green three consecutive runs (`tests/screens/g3-gauntlet-2/`); 26 safeguards independently removed and caught; fresh review findings fixed or documented below; viewed `tests/screens/g3-{desktop,phone}-{light,dark}.png`; commit c57046d (pushed). |
+| H1 | 19 | doing | Plain-language Try it first, honest preview status and self-hosting below user guidance; plan below. |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
 | S1 | 22 | todo | SHOULD |
@@ -147,6 +147,10 @@ Iterations: 23 / 30
 - Full gauntlet attempt 1 failed only `tests/large.test.mjs`: an uncertain save whose remote file grew too large no longer entered the established conflict/Discard state. The test was left unchanged. A refused recovery read now retains that conflict pause; transient read failures still preserve the retry path. Evidence: `tests/screens/g3-gauntlet/run-1.json`.
 - Mutation evidence is in `tests/screens/g3-mutations/`: each variant is served in a separate browser process with its own valid CSP hash, leaving the workspace source unchanged. Removing the repository guard alone really wrote alpha's text into beta in the fake and failed the switching assertion; the unmodified app writes nothing there. Other variants cover refresh preservation, token validation, deadlines, both cooldown guards, cooldown duration, JSON/shape guards, every rename boundary, uncertain outcomes, matched/outside versions and persistent messages.
 - Viewed `tests/screens/g3-{desktop,phone}-{light,dark}.png`: the persistent outage message and Save button remain visible at 390 px, the draft stays in the real editor and no horizontal overflow occurs. No runtime dependency, build step, new storage key or external host was added. No broker change or deployment is needed for this item. The 90/90 error checks and all 24 Chromium suites passed three consecutive full runs: `tests/screens/g3-gauntlet-2/run-{1,2,3}.json`. All 26 distinct safeguard mutations failed their intended assertions (`tests/g3-mutations.log`, `tests/g3-extra-mutations.log`, `tests/g3-refused-mutation.log`). `index.html` is 127,373 bytes. WebKit remains blocked under F2.
+
+### H1: plan
+- Done looks like: README opens with a plain-language Try it section, the shared app link and steps to the first saved note. It clearly says the current shared copy cannot sign in until the owner configures the broker; privacy and shared-owner access are explained without claiming readiness. Self-hosting and architecture follow the user guidance.
+- Proof: a test first checks section order, concrete shared link, first-note steps, privacy and deployment-readiness wording; fresh review, all suites three times and four viewed app screenshots.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -316,6 +320,7 @@ Iterations: 23 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
+- 2026-09-26 · G3 · done · c57046d (pushed)
 - 2026-09-26 · F3 · done · 3486a8f (pushed)
 - 2026-09-26 · F1 · done · 83c1791 (pushed)
 - 2026-09-26 · F2 · blocked after three gauntlet failures; unfinished changes reverted · 1f6e274 (pushed)

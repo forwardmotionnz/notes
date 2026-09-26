@@ -51,8 +51,8 @@ t.check('draft recovery guidance names the destructive actions', /copy your late
   /Sign out[^.]*removes[\s\S]*drafts/.test(changes));
 t.check('sign-out scope includes each independent session-only tab', /current tab's\s+session.only drafts/.test(changes) &&
   /sign out in each session.only tab separately/i.test(changes));
-t.check('phone limitations do not claim a real-device pass', /iPhone or iPad[\s\S]*separate[\s\S]*drafts/.test(changes) &&
-  /real.phone[\s\S]*still pending/i.test(changes));
+t.check('phone limitations and owner-reported completion are explicit', /iPhone or iPad[\s\S]*separate[\s\S]*drafts/.test(changes) &&
+  /owner reported the real.phone[\s\S]*checks completed on 2026-09-27/i.test(changes));
 t.check('F2 remains an explicit release blocker', !/\| F2 \|[^\n]*\| blocked \|/.test(ledger) ||
   /WebKit[\s\S]*blocked[\s\S]*release gate has not passed/i.test(changes));
 t.check('unfinished shared sign-in names the owner setup', !/REPLACE_ME/.test(deployment.broker) ||

@@ -1,16 +1,22 @@
 # MVP ledger
 
-Iterations: 28 / 30
+Iterations: 29 / 30
 
 ## Current handover — 2026-09-27
 
-Account setup is complete. The owner has authorised merging the reconciled
-MVP into `main`; the earlier no-merge boundary no longer applies. Main's
-Safari fixes and task controls are preserved alongside MVP failure recovery,
-phone editor checks and documentation. Final combined validation passed three times in both engines.
+Account setup is complete. The reconciled MVP and faster development
+workflow were merged into `main` in [PR #5](https://github.com/forwardmotionnz/notes/pull/5),
+commit `032f6e6`, and the published Pages app matched that commit.
+All 35 suites passed in Chromium and WebKit on the final PR head `e33befe`.
+The owner subsequently confirmed that Android Chrome's Files → + closes
+the drawer and leaves the editor ready for typing (2026-09-27). Basic phone
+save/reload was already confirmed; neither check needs repeating.
+The owner reported all release tests passed and completed on 2026-09-27.
+This is owner-reported acceptance; no new independent account evidence is
+implied. Completed setup and checks do not need repeating.
 
-Use [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the remaining real-account
-and physical-device checks. Earlier dated gauntlet records below are history,
+See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the acceptance record.
+Earlier dated gauntlet records below are history,
 including their old WebKit blocks and unfinished deployment instructions.
 They are not instructions to repeat completed setup.
 
@@ -178,10 +184,47 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N7 | 17b | done | a full local run about 300 s -> 73 s (8 suites at a time; three runs green); CI runs the repeats as side-by-side jobs, three over in both engines in 5 min 42 s instead of about 35 min (run 43, https://github.com/forwardmotionnz/notes/actions/runs/36221083063, green). 367 short fixed pauses became `H.settle`; four missing checks found and added; the review's hollow check restored. Commits 5574a13, 47b968c, b1a75bd, 66dbef4, ae130fa |
 | N8 | 17c | done | `tests/app.test.mjs` 70/70, new cases with GitHub slowed to 0.4-0.8 s a commit: three quick ticks all land with nothing refused and two commits; tick then untick ends as it began; a tick and a quick capture both land; a failed commit sends nothing after it, shows GitHub's state and the error, and puts the waiting capture back; a change made elsewhere is still a conflict and kept; changing repository mid-commit; saving settings mid-commit; the open note follows each commit. Commit in the log |
 | N9 | 17d | done | `tests/tasks.test.mjs` 52/52 (new suite): a remove control per task, named for it; removes that one line in one commit, no question; Undo puts it back exactly and goes after 8 s or once used; Clear done removes every ticked task and only them, in one commit, with Undo; CRLF kept; remove, untick and clear while GitHub is slow all land; a stale row removes nothing; a failed remove keeps the task and offers no Undo; Undo withdrawn on changing repository, switching list, or the repository becoming read-only; Undo refuses when lines were added above (incl. a blank line under each heading), still works after a tick or a capture, stays on offer while it cannot be sent yet, comes back after a refusal, and follows a rename; × always shown on a phone, on hover on a computer. `tests/access.test.mjs`: no task can be removed read-only. Screens `tests/screens/n9-{desktop,phone}-{light,dark}-{list,undo}.png`. Commit in the log |
-| S1 | 22 | todo | SHOULD |
-| S2 | 23 | todo | SHOULD |
-| S3 | 24 | todo | SHOULD |
-| S4 | 25 | todo | SHOULD |
+| N10 | 21a | doing | Today’s daily note, using Obsidian daily-note folder, date format and template; create on first save. |
+| N11 | 21b | todo | Pin/unpin beside the open note; browser-local Pinned section in the tree; checklist in the main area; remove side panel, phone sheet and Settings pins field. |
+| N12 | 21c | todo | Rendered preview toggle beside Save; sanitised Markdown, frontmatter box and wikilinks; CDN libraries with source-preserving fallback. Promoted from S1. |
+| S1 | 22 | moved | Rendered preview is now MUST N12. |
+| S2 | 23 | todo | SHOULD: search inside note contents, not only file paths. First SHOULD after all MUSTs. |
+| S3 | 24 | todo | SHOULD: automated axe accessibility check with zero serious violations, after N11 layout changes. |
+| S4 | 25 | todo | SHOULD: show referenced images in preview; depends on N12. |
+
+### N10: plan
+- Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
+  without changing it. Without config use `Daily/YYYY-MM-DD.md` and a heading.
+  Honour common Moment date tokens and bracketed literals; explain fallback
+  for unsupported filename formats. Preserve existing notes and drafts.
+- Prove with focused `daily-notes` regressions in both engines, related draft
+  and navigation checks, independent review and desktop/phone screenshots.
+- The original N10–N12 descriptions were recovered from `877cc04`; the owner
+  confirmed S1–S4 from `.claude/commands/gauntlet.md` on 2026-09-27.
+  G3 and H1–H3 are already complete and are not reopened.
+
+### N10: verification — 2026-09-27
+- New `daily-notes` suite failed before the button existed, then passed 22/22
+  in Chromium and WebKit (final focused run: 12 seconds total). Related
+  `drafts` 45/45, `switching` 33/33, CSP 26/26 and phone New 6/6 passed in
+  both engines; documentation 32/32 passed. Full CI remains the final gate.
+- Independent review found repeated Today could drop an untouched template,
+  and cancelling an open with a failed Today lookup could strand the old
+  note's Save. Both have regressions and fixes; follow-up found no blocker.
+- Five deliberate mutations were caught: repeated-template protection,
+  reviving the visible note, stale navigation/repository responses, original
+  template encoding, and path validation. Logs: `tests/screens/n10-mutation-*.log`.
+  The stale-response mutation exposed a test route bypassing the simulated
+  GitHub; changed it to `route.fallback()` and await the actual lookup promise.
+  The final test now fails when cancellation is removed, without live traffic.
+- Viewed light/dark Files and editor screenshots at 1280 and 390 px:
+  `tests/screens/n10-{1280,390}-{light,dark}-{files,editor}.png`. Today fits
+  beside the filter; the drawer closes and the editor is reachable.
+- App remains under 150 KB, with no new runtime library, host or build step.
+  The owner's existing `package-lock.json` edit remains untouched.
+- Updated the documentation test's old “still pending” requirement because
+  the owner explicitly reported completion. It now requires dated,
+  owner-attributed completion and retains the separate iOS storage warning.
 
 ### C1: plan
 - Done looks like: every edit is written to a per-file local draft (keyed by repo, branch and path) as you type; opening the file again after a reload, a closed tab or a killed page restores it with a visible notice; a commit clears it; session-only mode keeps drafts in session storage; sign out removes every draft; a draft whose file changed on GitHub since cannot overwrite that change.

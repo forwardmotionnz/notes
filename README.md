@@ -3,8 +3,8 @@
 ## Try it
 
 **MVP preview:** sign-in is configured and the GitHub App is public.
-Final release checks and real-device smoke tests are still in progress;
-see the [release checklist](RELEASE_CHECKLIST.md) and [MVP progress](MVP.md).
+The owner has reported the release checks complete; see the
+[release checklist](RELEASE_CHECKLIST.md) and [MVP progress](MVP.md).
 
 1. Open [Notes](https://forwardmotionnz.github.io/notes/) on your computer or
    phone. You need a GitHub account and an internet connection.
@@ -159,6 +159,18 @@ Obsidian would not understand, so both can work on the same repository.
   opened: shown here it would be garbled, and saved it would be destroyed.
 
 ## What it does
+
+**Today** in Files opens your daily note using your device's local date.
+Without Obsidian settings it uses `Daily/YYYY-MM-DD.md`. If your vault has
+`.obsidian/daily-notes.json`, Notes reads its folder, format and template
+without changing that file. An empty folder means the repository root.
+Common Moment year, month, day and time tokens and `[literal text]` work;
+unsupported filename formats fall back to `YYYY-MM-DD` with a notice.
+Templates support `{{title}}`, `{{date}}`, `{{time}}` and explicit formats
+such as `{{date:dddd, D MMMM YYYY}}`; template scripts are not executed.
+A new daily note is created only when saved (or after editing triggers
+autosave). Existing notes and drafts are preserved. Missing templates or
+invalid settings show an explanation and leave the current note alone.
 
 - Folder tree of the repository, collapse state remembered
 - Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once

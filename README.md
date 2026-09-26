@@ -314,8 +314,8 @@ of every browser on iOS. (That is Playwright's WebKit build on Linux, which
 catches engine differences; it is not an iPhone, so iOS-only behaviour such
 as Safari's storage limits is not covered.) `npm run test:chromium` or `npm run test:webkit`
 runs one on purpose; a missing engine fails the run rather than being
-skipped. Suites run four at a time (each has its own simulated GitHub and
-browser; `--jobs` changes it), and a run takes about a minute and a half. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
+skipped. Suites run up to twelve at a time (each has its own simulated
+GitHub and browser; `--jobs` changes it), and a run takes about a minute. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
 
 The browser is headless, with GitHub simulated and the real broker code in
 the loop. The simulation verifies the PKCE challenge, expires tokens and

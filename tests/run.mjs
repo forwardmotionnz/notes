@@ -6,10 +6,13 @@
     node tests/run.mjs webkit       one engine
     node tests/run.mjs --list       the suites it would run
     --dir <folder>                  suites from another folder (the runner's own test)
-    --jobs <n>                      suites run at once (default: CPUs, at most 4)
+    --jobs <n>                      suites run at once (default: 3 per CPU, at most 12)
 
   Each suite has its own fake GitHub and its own browser, so several can run
-  at once; each one's output is printed together when it finishes.
+  at once; each one's output is printed together when it finishes. Most of a
+  suite's time is waiting on the app, not CPU, hence more suites than CPUs.
+  (Measured on 4 CPUs: 4 at a time 109 s, 8 at a time 72 s, 12 at a time 60 s,
+  each three runs in a row without a failure.)
 
   An engine that is not installed fails the run, with the command that
   installs it. It is never skipped: a run that quietly left out Safari's
@@ -17,21 +20,24 @@
 */
 import { spawn } from 'node:child_process';
 import { cpus } from 'node:os';
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as playwright from 'playwright';
 import { ENGINES } from './harness.mjs';
 
 const args = process.argv.slice(2);
 const jobsAt = args.indexOf('--jobs');
-const jobs = jobsAt === -1 ? Math.max(1, Math.min(4, cpus().length)) : Number(args.splice(jobsAt, 2)[1]);
+const jobs = jobsAt === -1 ? Math.max(1, Math.min(12, 3 * cpus().length)) : Number(args.splice(jobsAt, 2)[1]);
 if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs needs a whole number from 1.'); process.exit(2); }
 const dirAt = args.indexOf('--dir');
 const here = dirAt === -1 ? new URL('./', import.meta.url)
   : new URL(args.splice(dirAt, 2)[1].replace(/\/?$/, '/'), 'file://' + process.cwd() + '/');
 // The policy suite goes first: when it fails it prints the hash to fix.
+// Then the biggest first (size stands in for how long a suite takes), so the
+// short ones fill in around them and the run ends sooner.
+const size = f => statSync(new URL(f, here)).size;
 const files = readdirSync(here).filter(f => f.endsWith('.test.mjs'))
-  .sort((a, b) => (b === 'csp.test.mjs') - (a === 'csp.test.mjs') || a.localeCompare(b));
+  .sort((a, b) => (b === 'csp.test.mjs') - (a === 'csp.test.mjs') || size(b) - size(a) || a.localeCompare(b));
 
 if (args[0] === '--list') { console.log(files.join('\n')); process.exit(0); }
 const unknown = args.filter(a => a.startsWith('--') && !['--list', '--engines'].includes(a));

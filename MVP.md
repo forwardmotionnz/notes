@@ -25,7 +25,7 @@ Iterations: 20 / 30
 | A2 | 14 | done | `tests/welcome.test.mjs` 19/19: at most three sentences of at most 20 words, above Sign in, saying what Notes is, that it reads and writes files only in repositories the app is installed on (which you choose), that notes stay there and whoever runs the copy's App can reach them; a Privacy link to `PRIVACY.html` (GitHub Pages publishes `PRIVACY.md` there) in a new tab; Sign in has the focus; Forget me promises no more than PRIVACY.md (the privacy test holds the README to that too); fits 320 px. Screens `tests/screens/a2-*.png`; commit d91783c |
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | blocked | Three failed gauntlet attempts on 2026-09-26. Latest: WebKit `auth.test.mjs`, older repository-list test, second Settings click blocked by a still-open dialog after Escape (candidate line 253). Logs: `tests/screens/f2-gauntlet{,-2,-3}/`; candidate patch: `tests/screens/f2-unfinished.patch`, extra regression suite: `tests/screens/f2-harness-regression.mjs.txt`. All unfinished F2 code/test/README changes reverted; no test removed from the baseline. |
-| F1 | 16 | todo | |
+| F1 | 16 | doing | Add a same-origin manifest, scalable favicon and PNG home-screen icons. Prove relative deployment paths, correct icon sizes, CSP allowance and no service worker with `tests/manifest.test.mjs`; inspect desktop/phone light/dark screenshots and the icon. |
 | F3 | 17 | todo | |
 | G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
 | H1 | 19 | todo | |
@@ -120,6 +120,12 @@ Iterations: 20 / 30
 - Gauntlet attempt 3 failed: `tests/screens/f2-gauntlet-3/run-1-webkit-auth.test.mjs.log`, the second Settings click in the older-list test timed out because the dialog still intercepted clicks after Escape. No further F2 fixes were attempted, as required by the three-failure rule. The failed runs were stopped, the candidate saved as an ignored patch, and every unfinished F2 test/helper/README change reverted. Earlier paragraphs describe the attempted candidate, not shipped code. Continue F1 and the remaining items with Chromium gauntlets; F2 remains a release blocker.
 - Done looks like: the harness takes the engine from `NOTES_TEST_ENGINE` (chromium or webkit); `npm test` runs every suite in both engines, and an engine that is not installed fails the run with the fix named, never a silent skip; the whole suite passes in WebKit.
 - Proof: `tests/runner.test.mjs` for the runner and harness choosing (unknown engine refused, missing engine fails, every suite file picked up by itself). The previous session could not install WebKit; this Windows session can run both engines. The CI matrix must also work with only its chosen engine installed.
+
+### F1: gauntlet record
+- Test first: `tests/f1-before.log` failed because the manifest, icons and links were absent. `tests/manifest.test.mjs` now passes 20/20 in Chromium, including actual browser manifest loading at `/notes/` and `/a-fork/` under CSP. It verifies relative start/scope, PNG dimensions, Apple metadata and no service worker.
+- Mutation: changing only `manifest-src 'self'` to `manifest-src *` sent the test's external manifest request and failed the browser security assertion (`tests/f1-mutation.log`); restored afterwards.
+- Fresh reviewer found no blocker. The iPhone/iPad home-screen app has separate sign-in and draft storage from Safari: README now says to save browser drafts first and sign in again; a test failed before that wording was added. This follows https://webkit.org/blog/14787/webkit-features-in-safari-17-2/ . Actual device installation and standalone OAuth still need the owner's real-phone smoke test; desktop emulation does not establish those behaviours.
+- Viewed `icon-512.png` and `tests/screens/f1-{desktop,phone}-{light,dark}.png`: clear paper icon, reachable controls and no horizontal overflow. Assets are static files beside the single HTML app; no build step, dependency, service worker or new external host. Full Chromium gauntlet passed three consecutive times, all 22 suites each time: `tests/screens/f1-gauntlet/run-{1,2,3}.json`. `index.html` is 119,216 bytes. WebKit remains blocked under F2.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -289,7 +295,7 @@ Iterations: 20 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
-- 2026-09-26 · F2 · blocked after three gauntlet failures; unfinished changes reverted · ledger commit pending
+- 2026-09-26 · F2 · blocked after three gauntlet failures; unfinished changes reverted · 1f6e274 (pushed)
 - 2026-09-25 · C1 · done · daa2754
 - 2026-09-25 · C2 · done · 493850a
 - 2026-09-25 · C3 · done · ec26502 (pushed once the owner granted access)

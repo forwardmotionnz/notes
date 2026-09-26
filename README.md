@@ -180,6 +180,11 @@ again: GitHub only shows them to a sign-in made during an SSO session.
 
 It is a web page, so any browser works: home, work, phone. Sign in once per
 browser. On a phone, open the URL and choose *Add to Home Screen*.
+The home-screen shortcut is named **Notes**, uses the paper icon and opens
+the app in its own window. It still needs a connection to GitHub to load
+and commit notes.
+On iPhone or iPad, sign in again in the home-screen app. Save any browser
+drafts first; they stay in the browser.
 
 On a work or shared computer, tick **Forget me when I close the browser**
 before signing in. The sign-in and drafts are kept for this browser session

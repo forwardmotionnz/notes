@@ -232,6 +232,12 @@ The app is 141,592 bytes with no new runtime dependency or host.
   task capture and note controls fit; no separate phone sheet or side panel.
 - `index.html` is 148,499 bytes; no new dependency, host or build step.
   The owner's lockfile hash is unchanged. Full CI is the final PR gate.
+- Initial full CI found one remaining obsolete interaction in `privacy`:
+  it filled the task box after opening source, when that box is now hidden.
+  Task creation now happens before editing the source draft; all storage,
+  broker and revocation assertions remain. The unchanged app passes 41/41
+  privacy checks in both engines (9 seconds). Chromium's other 36 suites
+  passed on `a7e21b1`; the final test-only follow-up receives CI validation.
 
 ### N10: verification — 2026-09-27
 - Completed: [PR #6](https://github.com/forwardmotionnz/notes/pull/6) merged

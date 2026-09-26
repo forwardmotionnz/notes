@@ -2,15 +2,20 @@
 
 ## Unreleased — MVP candidate
 
-This is an MVP candidate, not yet a finished release.
+This entry tracks the MVP and the next features; no version tag is published.
 The broker and its secret are configured, and the GitHub App is public.
 Safari fixes and MVP error recovery have been brought together; the
-release gate has not passed yet.
-The real-phone and real-GitHub smoke tests are still pending. See
+automated release checks passed, and the owner reported the real-phone and
+real-GitHub checks completed on 2026-09-27. See
 [MVP progress and exact owner steps](MVP.md).
 Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
+
+- Today opens or prepares the day's note, using the vault's Obsidian daily-note
+  folder, date format and template where configured. Nothing is created until
+  saved. Common date/time template placeholders work; unsupported filename
+  formats visibly fall back to `YYYY-MM-DD`.
 
 - One shared app can connect to personal and organisation repositories,
   including multiple installations and long repository lists. First-run

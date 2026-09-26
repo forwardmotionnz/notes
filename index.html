@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rKI+GS5RMEQYIsFOXP5cczgVGZg+y7U5gaH4t6NzS2Y=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ItInKnDf84crTQArPk3oB95HVn7bZYrXAynsV2mk+d4=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -576,6 +576,7 @@
       <div id="sidebar-tools">
         <input id="filter" type="search" placeholder="Filter files" autocomplete="off">
         <button class="plain" id="btn-new" title="New note">+</button>
+        <button class="plain" id="btn-today" title="Open today's daily note">Today</button>
         <button class="plain" id="btn-refresh" title="Refresh">&#8635;</button>
       </div>
       <div id="tree"></div>
@@ -2265,7 +2266,7 @@ function openFile(path, discarding) {
   // Read it only once that has settled, so the editor starts from what
   // GitHub really holds and never from the version before it.
   var ahead = inflight && inflight.key === draftKey(path) ? inflight.done : Promise.resolve();
-  ahead.then(function () { if (stillHere()) return readNote(path); }).then(function (r) {
+  return ahead.then(function () { if (stillHere()) return readNote(path); }).then(function (r) {
     if (!r || !stillHere()) return;
     ensureEditor();
     if (discarding) dropDraft(path);
@@ -2486,7 +2487,92 @@ function newFile() {
   startNote(path);
 }
 
-function startNote(path) {
+// Small Moment-compatible subset; unknown tokens never silently change paths.
+// https://obsidian.md/help/plugins/daily-notes
+function dailyDate(format, date) {
+  var months = "January February March April May June July August September October November December".split(" ");
+  var days = "Sunday Monday Tuesday Wednesday Thursday Friday Saturday".split(" ");
+  function pad(n) { return String(n).padStart(2, "0"); }
+  var day = date.getDate(), hour = date.getHours();
+  var tokens = { YYYY: String(date.getFullYear()), YY: pad(date.getFullYear() % 100),
+    MMMM: months[date.getMonth()], MMM: months[date.getMonth()].slice(0, 3),
+    MM: pad(date.getMonth() + 1), M: String(date.getMonth() + 1), DD: pad(day), D: String(day),
+    Do: day + (day > 10 && day < 14 ? "th" : ({1:"st",2:"nd",3:"rd"}[day % 10] || "th")),
+    dddd: days[date.getDay()], ddd: days[date.getDay()].slice(0, 3), dd: days[date.getDay()].slice(0, 2), d: String(date.getDay()),
+    HH: pad(hour), H: String(hour), hh: pad(hour % 12 || 12), h: String(hour % 12 || 12),
+    mm: pad(date.getMinutes()), m: String(date.getMinutes()), ss: pad(date.getSeconds()), s: String(date.getSeconds()),
+    A: hour < 12 ? "AM" : "PM", a: hour < 12 ? "am" : "pm" };
+  return format.replace(/\[[^\]]*\]|Do|([A-Za-z])\1*|[\[\]]/g, function (token) {
+    if (token[0] === "[" && token.length > 1) return token.slice(1, -1);
+    if (!(token in tokens)) throw new Error("Unsupported date format");
+    return tokens[token];
+  });
+}
+
+function dailyPath(path) {
+  if (typeof path !== "string" || /[\\\x00-\x1f:*?"<>|]/.test(path) ||
+      path.split("/").some(function (part) { return !part || part[0] === "." || part.trim() !== part; })) {
+    throw new Error("Daily note paths must be relative folders and filenames, without dot-folders.");
+  }
+  return path;
+}
+
+async function todayNote() {
+  var sequence = ++openSeq, epoch = pinEpoch, date = new Date(), notice = "", left = current;
+  // Cancelling an earlier open must not leave its still-visible note unsaveable.
+  if (left) left.leaving = false;
+  function here() { return sequence === openSeq && epoch === pinEpoch && signedIn(); }
+  try {
+    flash("Opening Today...");
+    var configFile = await readFile(".obsidian/daily-notes.json");
+    if (!here()) return;
+    var settings = configFile.sha ? JSON.parse(configFile.text) : { folder: "Daily" };
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new Error("Daily note settings are not a JSON object.");
+    var format = settings.format || "YYYY-MM-DD", name;
+    if (typeof format !== "string") throw new Error("Daily note date format must be text.");
+    try { name = dailyDate(format, date); }
+    catch (e) { name = dailyDate("YYYY-MM-DD", date); notice = "Unsupported daily date format; using YYYY-MM-DD."; }
+    var folder = settings.folder == null ? "" : settings.folder;
+    if (typeof folder !== "string") throw new Error("Daily note folder must be text.");
+    if (folder) dailyPath(folder);
+    var path = dailyPath((folder ? folder + "/" : "") + name + ".md");
+    if (current && current.path === path) {
+      document.body.classList.remove("tree-open");
+      editor.focus();
+      flash(notice);
+      return;
+    }
+    // A cached or truncated tree cannot prove absence.
+    var existing = await readFile(path);
+    if (!here()) return;
+    if (existing.sha || readDraft(path)) {
+      document.body.classList.remove("tree-open");
+      await openFile(path);
+      if (notice && epoch === pinEpoch && current && current.path === path) flash(notice, true);
+      return;
+    }
+    if (readOnly || accessPending) throw new Error(readOnly || "Repository access is still being checked. Press Today to retry.");
+    var text;
+    if (settings.template) {
+      var template = dailyPath(settings.template);
+      if (!/\.md$/i.test(template)) template += ".md";
+      var source = await readFile(template);
+      if (!here()) return;
+      if (!source.sha) throw new Error("Daily note template was not found: " + template);
+      text = source.text.replace(/\{\{(title|date|time)(?::([^}]+))?\}\}/g, function (_, type, fmt) {
+        if (type === "title") return path.split("/").pop().slice(0, -3);
+        return dailyDate(fmt || (type === "date" ? "YYYY-MM-DD" : "HH:mm"), date);
+      });
+    }
+    if (readOnly || accessPending) throw new Error(readOnly || "Repository access is still being checked.");
+    startNote(path, text);
+    flash(notice || "Today's note is ready. Save when you're ready to keep it.", !!notice);
+  } catch (err) {
+    if (here()) flash("Today could not open. " + (err.message || "Could not reach GitHub.") + " Press Today to retry.", true);
+  }
+}
+
+function startNote(path, text) {
   document.body.classList.remove("tree-open");
   openSeq++;
   // A note already there, or one typed but never committed: open it, never
@@ -2499,7 +2585,8 @@ function startNote(path) {
   ensureEditor();
   leaveCurrent();
   current = { path: path, sha: null, saved: "\u0000", template: true };   // sentinel: always dirty
-  editor.setValue("# " + path.split("/").pop().replace(/\.md$/i, "") + "\n\n");
+  if (text != null) current.base = baseOf(text);
+  editor.setValue(text == null ? "# " + path.split("/").pop().replace(/\.md$/i, "") + "\n\n" : current.base.body.replace(/\r\n?/g, "\n"));
   editorLock();
   editor.clearHistory();
   editor.refresh();
@@ -3383,6 +3470,7 @@ $("btn-discard").onclick  = discardDraft;
 $("btn-rename").onclick   = renameCurrent;
 $("btn-delete").onclick   = deleteCurrent;
 $("btn-new").onclick      = newFile;
+$("btn-today").onclick    = todayNote;
 $("btn-refresh").onclick  = refreshTree;
 $("fr-check").onclick     = checkRepos;
 $("f-retry").onclick      = checkRepos;

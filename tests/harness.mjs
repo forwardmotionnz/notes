@@ -572,6 +572,10 @@ export async function signIn(p, { remember = true } = {}) {
 export const rows = p => p.$$eval('#tree .row',
   els => els.map(e => e.textContent.replace(/[▸▾]/g, '').trim()));
 export const clickRow = async (p, name) => {
+  // The list may still be loading on a busy machine: wait for the row (not
+  // an error here; clicking a row that never comes does nothing, as before).
+  await p.waitForFunction(n => [...document.querySelectorAll('#tree .row')]
+    .some(e => e.textContent.replace(/[▸▾]/g, '').trim() === n), name, { timeout: 5000 }).catch(() => {});
   await p.$$eval('#tree .row', (els, n) => {
     const el = els.find(e => e.textContent.replace(/[▸▾]/g, '').trim() === n);
     if (el) el.click();
@@ -587,6 +591,10 @@ export const expand = async (p, name) => {
 };
 export const editorValue = p => p.evaluate(
   () => document.querySelector('#cm-stub, .fallback-editor')?.value ?? null);
+// Until every CSS transition and animation on the page has finished (the
+// phone's sheets slide for 180 ms): measure positions only after this.
+export const still = p => p.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'),
+  null, { timeout: 5000 }).catch(() => {});
 export const setEditor = (p, v) => p.evaluate(v => {
   const ta = document.querySelector('#cm-stub, .fallback-editor');
   ta.value = v; ta.dispatchEvent(new Event('input', { bubbles: true }));

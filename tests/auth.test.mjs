@@ -270,7 +270,10 @@ await H.start();
   const p = await H.page(ctx);
   await p.waitForSelector('#f-signin:not([disabled])');
   await p.click('#f-signin');
-  await H.settle(p, 700);
+  // Two page loads (to GitHub and back): on a busy runner that can outlast
+  // any fixed pause, so wait for the answer to be shown.
+  await p.waitForFunction(() => (document.getElementById('signin-error') || {}).textContent, null, { timeout: 5000 }).catch(() => {});
+  await H.settle(p, 300);
   t.check('cancelling on GitHub returns to sign-in with the reason',
     (await p.textContent('#signin-error')).includes('denied'), await p.textContent('#signin-error'));
   t.check("in the app's own words, not GitHub's", !/your application/i.test(await p.textContent('#signin-error')),

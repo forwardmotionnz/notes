@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-9TLZfVOuY07kbOpKCCiPGf5zmbPrJ1qMos2tOf6qaG8=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ViQis2CnaV9r1RHBq6liAnH1BitsKMsYUUjyW4q05FI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -331,7 +331,46 @@
     font-size: 13.5px;
   }
   .task:hover { background: var(--bg-sunk); }
+  /* The row keeps the look it had when it was the label itself. */
+  .task { margin-bottom: 11px; color: var(--fg-soft); }
+  .task label { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: inherit; }
   .task input { width: auto; flex: none; margin: 3px 0 0; accent-color: var(--accent); }
+  /* Remove: on hover (or keyboard focus) on desktop, always on a phone. */
+  .task .rm {
+    flex: none;
+    background: none;
+    border: none;
+    padding: 0 6px;
+    font-size: 16px;
+    line-height: 1.2;
+    color: var(--fg-soft);
+    opacity: 0;
+  }
+  .task:hover .rm, .task .rm:focus-visible { opacity: 1; }
+  .task .rm:hover { color: var(--danger); }
+  .task .rm:disabled { visibility: hidden; }
+  @media (hover: none) { .task .rm { opacity: 1; } }
+  .clear-done {
+    margin: 10px 4px 0;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-size: 12.5px;
+    color: var(--fg-soft);
+    text-decoration: underline;
+  }
+  #pin-undo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 8px 6px;
+    padding: 6px 8px;
+    border-radius: var(--radius);
+    background: var(--bg-sunk);
+    font-size: 12.5px;
+  }
+  #pin-undo[hidden] { display: none; }
+  #pin-undo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .task span { flex: 1; word-break: break-word; }
   .task.done span { color: var(--fg-soft); text-decoration: line-through; }
   .task-head {
@@ -486,6 +525,7 @@
     /* Never taller than the space there is: with the keyboard up that is
        much less than the screen, and the "Add a task" box is at the top. */
     #pins { max-height: 100%; }
+    .task .rm { opacity: 1; padding: 6px 12px; margin: -6px -4px -6px 0; }   /* a finger-sized target */
     body.pins-open #pins { transform: none; }
 
     #scrim {
@@ -548,6 +588,7 @@
         <input id="pin-input" placeholder="Add a task" autocomplete="off">
         <button id="pin-go" class="primary">Add</button>
       </div>
+      <div id="pin-undo" hidden><span></span><button type="button">Undo</button></div>
       <div id="pin-list"></div>
     </aside>
 
@@ -1659,6 +1700,7 @@ function applyAccess(reason) {
   editorLock();
   $("pin-input").disabled = !!reason;
   $("pin-go").disabled = !!reason;
+  if (reason) hideUndo();
   if (was !== reason) renderPins();
   if (reason && reason !== was) flash(reason, true);
 }
@@ -1672,7 +1714,10 @@ var loadNote = "";             // said once the next file list is in (it clears 
    is in, nothing is written; an answer about a repository no longer shown
    is ignored; no answer at all (offline) blocks nothing, since writes
    would fail anyway and drafts keep the text. */
-var pinWriting = Promise.resolve();   // the last pinned-task commit, settling either way
+var pinWriting = Promise.resolve();   // every pinned-task commit asked for so far, settling either way
+var pinNext = pathMap();   // path -> { raw, text, onFail } waiting for the commit before it
+var pinBusy = pathMap();   // path -> true while a commit to it is on its way
+var pinEpoch = 0;          // counts changes of repository: a reply from before one is ignored
 var accessSeq = 0;
 var accessPending = false;
 
@@ -2414,6 +2459,7 @@ function followMove(from, to) {
     setCrumb(to, dirty() ? "(unsaved)" : "");
   }
   cfg.pins = cfg.pins.map(function (p) { return p === from ? to : p; });
+  if (pinUndo && pinUndo.path === from) pinUndo.path = to;
   if (pinCache[from]) { pinCache[to] = pinCache[from]; delete pinCache[from]; }
   if (ui.last === from) ui.last = to;
   saveCfg();
@@ -2542,6 +2588,7 @@ function renderPinTabs() {
     b.textContent = path.split("/").pop();
     if (i === ui.pin) b.className = "active";
     b.onclick = function () {
+      if (ui.pin !== i) hideUndo();       // it would undo in a list no longer shown
       ui.pin = i;
       persist(UI_KEY, ui);
       renderPinTabs();
@@ -2590,14 +2637,17 @@ function renderPins() {
 
   var lines = cached.text.split("\n");
   var any = false;
+  var ticked = [];
 
   lines.forEach(function (line, index) {
     var task = line.match(/^(\s*[-*]\s+)\[([ xX])\]\s?(.*)$/);
     if (task) {
       any = true;
       var done = task[2].toLowerCase() === "x";
-      var row = document.createElement("label");
+      if (done) ticked.push({ index: index, line: line });
+      var row = document.createElement("div");
       row.className = "task" + (done ? " done" : "");
+      var lab = document.createElement("label");
       var box = document.createElement("input");
       box.type = "checkbox";
       box.checked = done;
@@ -2605,8 +2655,20 @@ function renderPins() {
       box.onchange = function () { toggleTask(path, index, box.checked); };
       var txt = document.createElement("span");
       txt.textContent = task[3];             // a line of the note: text, never markup
-      row.appendChild(box);
-      row.appendChild(txt);
+      lab.appendChild(box);
+      lab.appendChild(txt);
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "rm";
+      rm.textContent = "\u00d7";
+      rm.title = "Remove";
+      rm.setAttribute("aria-label", "Remove task: " + task[3]);   // an attribute's value: text
+      rm.disabled = !!readOnly;
+      rm.onclick = function () {
+        removeTasks(path, [{ index: index, line: line }], "Removed \u201c" + task[3] + "\u201d.");
+      };
+      row.appendChild(lab);
+      row.appendChild(rm);
       host.appendChild(row);
       return;
     }
@@ -2619,6 +2681,17 @@ function renderPins() {
       host.appendChild(h);
     }
   });
+
+  if (ticked.length && !readOnly) {
+    var clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "clear-done";
+    clear.textContent = "Clear " + ticked.length + " done";
+    clear.onclick = function () {
+      removeTasks(path, ticked, "Cleared " + ticked.length + (ticked.length === 1 ? " done task." : " done tasks."));
+    };
+    host.appendChild(clear);
+  }
 
   if (!any) {
     var e2 = document.createElement("div");
@@ -2634,6 +2707,69 @@ function toggleTask(path, index, checked) {
   var lines = cached.text.split("\n");
   lines[index] = lines[index].replace(/\[([ xX])\]/, checked ? "[x]" : "[ ]");
   if (commitPin(path, lines.join("\n")) === false) renderPins();   // not saved: show it as it is
+}
+
+/* Remove task lines in one commit, with a moment to undo instead of a
+   question first (the repository's history keeps every line anyway).
+   `gone` is [{ index, line }] as the rows were drawn, in order. */
+var pinUndo = null;   // { path, gone, timer } while Undo is offered; withdrawn on changing repository
+
+function removeTasks(path, gone, said) {
+  var cached = pinCache[path];
+  if (!cached) return;
+  var lines = cached.text.split("\n");
+  // The file changed since the rows were drawn: remove nothing, never the wrong line.
+  if (!gone.every(function (g) { return lines[g.index] === g.line; })) { renderPins(); return; }
+  for (var i = gone.length - 1; i >= 0; i--) lines.splice(gone[i].index, 1);
+  var left = lines.join("\n");
+  // Undo puts the lines back by position, so it keeps the text they were
+  // taken from, to check the positions still mean the same thing.
+  var offer = { path: path, gone: gone.slice(), left: left, said: said };
+  var ok = commitPin(path, left, function () { if (pinUndo === offer) hideUndo(); });
+  if (ok === false) { renderPins(); return; }
+  showUndo(offer);
+}
+
+function showUndo(offer) {
+  hideUndo();
+  pinUndo = offer;
+  var bar = $("pin-undo");
+  bar.firstChild.textContent = offer.said;   // carries a task's words: text
+  bar.hidden = false;
+  offer.timer = setTimeout(function () { if (pinUndo === offer) hideUndo(); }, 8000);
+}
+
+function hideUndo() {
+  if (pinUndo) clearTimeout(pinUndo.timer);
+  pinUndo = null;
+  $("pin-undo").hidden = true;
+}
+
+// A tick is not a move: text compares with its boxes cleared.
+function untick(text) { return text.replace(/^(\s*[-*]\s+)\[[xX]\]/gm, "$1[ ]"); }
+
+function undoRemove() {
+  var u = pinUndo;
+  if (!u) return;
+  var cached = pinCache[u.path];
+  if (!cached) { flash("Still loading that file. Try Undo again in a moment.", true); return; }
+  // The positions hold only in the text the lines were taken from, give or
+  // take ticks and tasks added at the end since. Anything else (lines added
+  // or removed above, here or in another tab) and a line would land in the
+  // wrong place: nothing is put back, and the history on GitHub still has it.
+  var now = untick(cached.text), then = untick(u.left);
+  if (now !== then && now.indexOf(then.replace(/\s*$/, "") + "\n") !== 0) {
+    hideUndo();
+    flash("Not undone: the list has changed since. The removed lines are in the file's history on GitHub.", true);
+    return;
+  }
+  var lines = cached.text.split("\n");
+  // In order, so each line goes back where it was.
+  u.gone.forEach(function (g) { lines.splice(g.index, 0, g.line); });
+  // Offered until GitHub has taken it: a refusal or a failure offers it again
+  // (and the check above then says if the file has moved on).
+  var ok = commitPin(u.path, lines.join("\n"), function () { showUndo(u); });
+  if (ok !== false) hideUndo();
 }
 
 function addTask() {
@@ -2664,20 +2800,48 @@ function commitPin(path, text, onFail) {
   renderPins();
   flash("Saving...");
 
-  pinWriting = writeFile(path, raw, sha).then(function (r) {
+  /* Each commit names the version it replaces, and the next version is
+     known only once GitHub answers. So writes to a pinned file go one at a
+     time: clicks while one is on its way wait, and share one commit that
+     carries the latest state. https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents */
+  var job = pinNext[path] || { onFail: [] };
+  job.raw = raw;
+  job.text = text;
+  if (onFail) job.onFail.push(onFail);
+  pinNext[path] = job;
+  if (!pinBusy[path]) pinWriting = Promise.all([pinWriting, sendPin(path)]);
+}
+
+function sendPin(path) {
+  var job = pinNext[path];
+  var epoch = pinEpoch;
+  delete pinNext[path];
+  pinBusy[path] = true;
+  var sha = pinCache[path] ? pinCache[path].sha : null;
+  return writeFile(path, job.raw, sha).then(function (r) {
+    if (pinEpoch !== epoch) return;      // another repository by now
     if (pinCache[path]) pinCache[path].sha = r.sha;
+    // The open note follows every commit, so a later one failing leaves it
+    // at what GitHub has, not a version behind.
     if (current && current.path === path && !dirty()) {
       current.sha = r.sha;
-      current.saved = text;
-      current.base = baseOf(raw);
-      editor.setValue(text);
+      current.saved = job.text;
+      current.base = baseOf(job.raw);
+      editor.setValue(job.text);
     }
+    if (pinNext[path]) return sendPin(path);
+    delete pinBusy[path];
     if (!files.some(function (f) { return f.path === path; })) refreshTree();   // a new file
     flash("Saved");
   }).catch(function (err) {
-    delete pinCache[path];     // drop bad state and reload from the server
+    // What was waiting was built on this commit: not sent on a guess.
+    if (pinEpoch !== epoch) { fail(err); return; }
+    var waiting = pinNext[path];
+    delete pinNext[path];
+    delete pinBusy[path];
+    delete pinCache[path];       // drop bad state and reload from the server
     renderPins();
-    if (onFail) onFail();
+    job.onFail.concat(waiting ? waiting.onFail : []).forEach(function (f) { f(); });
     fail(err);
   });
 }
@@ -2905,7 +3069,13 @@ function pointAt(owner, repo, branch, pins) {
 }
 
 function showPointed(changedRepo) {
-  pinCache = pathMap();
+  // Same repository (pins or settings saved): a pinned file with a commit
+  // on its way keeps what it is writing, and what waits behind it, rather
+  // than a read taken before the commit lands.
+  var keep = pathMap();
+  if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
+  pinCache = keep;
+  if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); hideUndo(); }
   ui.pin = 0;
   if (changedRepo) {
     files = [];                  // the old repository's list is not this one's
@@ -3044,6 +3214,7 @@ $("settings").addEventListener("cancel", function (e) {
   if (!configured()) e.preventDefault();
 });
 $("pin-go").onclick       = addTask;
+$("pin-undo").lastChild.onclick = undoRemove;
 
 $("pin-input").addEventListener("keydown", function (e) {
   if (e.key === "Enter") { e.preventDefault(); addTask(); }

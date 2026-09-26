@@ -6,7 +6,7 @@ await H.start();
 
 const repo = extra => [{ owner: { login: 'roldaof' }, name: 'vault', full_name: 'roldaof/vault',
                          default_branch: 'main', private: true, ...extra }];
-const FILES = () => ({ 'todo.md': '- [ ] one\n', 'inbox.md': 'hello\n' });
+const FILES = () => ({ 'todo.md': '- [ ] one\n- [x] two\n', 'inbox.md': 'hello\n' });
 
 async function readOnlyCase(name, extra, reason) {
   const gh = H.fakeGitHub({ files: FILES(), repos: repo(extra) });
@@ -28,6 +28,8 @@ async function readOnlyCase(name, extra, reason) {
   t.check(`${name}: Save is off`, (await p.isDisabled('#btn-save')) || !(await p.isVisible('#btn-save')));
   t.check(`${name}: the pinned capture is off`, await p.isDisabled('#pin-input') &&
     await p.evaluate(() => [...document.querySelectorAll('#pin-list input')].every(b => b.disabled)));
+  t.check(`${name}: no task can be removed`,
+    await p.evaluate(() => [...document.querySelectorAll('#pin-list button')].every(b => b.disabled || b.hidden)));
   t.check(`${name}: nothing was ever sent`, gh.commits.length === 0 && !gh.log.refusedWrites,
     String(gh.log.refusedWrites));
   t.check(`${name}: no draft either`, await p.evaluate(() =>

@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 24 / 30
+Iterations: 26 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -29,11 +29,16 @@ Iterations: 24 / 30
 | F3 | 17 | done | `tests/keyboard.test.mjs` 29/29: with the keyboard up (faked `visualViewport` at real iPhone 14 and SE heights, and panned), the header buttons stay on screen and tappable, the editor ends at the keyboard and typing at the end of a long note keeps the caret in view, the pinned-tasks "Add a task" box and Add stay above it; pinch zoom leaves the layout alone; every field is 16px on phones; panning does not move the note; Android asked to resize (`interactive-widget`). GitHub Actions run 32 (https://github.com/forwardmotionnz/notes/actions/runs/36216435977): three in a row, both engines, green. Screens `tests/screens/f3-*.png`. Commits 7219a9b, 07173fe; merged in forwardmotionnz/notes#2 |
 | N6 | 17a | done | a 32 px PNG tab icon beside the SVG (older Safari); `tests/manifest.test.mjs` 30/30 checks every tab-icon link (exists, type, real size, served type); run 32, both engines, green. Commit 74c2291; merged in forwardmotionnz/notes#2 |
 | N7 | 17b | done | a full local run about 300 s -> 73 s (8 suites at a time; three runs green); CI runs the repeats as side-by-side jobs, three over in both engines in 5 min 42 s instead of about 35 min (run 43, https://github.com/forwardmotionnz/notes/actions/runs/36221083063, green). 367 short fixed pauses became `H.settle`; four missing checks found and added; the review's hollow check restored. Commits 5574a13, 47b968c, b1a75bd, 66dbef4, ae130fa |
+| N8 | 17c | done | `tests/app.test.mjs` 70/70, new cases with GitHub slowed to 0.4-0.8 s a commit: three quick ticks all land with nothing refused and two commits; tick then untick ends as it began; a tick and a quick capture both land; a failed commit sends nothing after it, shows GitHub's state and the error, and puts the waiting capture back; a change made elsewhere is still a conflict and kept; changing repository mid-commit; saving settings mid-commit; the open note follows each commit. Commit in the log |
+| N9 | 17d | done | `tests/tasks.test.mjs` 52/52 (new suite): a remove control per task, named for it; removes that one line in one commit, no question; Undo puts it back exactly and goes after 8 s or once used; Clear done removes every ticked task and only them, in one commit, with Undo; CRLF kept; remove, untick and clear while GitHub is slow all land; a stale row removes nothing; a failed remove keeps the task and offers no Undo; Undo withdrawn on changing repository, switching list, or the repository becoming read-only; Undo refuses when lines were added above (incl. a blank line under each heading), still works after a tick or a capture, stays on offer while it cannot be sent yet, comes back after a refusal, and follows a rename; × always shown on a phone, on hover on a computer. `tests/access.test.mjs`: no task can be removed read-only. Screens `tests/screens/n9-{desktop,phone}-{light,dark}-{list,undo}.png`. Commit in the log |
 | G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review (offline refresh signing out): fixed in F2 (2a86afd). Also from F2: `broker()` has no timeout, so a stalled connection holds the refresh lock until the browser gives up. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
-| S1 | 22 | todo | SHOULD |
+| N10 | 21a | todo | |
+| N11 | 21b | todo | |
+| N12 | 21c | todo | S1 brought forward as a MUST at the owner's request |
+| S1 | 22 | moved | now N12 |
 | S2 | 23 | todo | SHOULD |
 | S3 | 24 | todo | SHOULD |
 | S4 | 25 | todo | SHOULD |
@@ -133,6 +138,26 @@ Iterations: 24 / 30
 ### N7: plan (asked by the owner, 2026-09-26)
 - Done looks like: a full run takes about a minute or two instead of five, and is less sensitive to a slow machine. The 394 fixed pauses (about 232 s of waiting per run) become waits for the condition each one stands for, and the runner runs several suites at once (each has its own fake GitHub and browser). No check is weakened or removed; every check still fails for the right reason.
 - Proof: timings before and after; every suite passes three runs in a row in both engines; a sample of each suite's checks reverted against the app still caught (G-2 across the suites, not only one); the runner's own tests extended for parallel runs (a failure in one suite still fails the run, output stays per suite).
+
+### Owner's requests (2026-09-26), in the order agreed
+Reviewed with the owner before adding; decisions: pinned files move into the file tree and the side panel goes; daily notes follow the vault's Obsidian settings.
+
+### N8: plan: quick clicks on a pinned task end in "Conflict"
+- Cause (found in the code): each tick is a commit naming the version of the file it replaces, and the app learns the new version only when GitHub answers; a second tick in that time names the old version, GitHub refuses it (409), and the app reloads, losing that tick. The simulated GitHub accepted it ("rapid toggles all land" passes), which breaks rule 6.
+- Done looks like: first the fake refuses a stale sha as GitHub does, and the test fails for this bug; then pinned-task writes go to GitHub one at a time per file, each waiting for the last, several quick clicks may share one commit carrying the latest state, and no click is lost or reported as a conflict.
+
+### N9: plan: remove tasks
+- Done looks like: each task has a remove control (always visible on a phone, on hover on desktop) that removes that one line in one commit, with a short "Removed · Undo"; and "Clear done" removes every ticked task in one commit. No confirmation step (the history keeps every line). Goes through the same one-at-a-time writing as N8.
+
+### N10: plan: today's daily note
+- Done looks like: a Today button opens today's note, creating it only when first saved (like New). Folder, date format and template come from the vault's `.obsidian/daily-notes.json` when there is one (read, never written), otherwise `Daily/YYYY-MM-DD.md` with a heading. Obsidian's date tokens that matter (YYYY, MM, DD, and common variants) are honoured; an unsupported format falls back to the default and says so.
+
+### N11: plan: pin and unpin; pinned files at the top of the tree
+- Done looks like: a pin toggle beside the open note's name; a "Pinned" section at the top of the file tree; opening a pinned file shows it as a checklist (tick, add, remove, as now) in the main area; the right-hand pins panel is removed (and the phone's bottom sheet with it). Pins stay per browser, stored with the settings, and the app says so; the Settings field for pins goes.
+- Decision: pins are not written into the repository (rule 2: no app-specific files in the user's repo). Syncing them between devices is left for later.
+
+### N12: plan: rendered preview (was S1)
+- Done looks like: a Preview toggle beside Save shows the note rendered (headings, tables, task lists, links, code), read-only; frontmatter shown as a small box; wikilinks open notes as E1 does. Rendered with `marked` and sanitised with `DOMPurify`, both from cdnjs, with the page's policy allowing exactly those two files (hashes pinned where cdnjs can be reached); no script from a note ever runs (tested with hostile notes). If the CDN is down, Preview says so and the text stays as it is.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -315,6 +340,21 @@ Iterations: 24 / 30
 - The runner's own tests: parallel output stays per suite, one at a time gives the same verdict, `--jobs` must be a whole number from 1; failing and crashing suites still fail the run.
 - G-3 findings, all taken: (1) real: "no commit while typing steadily" had become hollow. Typing makes no request, so each settle returned after the floor, the six keystrokes fitted inside one 2 s autosave window, and a mutant whose keystrokes did not push autosave back passed. Every pause in the autosave suite is fixed again (they measure time against the app's timer), and that mutant is caught again. (2) settle watched one tab while three auth checks were about another tab reacting to a storage event or a Web Lock, which make no request: settle now watches every tab of the test, and those three checks keep their fixed pauses. (3) The app spent 128 ms encoding a 1 MB note before its request started, past the 100 ms floor: the floor is now 150 ms. (4) The pins-sheet check waits out its 180 ms slide again (fixed 260 ms). (5) The new rename check counts every request to GitHub, not only git calls. Checked by the reviewer: Playwright counts a request held by a route handler as in flight until it is fulfilled, and aborted ones as finished; parallel suites share no port, file or state.
 - G-4: no visible change. G-5: tests only. G-6: README's Tests section.
+### N8: gauntlet record
+- Cause, confirmed by a test before the fix: each pinned-task commit names the version it replaces, the next version is known only when GitHub answers, and a click in that moment (hundreds of milliseconds on real GitHub) named the old one; GitHub refused it with 409 and the click was lost behind "Conflict. The file changed on the server.". The simulated GitHub already refused a stale sha as GitHub does (the ledger's plan was wrong to suspect it); it answered instantly, so the old "rapid toggles all land" could not see the race. The new tests hold each commit for a few hundred milliseconds; before the fix they failed 14 checks with exactly the owner's message.
+- Fix: writes to a pinned file go one at a time. A click while one is on its way waits; several waiting clicks share one commit carrying the latest state. If a commit fails, what waited behind it is not sent (it was built on that commit): the list reloads from GitHub, the error shows, and a waiting capture goes back into the box.
+- G-1: three full local runs green in Chromium (74-75 s each), before and after the review's fixes; WebKit in GitHub Actions (see the log).
+- G-2: seven safeguards broken one at a time, each caught: writes not serialised (14 checks); the waiting commit never sent (3); a failed commit's waiting capture not returned (1); the waiting commit sent after a failure (1); a reply from the previous repository accepted (2); the queue not reset on changing repository (1); the queue reset on saving settings (4, and 3 when only the cache entry is dropped); the open note not following a commit that has another behind it (2).
+- G-3 findings: (1) and (2) real: saving settings with the same repository reset the queue, so a task waiting behind a commit was silently lost, and the next tick was a conflict again. Now the queue, and the list of a file being written, are kept unless the repository changes. (3) real: with a commit waiting, the open (unedited) note was not updated when the first landed, so a failed second left it a version behind and the next save was a conflict with the person's own tick; the open note now follows every commit. Re-review: all three fixed. Accepted: switching to another repository and back inside one commit's wait (seconds) can still give a conflict on the next tick; nothing saved is lost, the error shows and the list reloads.
+- G-4: no visible change. G-5: 126 KB, no new dependency. G-6: README's feature list says quick clicks share a commit.
+### N9: gauntlet record
+- × on each task removes that one line in one commit; "Clear N done" removes every ticked task in one commit. No question first: a bar in the pinned panel says what went, with **Undo**, for 8 seconds (the repository's history keeps every line anyway). Both go through N8's one-at-a-time writes. A row drawn from text that has changed since removes nothing (never the wrong line).
+- Undo puts lines back by position, so it checks the positions still mean the same: the file must be the text the removal left, give or take ticks and tasks added at the end. Anything else (lines added or removed above, here or in another tab) and Undo refuses and says the lines are in GitHub's history. It stays on offer while it cannot be sent (access being checked, list loading), comes back if its commit is refused, follows a rename, and is withdrawn when another list is shown, the repository changes, or the repository becomes read-only.
+- G-1: three full local runs green in Chromium (75 s each, 27 suites); WebKit in GitHub Actions (see the log).
+- G-2: 15 safeguards broken one at a time, each caught: the stale-row check (2 checks); lines removed front to back (2); Undo in reverse order (1); Undo kept after a failed remove (1), on changing repository (1), on switching list (1), on the repository becoming read-only (1); the × enabled read-only (2, access suite); Clear done shown read-only (2, access suite, after giving that suite a ticked task); Undo without the whole-file check (2); ticks counted as a change (1); captures counted as a change (1); Undo hidden before it is accepted (2); no re-offer after a refusal (1); Undo not following a rename (1). Removed as untestable and redundant: Undo checking the repository itself (the offer is already withdrawn when the repository changes).
+- G-3 findings, all taken: (1) Undo put lines back by number after lines were added above, into another section; first fixed with a line-above check, which the re-review showed fooled by a blank line under each heading; now the whole-file check above. (2) Undo lost when refused (access check running, list loading): kept on offer. (3) Undo lost on rename: follows it. (4) Undo left up over another list, or on a read-only repository: withdrawn. Re-review: (5) Undo lost after a conflict with another tab: offered again, and then explains. Also taken: the × on a phone is a finger-sized target (about 31 x 33 px).
+- G-4: screens above; the rows keep their old spacing (the row is now a div around the label, and the settings form's label margin no longer leaks in). No overflow at 390 px.
+- G-5: 131 KB, no new dependency. G-6: README's feature list.
 
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
@@ -336,6 +376,7 @@ Iterations: 24 / 30
 - 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
 - 2026-09-26: `main` is protected by a ruleset (pull requests only); merges now go through a pull request, the first being forwardmotionnz/notes#1 (F2 and F1), merged at the owner's request.
 - 2026-09-26: F3 and N6 merged into `main` in forwardmotionnz/notes#2 at the owner's request, before N7.
+- 2026-09-26: Owner's requests N8-N12 added after review with the owner: the two bugs they hit (N8, N9) go before G3; the rest after the MUSTs; S1 (preview) is now N12. Pinned files move into the file tree and the side panel goes; pins stay per browser (rule 2).
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -364,3 +405,5 @@ Iterations: 24 / 30
 - 2026-09-26 · F3 · done · 7219a9b, 07173fe
 - 2026-09-26 · N6 · done · 74c2291
 - 2026-09-26 · N7 · done · 5574a13…ae130fa
+- 2026-09-26 · N8 · done · 9d690c3 (CI run 50: 5 of 6 jobs green; the delete suite's wait was too short on one runner, fixed on its own in the next commit)
+- 2026-09-26 · N9 · done · 6d53c3d; the delete suite's wait fixed in 30c52b7. CI run 52 (three runs, both engines) then failed once each in auth (WebKit), drafts (Chromium) and keyboard (WebKit), all tests waiting a fixed time on a busy runner; each now waits for what it measures (b062db7). CI run 53: all six jobs green (Chromium and WebKit, three runs each).

@@ -162,6 +162,190 @@ async function setPins(p, pins) {
   await ctx.close();
 }
 
+/* ===== quick clicks while GitHub is slow (N8) ===== */
+// Real GitHub takes a moment to commit. A click in that moment used to name
+// the version before the last one, GitHub refused it (409), and the click
+// was lost behind a "Conflict" message. Every PUT here is held for `ms`.
+async function slowPuts(ctx, p, ms, answer) {
+  const seen = [];
+  p.on('response', r => { if (r.request().method() === 'PUT') seen.push(r.status()); });
+  let n = 0;
+  await ctx.route('https://api.github.com/repos/**/contents/**', async r => {
+    if (r.request().method() !== 'PUT') return r.fallback();
+    const i = n++;
+    await new Promise(res => setTimeout(res, ms));
+    if (answer && answer(i)) return answer(i)(r);
+    return r.fallback();
+  });
+  return seen;
+}
+const THREE = () => ({ gh: { files: { 'todo.md': '- [ ] one\n- [ ] two\n- [ ] three\n' } } });
+const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked));
+{
+  const { gh, ctx, p } = await ready(THREE());
+  const seen = await slowPuts(ctx, p, 400);
+  const before = gh.commits.length;
+  for (let i = 0; i < 3; i++) await p.locator('#pin-list .task input').nth(i).click();
+  await H.settle(p, 4000);
+  t.check('slow GitHub: three quick ticks all land',
+    gh.files['todo.md'] === '- [x] one\n- [x] two\n- [x] three\n', JSON.stringify(gh.files['todo.md']));
+  t.check('slow GitHub: nothing refused', seen.length > 0 && seen.every(s => s === 200), JSON.stringify(seen));
+  t.check('slow GitHub: no error shown', !(await p.getAttribute('#status', 'class') || '').includes('err'),
+    await p.textContent('#status'));
+  t.check('slow GitHub: the list shows all three ticked', JSON.stringify(await boxes(p)) === '[true,true,true]');
+  t.check('slow GitHub: clicks while one commit is on its way share the next',
+    gh.commits.length - before === 2, `${gh.commits.length - before} commits`);
+  t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const { gh, ctx, p } = await ready(THREE());
+  const seen = await slowPuts(ctx, p, 400);
+  const box = p.locator('#pin-list .task input').nth(1);
+  await box.click();
+  await box.click();
+  await H.settle(p, 4000);
+  t.check('slow GitHub: tick then untick ends as it began',
+    gh.files['todo.md'] === '- [ ] one\n- [ ] two\n- [ ] three\n', JSON.stringify(gh.files['todo.md']));
+  t.check('slow GitHub: untick not refused', seen.every(s => s === 200), JSON.stringify(seen));
+  t.check('slow GitHub: the list shows the last click', JSON.stringify(await boxes(p)) === '[false,false,false]');
+  await ctx.close();
+}
+{
+  const { gh, ctx, p } = await ready(THREE());
+  const seen = await slowPuts(ctx, p, 400);
+  await p.locator('#pin-list .task input').nth(0).click();
+  await p.fill('#pin-input', 'four');
+  await p.press('#pin-input', 'Enter');
+  await H.settle(p, 4000);
+  t.check('slow GitHub: a tick and a quick capture both land',
+    gh.files['todo.md'] === '- [x] one\n- [ ] two\n- [ ] three\n- [ ] four\n', JSON.stringify(gh.files['todo.md']));
+  t.check('slow GitHub: capture not refused', seen.every(s => s === 200), JSON.stringify(seen));
+  await ctx.close();
+}
+{
+  // The first commit fails: what was waiting behind it is not sent on a
+  // guess, the list goes back to what GitHub has, and the error is shown.
+  const { gh, ctx, p } = await ready(THREE());
+  const seen = await slowPuts(ctx, p, 400, i => i === 0 && (r => r.fulfill({ status: 502,
+    contentType: 'application/json', body: '{"message":"Server Error"}' })));
+  await p.locator('#pin-list .task input').nth(0).click();
+  await p.locator('#pin-list .task input').nth(1).click();
+  await p.fill('#pin-input', 'four');
+  await p.press('#pin-input', 'Enter');
+  await H.settle(p, 4000);
+  t.check('failed commit: nothing sent after it', JSON.stringify(seen) === '[502]', JSON.stringify(seen));
+  t.check('failed commit: the file is untouched', gh.files['todo.md'] === '- [ ] one\n- [ ] two\n- [ ] three\n');
+  t.check('failed commit: the list shows what GitHub has', JSON.stringify(await boxes(p)) === '[false,false,false]',
+    JSON.stringify(await boxes(p)));
+  t.check('failed commit: the error is shown', (await p.getAttribute('#status', 'class')) === 'err',
+    await p.textContent('#status'));
+  t.check('failed commit: the waiting capture goes back in the box', (await p.inputValue('#pin-input')) === 'four');
+  await ctx.close();
+}
+{
+  // A change made elsewhere is still a conflict: the queue never writes over it.
+  const { gh, ctx, p } = await ready(THREE());
+  await slowPuts(ctx, p, 200);
+  gh.files['todo.md'] = '- [ ] one\n- [ ] two\n- [ ] three\n- [ ] from the phone\n';
+  gh.touch();
+  await p.locator('#pin-list .task input').nth(0).click();
+  await p.locator('#pin-list .task input').nth(1).click();
+  await H.settle(p, 4000);
+  t.check('change elsewhere: kept', gh.files['todo.md'].endsWith('- [ ] from the phone\n')
+    && !gh.files['todo.md'].includes('[x]'), JSON.stringify(gh.files['todo.md']));
+  t.check('change elsewhere: reported as a conflict', (await p.textContent('#status')).includes('Conflict'),
+    await p.textContent('#status'));
+  await ctx.close();
+}
+
+{
+  // A pinned commit still on its way when another repository is chosen:
+  // its reply belongs to the old repository, and says nothing about the
+  // new one's version of a file with the same name.
+  const repos = ['alpha', 'beta'].map(name => ({ owner: { login: 'roldaof' }, name,
+    full_name: 'roldaof/' + name, default_branch: 'main', private: true }));
+  const { gh, ctx, p } = await ready({ gh: { ...THREE().gh, repos } });
+  await p.waitForSelector('#f-save:not([disabled])');
+  await p.selectOption('#f-repo', { label: 'roldaof/alpha' });
+  await p.click('#f-save');
+  await H.settle(p, 500);
+  const seen = [];
+  p.on('response', r => { if (r.request().method() === 'PUT') seen.push(r.url().split('/repos/')[1].split('/')[1] + ' ' + r.status()); });
+  // alpha is another repository: answered as GitHub would, with alpha's new version
+  await ctx.route('https://api.github.com/repos/roldaof/alpha/contents/**', async r => {
+    if (r.request().method() !== 'PUT') return r.fallback();
+    await new Promise(res => setTimeout(res, 800));
+    return r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ content: { path: 'todo.md', sha: 'a1'.repeat(20) } }) });
+  });
+  // beta's commits are slow too, so alpha's reply arrives while one is on its way
+  await ctx.route('https://api.github.com/repos/roldaof/beta/contents/**', async r => {
+    if (r.request().method() === 'PUT') await new Promise(res => setTimeout(res, 800));
+    return r.fallback();
+  });
+  await p.locator('#pin-list .task input').nth(0).click();
+  await p.click('#btn-settings');
+  await p.waitForSelector('#f-save:not([disabled])');
+  await p.selectOption('#f-repo', { label: 'roldaof/beta' });
+  await p.click('#f-save');
+  await p.waitForFunction(() => document.querySelectorAll('#pin-list .task input:not(:checked)').length === 3);
+  await p.locator('#pin-list .task input').nth(1).click();
+  await p.locator('#pin-list .task input').nth(2).click();
+  await H.settle(p, 4000);
+  t.check('changed repository mid-commit: the new one\'s ticks land',
+    gh.files['todo.md'] === '- [ ] one\n- [x] two\n- [x] three\n', JSON.stringify(gh.files['todo.md']) + ' ' + JSON.stringify(seen));
+  t.check('changed repository mid-commit: nothing refused', seen.every(x => x.endsWith(' 200')), JSON.stringify(seen));
+  await ctx.close();
+}
+
+{
+  // Review: saving settings (same repository) while a commit is on its way
+  // dropped what waited behind it, and the next tick was a conflict again.
+  const { gh, ctx, p } = await ready(THREE());
+  const seen = await slowPuts(ctx, p, 800);
+  await p.locator('#pin-list .task input').nth(0).click();
+  await p.fill('#pin-input', 'milk');
+  await p.press('#pin-input', 'Enter');
+  await p.click('#btn-settings');
+  await p.waitForSelector('#f-save:not([disabled])');
+  await p.click('#f-save');
+  const kept = await p.waitForFunction(() => document.querySelectorAll('#pin-list .task input').length === 4,
+    null, { timeout: 3000 }).then(() => true, () => false);
+  t.check('settings saved mid-commit: the list keeps what is being written', kept);
+  await p.locator('#pin-list .task input').nth(1).click();
+  await H.settle(p, 5000);
+  t.check('settings saved mid-commit: nothing lost',
+    gh.files['todo.md'] === '- [x] one\n- [x] two\n- [ ] three\n- [ ] milk\n', JSON.stringify(gh.files['todo.md']));
+  t.check('settings saved mid-commit: nothing refused', seen.every(s => s === 200), JSON.stringify(seen));
+  t.check('settings saved mid-commit: the list shows it all',
+    JSON.stringify(await boxes(p)) === '[true,true,false,false]', JSON.stringify(await boxes(p)));
+  await ctx.close();
+}
+{
+  // Review: the open note (unedited) follows every commit that lands, so a
+  // later one failing does not leave it a version behind, conflicting with
+  // the person's own tick on the next save.
+  const { gh, ctx, p } = await ready(THREE());
+  await H.clickRow(p, 'todo.md');
+  await slowPuts(ctx, p, 500, i => i === 1 && (r => r.fulfill({ status: 502,
+    contentType: 'application/json', body: '{"message":"Server Error"}' })));
+  await p.locator('#pin-list .task input').nth(0).click();
+  await p.locator('#pin-list .task input').nth(1).click();
+  await H.settle(p, 4000);
+  t.check('failed follow-on commit: GitHub has the first',
+    gh.files['todo.md'] === '- [x] one\n- [ ] two\n- [ ] three\n', JSON.stringify(gh.files['todo.md']));
+  t.check('failed follow-on commit: the open note shows it', (await H.editorValue(p)) === gh.files['todo.md'],
+    JSON.stringify(await H.editorValue(p)));
+  await H.setEditor(p, '- [x] one\n- [ ] two\n- [ ] three\n- [ ] typed\n');
+  await H.settle(p, 60);
+  await p.click('#btn-save');
+  await H.settle(p, 2000);
+  t.check('failed follow-on commit: the next save is not a conflict', gh.files['todo.md'].endsWith('- [ ] typed\n'),
+    await p.textContent('#status'));
+  await ctx.close();
+}
+
 /* ===== pinned file that does not exist yet ===== */
 {
   const { gh, ctx, p } = await ready({ pins: 'scratch.md' });

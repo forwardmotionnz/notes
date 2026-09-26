@@ -49,6 +49,8 @@ async function reloadUnsaved(p) {
 }
 
 async function type(p, text) {
+  // The first note's response creates the editor; typing must wait for it.
+  await p.waitForSelector('#cm-stub, .fallback-editor', { state: 'attached', timeout: 5000 });
   await H.setEditor(p, text);
   await H.settle(p, 60);
 }

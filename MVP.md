@@ -72,6 +72,13 @@ They are not instructions to repeat completed setup.
   for that row before their unchanged assertions. App code is unchanged.
   Both suites passed three times in each engine (auth-renewal 62/62, CSP
   26/26); logs: `tests/screens/signin-ready-{chromium,webkit}-{auth-renewal,csp}-{1,2,3}.log`.
+- The next PR Chromium run exposed an initial-editor race in the draft test
+  (the duplicate full Chromium run passed). Holding the first note response
+  reproduced the exact null-editor exception; releasing it created the editor
+  and the correct file-scoped draft. The test's typing helper now waits for
+  attachment, bounded at five seconds, before its unchanged typing operation.
+  All 45 draft checks passed three times per engine; logs:
+  `tests/screens/drafts-ready-{chromium,webkit}-{1,2,3}.log`.
 
 ## Items
 | ID | Priority | Status | Evidence |

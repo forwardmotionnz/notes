@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 22 / 30
+Iterations: 23 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -27,7 +27,8 @@ Iterations: 22 / 30
 | F2 | 15 | done | `npm test` runs every suite in Chromium and WebKit (`tests/run.mjs`; a missing engine fails, never skips); `tests/runner.test.mjs` 14/14; GitHub Actions run 18 (https://github.com/forwardmotionnz/notes/actions/runs/36204886187): the whole suite three times in a row, green in both engines, on 72c1af2; three local Chromium runs green. WebKit found one real bug, a Safari sign-in race between tabs, fixed with tests that reproduce it in Chromium; review of that fix found and fixed the offline sign-out. Commits d2b0cec, aaa113f, 8424be2, c7db305, 2a86afd, 72c1af2 |
 | F1 | 16 | done | `manifest.webmanifest` (standalone, start and scope `./`, 192/512 and maskable icons), `icon-180.png` touch icon, `icon.svg`, theme colours light and dark, `manifest-src 'self'`; `tests/manifest.test.mjs` 25/25 (fields, real icon sizes, links, policy, Chromium parses it with no errors, start address equals the sign-in callback); GitHub Actions run 22 (https://github.com/forwardmotionnz/notes/actions/runs/36208864366): three runs in a row, both engines, green; three local Chromium runs green. Screen `tests/screens/f1-icon-shapes.png`. Commit 1326f8c; merged to `main` in forwardmotionnz/notes#1 |
 | F3 | 17 | doing | |
-| N6 | 17a | todo | |
+| N6 | 17a | doing | |
+| N7 | 17b | todo | |
 | G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review (offline refresh signing out): fixed in F2 (2a86afd). Also from F2: `broker()` has no timeout, so a stalled connection holds the refresh lock until the browser gives up. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
@@ -128,6 +129,10 @@ Iterations: 22 / 30
 ### F3: plan
 - Done looks like: on a 390 px phone with the on-screen keyboard up, the app fits the area above the keyboard: the header buttons stay on screen and tappable, the editor ends at the keyboard so the caret stays visible while typing, and the pinned tasks' "Add a task" box stays visible. Android Chrome resizes the page for the keyboard (`interactive-widget=resizes-content`); iOS Safari does not, so the app follows `visualViewport`, as iOS reports the visible area.
 - Proof: `tests/keyboard.test.mjs` fakes the visible area shrinking (and iOS panning the page) exactly as `visualViewport` reports it, types at the end of a long note, and checks what is on screen; and a short window, as Android gives, for the resize path. Screenshots with the keyboard's space marked.
+
+### N7: plan (asked by the owner, 2026-09-26)
+- Done looks like: a full run takes about a minute or two instead of five, and is less sensitive to a slow machine. The 394 fixed pauses (about 232 s of waiting per run) become waits for the condition each one stands for, and the runner runs several suites at once (each has its own fake GitHub and browser). No check is weakened or removed; every check still fails for the right reason.
+- Proof: timings before and after; every suite passes three runs in a row in both engines; a sample of each suite's checks reverted against the app still caught (G-2 across the suites, not only one); the runner's own tests extended for parallel runs (a failure in one suite still fails the run, output stays per suite).
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -295,6 +300,13 @@ Iterations: 22 / 30
 - What no test here can show: a real on-screen keyboard. The tests fake `visualViewport` as iOS reports it (height, pageTop, scale), at real keyboard heights; Android's path is a shorter window. The release checklist needs a real iPhone and an Android phone: type at the end of a long note, and add a task, with the keyboard up.
 - G-3 findings, all taken: (1) every field's text was under 16px, so iOS Safari zooms in when one is tapped; the code took any zoom for a pinch and stood aside, so on a real iPhone it would never have run: every field is 16px on phones; test. (2) The pinned-tasks sheet was sized from the full screen height, so at real keyboard heights (417 px left on an iPhone 14 with Safari's form bar, 343 on an iPhone SE) its "Add a task" box was cut off, worse than before; the test had used a generous 508 px and passed by 1 px: the sheet is capped to the space there is; tests at both real heights. (3) Every pan snapped the note back to its caret and re-measured it: now only when the height changes, and the caret only while the note has the focus; tests. (4) The position follows `pageTop`, which allows for the page itself having scrolled. Left, noted: while the page pans, the header can lag a frame behind until iOS reports the pan (the transform follows each event, not each frame); and re-measuring CodeMirror while an input method is composing is not known to be safe.
 - G-4: `tests/screens/f3-{editor,pins}-{light,dark}.png` with the keyboard's space marked: the header at the top, the editor ending at the keyboard with the typed line in view, the task box above the keyboard. G-5: CSS and one small function; no dependency. G-6: README.
+
+### N6: gauntlet record
+- G-1: full suite three runs in a row locally (Chromium) and in CI (both engines).
+- G-2: dropping the PNG link, and a size claimed that the file does not have, are each caught.
+- Change: a 32 px PNG tab icon (367 bytes) beside the SVG, raster first with explicit sizes (so Chromium still prefers the SVG). The test now checks every tab-icon link: the file exists, its type and real pixel size match, it is served with its type.
+- G-3: nothing wrong found. Chrome, Edge, Firefox and current Safari use the SVG; older Safari the PNG; iOS the PNG or the 180 px touch icon. Favicons are same-origin, so `img-src 'self'` allows them where a browser applies the policy. The globe the owner saw: the link was already on `main`, so most likely a page loaded before the deploy finished (Pages also caches for up to 10 minutes) or Chrome's favicon cache; hard reload, or open the app in a new tab.
+- G-4: a browser's tab strip cannot be screenshotted headless; the icon itself was checked at 32 px. G-5: one 367-byte file, no request beyond the app's own files. G-6: no behaviour described in the README changed.
 
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.

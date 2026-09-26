@@ -42,6 +42,16 @@ t.check('iPhones get a 180 px PNG icon (Safari does not read the manifest\'s ico
 t.check('and the name "Notes" under it', /<meta name="apple-mobile-web-app-title" content="Notes">/.test(head));
 t.check('the browser tab gets the icon too', /<link rel="icon" href="icon\.svg" type="image\/svg\+xml">/.test(head) &&
   existsSync(file('icon.svg')));
+// Not every browser uses an SVG tab icon (older Safari does not): a PNG too.
+const tabIcons = [...head.matchAll(/<link rel="icon"([^>]*)>/g)].map(m => ({
+  href: (m[1].match(/href="([^"]+)"/) || [])[1], type: (m[1].match(/type="([^"]+)"/) || [])[1],
+  sizes: (m[1].match(/sizes="([^"]+)"/) || [])[1] }));
+t.check('the tab icon has a PNG for browsers without SVG tab icons', tabIcons.some(i => i.type === 'image/png' &&
+  i.sizes === '32x32' && pngSize(i.href) === '32x32'), JSON.stringify(tabIcons));
+for (const i of tabIcons) {
+  t.check(`tab icon ${i.href} exists, of the type it claims`, existsSync(file(i.href)) &&
+    (i.type === 'image/png' ? pngSize(i.href) === i.sizes : /svg/.test(i.type)), JSON.stringify(i));
+}
 t.check('the browser bar takes the app\'s colour, light and dark',
   new RegExp(`<meta name="theme-color" content="${m.theme_color}" media="\\(prefers-color-scheme: light\\)">`).test(head) &&
   /<meta name="theme-color" content="#16181c" media="\(prefers-color-scheme: dark\)">/.test(head) && page.includes('--bg: #16181c'));
@@ -65,7 +75,7 @@ const link = await p.evaluate(() => document.querySelector('link[rel=manifest]')
 const res = await p.request.get(link);
 t.check('the manifest is served, as GitHub Pages serves it', res.ok() &&
   /application\/manifest\+json/.test(res.headers()['content-type'] || ''), res.headers()['content-type']);
-for (const i of icons) {
+for (const i of [...icons, ...tabIcons.map(x => ({ src: x.href, type: x.type }))]) {
   const r = await p.request.get(new URL(i.src, link).href);
   t.check(`${i.src} is served as ${i.type}`, r.ok() && (r.headers()['content-type'] || '').startsWith(i.type));
 }

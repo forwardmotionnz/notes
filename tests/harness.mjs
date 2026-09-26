@@ -515,6 +515,9 @@ export async function page(ctx, url = APP()) {
     const t = m.text();
     if (/404 \(Not Found\)|401 \(Unauthorized\)|net::ERR_FAILED/.test(t)) return;
     if (/Signed out/.test(t)) return;
+    // WebKit notes that it ignores the viewport tag's interactive-widget, which
+    // is for Android Chrome; Safari takes the visualViewport path instead.
+    if (/Viewport argument key "interactive-widget" not recognized/.test(t)) return;
     p.errors.push('console: ' + t);
   });
   p.on('dialog', d => d.accept());

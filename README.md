@@ -257,7 +257,9 @@ Obsidian would not understand, so both can work on the same repository.
   deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
 - Pinned files as a live task list with a one-line capture box. Ticks and
   captures go to GitHub one at a time; clicks made while one is on its way
-  share the next commit
+  share the next commit. × removes a task (always shown on a phone, on
+  hover on a computer) and **Clear done** removes every ticked one, each
+  in one commit, with a few seconds to press **Undo**
 - Filter across every path in the repository
 - Light and dark, and a layout that works on a phone: with the keyboard up,
   the app fits the space above it, so the buttons stay at the top and the

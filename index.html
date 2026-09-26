@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-24R+YAxU1fzdl0nuyfui09yEY8uS4VO92lsLlueFFms=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kmDD2howEiEv1de6yYapDRvziM9INhtfTfg7EhxZX4Q=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -1010,12 +1010,17 @@ function adoptStoredTokens() {
 /* Two tabs refreshing at once would both spend the same single-use refresh
    token; GitHub honours one and the other would be signed out. A browser-wide
    lock makes them take turns: the second tab waits, then finds the first
-   tab's new tokens already in storage and uses those. */
+   tab's new tokens in storage and uses those. `fn` is told whether it had to
+   wait: in WebKit (Safari, every iOS browser) another tab's storage write
+   can reach this tab a moment after the lock does. */
 function withRefreshLock(fn) {
   if (navigator.locks && navigator.locks.request) {
-    return navigator.locks.request("notes-token-refresh", fn);
+    return navigator.locks.request("notes-token-refresh", { ifAvailable: true }, function (lock) {
+      if (lock) return fn(false);
+      return navigator.locks.request("notes-token-refresh", function () { return fn(true); });
+    });
   }
-  return Promise.resolve().then(fn);
+  return Promise.resolve().then(function () { return fn(false); });
 }
 
 var refreshing = null;
@@ -1027,9 +1032,20 @@ function refreshTokens(stale) {
   if (refreshing) return refreshing;
   if (stale === undefined) stale = cfg.token;
 
-  refreshing = withRefreshLock(function () {
+  refreshing = withRefreshLock(function (waited) {
     adoptStoredTokens();
-    if (cfg.token && cfg.token !== stale && !nearExpiry()) return cfg.token;
+    if (newerThan(stale)) return cfg.token;
+    // Having waited, the tab before us most likely refreshed: let its new
+    // tokens arrive rather than spend the refresh token it just used up.
+    return (waited ? waitForNewer(stale, 1500) : Promise.resolve(null)).then(function (newer) {
+      return newer || spend();
+    });
+  });
+  refreshing.then(done, done);
+  function done() { refreshing = null; }
+  return refreshing;
+
+  function spend() {
     if (!cfg.refresh) { signOutLocally(""); throw signedOutError(); }
 
     var spent = cfg.refresh;
@@ -1043,19 +1059,16 @@ function refreshTokens(stale) {
       applyTokens(t);
       return cfg.token;
     }, function () {
-      // With the lock held, a failure means the token really is dead. Without
-      // Web Locks another tab may have won the race, so give it a moment.
-      var hasLocks = !!(navigator.locks && navigator.locks.request);
-      return waitForNewer(stale, hasLocks ? 0 : 2000).then(function (token) {
+      // Refused: the token is dead, or another tab spent it first and its
+      // new tokens have not reached us yet (no Web Locks, or WebKit's storage
+      // arriving late). Give them a moment before signing out.
+      return waitForNewer(stale, 2000).then(function (token) {
         if (token) return token;
         signOutLocally(spent);
         throw signedOutError();
       });
     });
-  });
-  refreshing.then(done, done);
-  function done() { refreshing = null; }
-  return refreshing;
+  }
 }
 
 /* Resolves with a usable token newer than `stale`, or null after `ms`. The
@@ -1066,11 +1079,17 @@ function waitForNewer(stale, ms) {
     var until = Date.now() + ms;
     (function poll() {
       adoptStoredTokens();
-      if (cfg.token && cfg.token !== stale && !nearExpiry()) return resolve(cfg.token);
+      if (newerThan(stale)) return resolve(cfg.token);
       if (Date.now() >= until) return resolve(null);
       setTimeout(poll, 150);
     })();
   });
+}
+
+// Another tab's new token is ours to use while it still works, even if it
+// is due for renewal soon: renewing it is not this call's job.
+function newerThan(stale) {
+  return !!cfg.token && cfg.token !== stale && !(cfg.expires && Date.now() > cfg.expires - 5000);
 }
 
 function nearExpiry() {

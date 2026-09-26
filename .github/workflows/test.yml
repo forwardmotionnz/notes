@@ -9,6 +9,7 @@ name: tests
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -18,6 +19,11 @@ on:
 
 permissions:
   contents: read
+
+# A PR already checks its branch pushes. Superseded commits need not finish.
+concurrency:
+  group: tests-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   plan:

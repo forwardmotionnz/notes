@@ -14,6 +14,33 @@ and physical-device checks. Earlier dated gauntlet records below are history,
 including their old WebKit blocks and unfinished deployment instructions.
 They are not instructions to repeat completed setup.
 
+### Development loop — updated at the owner's request
+
+The owner explicitly requested faster iterations on 2026-09-27. Use
+`npm run test:dev -- <suite>` while editing, with `--suite <other-suite>`
+for related cases; use the affected engine for browser-specific changes.
+Do not repeat every suite three times for a small edit. Keep all assertions
+and run the complete two-engine suite once on the final PR. Reserve three
+full repeats for the release gate. This supersedes the older per-edit
+gauntlet workflow below. The three full release runs already recorded here
+remain valid evidence for the unchanged application.
+
+CI now runs once per PR update instead of twice (push plus PR), cancels
+superseded runs, and preserves full coverage in both engines. Manual repeat
+runs have a separate concurrency group from PR validation. The runner's
+focused mode rejects unknown, missing and empty selections, preserves
+selected failures, and labels focused results separately from full results.
+Per-suite timings expose slow tests without changing their assertions.
+
+Evidence: the new runner tests failed before implementation, then passed
+24/24 in each engine; runner plus documentation checks took 10 seconds.
+Actual development commands took 4.5 seconds for `mobile-new` (6/6) and
+24.6 seconds for `drafts` (45/45), versus 255–269 seconds for the full local
+run. Logs: `tests/screens/fast-runner-{before,after}.log` and
+`tests/screens/dev-{mobile,drafts}-timing.log`. Independent review found no
+blocker or weakened coverage. Full CI on 9586d76 passed twice per engine
+after the readiness corrections; application code remains unchanged.
+
 ### Integration and release review
 
 - The branch reconciliation preserves both independent manifest and keyboard

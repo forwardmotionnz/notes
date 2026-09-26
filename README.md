@@ -348,17 +348,40 @@ Keep these if you contribute:
 ```sh
 npm install
 npx playwright install --with-deps chromium webkit
-npm test
 ```
 
-Runs every suite twice: in Chromium, and in WebKit, the engine of Safari and
+For the edit/test loop, select the feature you changed:
+
+```sh
+npm run test:dev -- drafts
+npm run test:dev -- mobile-new
+npm run test:dev -- drafts --suite switching
+```
+
+This runs only the named suites in Chromium and labels the result as a
+focused check. Names must match exactly; a typo or missing name fails rather
+than silently passing. `npm test -- --list` lists the available names.
+For an engine-specific fix, use `npm run test:webkit -- --suite drafts`.
+Run the affected tests while editing, then push one coherent change for CI.
+Do not repeat the whole suite after each small edit or test-only correction.
+
+Before merging, `npm test` runs every suite in Chromium and WebKit, the engine of Safari and
 of every browser on iOS. (That is Playwright's testing build of WebKit, which
 catches engine differences; it is not an iPhone, so iOS-only behaviour such
 as Safari's storage limits is not covered.) `npm run test:chromium` or `npm run test:webkit`
 runs one on purpose; a missing engine fails the run rather than being
 skipped. Suites run up to eight at a time (each has its own simulated
-GitHub and browser; `--jobs` changes it), and a run takes a little over a
-minute. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
+GitHub and browser; `--jobs` changes it). The runner reports the slowest
+suites so performance changes are visible. The full release run currently
+takes about four minutes locally; it is not the development loop.
+
+GitHub Actions runs the full suite in both engines for pull requests and
+pushes to `main`. A PR branch push starts one workflow, not duplicate push
+and PR workflows. New commits cancel obsolete runs. CI runs two suites at
+a time per engine to limit contention. For a release, use the manual tests
+workflow with `repeat: 3`; three complete runs are a release check, not a
+requirement for each development edit. A focused pass is never a substitute
+for the complete check before merging.
 
 The browser is headless, with GitHub simulated and the real broker code in
 the loop. The simulation verifies the PKCE challenge, expires tokens and

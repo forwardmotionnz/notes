@@ -37,6 +37,30 @@ t.check('and running nothing that could look like a pass', !/passed/.test(said),
 // every suite still runs.
 // In the engine this run has: the other may not be installed (CI installs one).
 const here = process.env.NOTES_TEST_ENGINE || 'chromium';
+const focused = run([here, '--dir', 'tests/fixtures/runner', '--suite', 'ok']);
+t.check('a focused run executes only the named suite and labels its scope', focused.status === 0 &&
+  /ok \[.*\]: 1\/1 passed/.test(focused.stdout) && !focused.stdout.includes('── bad.') &&
+  !focused.stdout.includes('── crash.') && /Focused: 1 of 3 suites/.test(focused.stdout), focused.stdout + focused.stderr);
+const selectedFailure = run([here, '--dir', 'tests/fixtures/runner', '--suite', 'ok', '--suite', 'bad']);
+t.check('a failure in a selected suite still fails the run', selectedFailure.status === 1 &&
+  /FAILED: bad.test.mjs/.test(selectedFailure.stdout) && !selectedFailure.stdout.includes('── crash.'),
+  selectedFailure.stdout + selectedFailure.stderr);
+t.check('unknown and empty suite selections fail instead of running nothing',
+  run([here, '--suite', 'typo']).status === 2 && run([here, '--suite']).status === 2 &&
+  run([here, '--suite', '']).status === 2);
+t.check('invalid selections cannot become a partial or misleading listing',
+  run(['--list', '--suite', 'csp', '--suite', 'typo']).status === 2 &&
+  run(['--engines', '--suite', 'typo']).status === 2 &&
+  run([here, '--suite', 'draft*']).status === 2 &&
+  run([here, '--suite', '../tests/csp']).status === 2);
+t.check('an empty suite directory fails instead of reporting success',
+  run([here, '--dir', 'tests/fixtures']).status === 2);
+const duplicate = run([here, '--dir', 'tests/fixtures/runner', '--suite', 'ok', '--suite', 'ok.test.mjs']);
+t.check('duplicate suite names execute once', duplicate.status === 0 &&
+  (duplicate.stdout.match(/── ok.test.mjs/g) || []).length === 1, duplicate.stdout + duplicate.stderr);
+const selectedList = run(['--list', '--suite', 'csp']);
+t.check('list accepts the same exact suite selection', selectedList.status === 0 &&
+  selectedList.stdout.trim() === 'csp.test.mjs', selectedList.stdout + selectedList.stderr);
 const fx = run([here, '--dir', 'tests/fixtures/runner']);
 const fxOut = fx.stdout + fx.stderr;
 t.check('a failing suite fails the run', fx.status === 1 && new RegExp(`FAILED: .*bad\\.test\\.mjs \\[${here}\\]`).test(fxOut), fxOut);

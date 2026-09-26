@@ -534,7 +534,7 @@ export async function page(ctx, url = APP()) {
 /* Wait for the app to settle after an action, instead of a fixed pause:
    at least 150 ms (so a check that something did NOT happen still gives it
    time, even to encode a large note), then until no page of the test (any
-   tab) has had a request in flight for 80 ms, and never longer than `ms`, the
+   tab) has had a request in flight for 120 ms, and never longer than `ms`, the
    pause this replaces. Not for time measured against the app's timers, nor
    for another tab reacting to a storage event, which makes no request. The app's own timers (autosave
    at 2 s, the status line) are longer than anything this replaces; waits
@@ -547,7 +547,7 @@ export async function settle(p, ms) {
     await p.waitForTimeout(20);
     const now = Date.now();
     if (now - start >= ms) return;
-    if (now - start >= floor && tabs().every(x => x.inflight === 0 && now - x.lastNet >= 80)) return;
+    if (now - start >= floor && tabs().every(x => x.inflight === 0 && now - x.lastNet >= 120)) return;
   }
 }
 
@@ -559,6 +559,12 @@ export async function signIn(p, { remember = true } = {}) {
     p.waitForURL(u => u.toString().startsWith(APP()) && !u.search.includes('code='), { timeout: 5000 }),
     p.click('#f-signin'),
   ]);
+  // Done when the sign-in is stored (the app then loads the list), not when
+  // the network is quiet: between the steps of a sign-in the app computes,
+  // and on a busy machine (WebKit on CI) a gap can outlast any quiet window.
+  // Bounded, and not an error here: some tests sign in to see it fail.
+  await p.waitForFunction(() => /"token":"[^"]/.test(localStorage.getItem('notes.config.v2') ||
+    sessionStorage.getItem('notes.config.v2') || ''), null, { timeout: 5000 }).catch(() => {});
   await settle(p, 500);
 }
 

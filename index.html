@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kmDD2howEiEv1de6yYapDRvziM9INhtfTfg7EhxZX4Q=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-NoClfGlmHMK2Z3CcXTS7Hb08S9g5D9XU/iksqza7ReY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -977,12 +977,15 @@ function broker(body) {
       if (!res.ok || !data.access_token) {
         var err = new Error(data.error_description || data.error || ("Sign-in failed (" + res.status + ")"));
         err.code = data.error || "";
+        err.status = res.status;
         throw err;
       }
       return data;
     });
   }, function () {
-    throw new Error("Could not reach the sign-in service.");
+    var err = new Error("Could not reach the sign-in service.");
+    err.status = 0;
+    throw err;
   });
 }
 
@@ -1037,15 +1040,17 @@ function refreshTokens(stale) {
     if (newerThan(stale)) return cfg.token;
     // Having waited, the tab before us most likely refreshed: let its new
     // tokens arrive rather than spend the refresh token it just used up.
-    return (waited ? waitForNewer(stale, 1500) : Promise.resolve(null)).then(function (newer) {
-      return newer || spend();
+    // ("Forget me" tabs share no storage, so there is nothing to wait for.)
+    var shared = waited && !sessionOnly;
+    return (shared ? waitForNewer(stale, 1500) : Promise.resolve(null)).then(function (newer) {
+      return newer || spend(shared);
     });
   });
   refreshing.then(done, done);
   function done() { refreshing = null; }
   return refreshing;
 
-  function spend() {
+  function spend(waited) {
     if (!cfg.refresh) { signOutLocally(""); throw signedOutError(); }
 
     var spent = cfg.refresh;
@@ -1058,13 +1063,29 @@ function refreshTokens(stale) {
       if (cfg.refresh !== spent) return cfg.token;
       applyTokens(t);
       return cfg.token;
-    }, function () {
+    }, function (err) {
+      // Not a refusal from GitHub (offline, the broker or GitHub down): the
+      // refresh token was never spent and still works. Keep the sign-in.
+      if (err.status !== 400) {
+        var retry = new Error(err.status === 0
+          ? "Offline, or the sign-in service cannot be reached. Nothing is lost; try again in a moment."
+          : "The sign-in service is having trouble (" + err.status + "). Nothing is lost; try again in a moment.");
+        retry.retryable = true;
+        throw retry;
+      }
       // Refused: the token is dead, or another tab spent it first and its
       // new tokens have not reached us yet (no Web Locks, or WebKit's storage
       // arriving late). Give them a moment before signing out.
       return waitForNewer(stale, 2000).then(function (token) {
         if (token) return token;
-        signOutLocally(spent);
+        if (waited) {
+          // Storage may still be behind: what it shows as ours may already
+          // be the other tab's new pair on its way. Forget only this tab's
+          // copy; the storage event brings the new pair if it comes.
+          cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
+        } else {
+          signOutLocally(spent);
+        }
         throw signedOutError();
       });
     });

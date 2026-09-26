@@ -476,7 +476,8 @@ await H.start();
     const old = localStorage.getItem('notes.config.v2');
     window.lagUntil = 0;
     Storage.prototype.getItem = function (k) {
-      return k === 'notes.config.v2' && Date.now() < window.lagUntil ? old : real.call(this, k);
+      // Only local storage lags; session storage must still read as empty.
+      return this === localStorage && k === 'notes.config.v2' && Date.now() < window.lagUntil ? old : real.call(this, k);
     };
   });
   // A's refresh takes 300 ms, so B asks while A holds the lock; B then sees
@@ -495,6 +496,59 @@ await H.start();
     JSON.stringify({ bad: gh.log.badRefresh, ok: gh.log.refreshes - refreshesBefore }));
   t.check('late storage: both tabs stay signed in, on the same new token', ra === 'ok' && rb === 'ok' &&
     (await a.evaluate(() => cfg.token)) === (await b.evaluate(() => cfg.token)), JSON.stringify({ ra, rb, a: await a.evaluate(() => cfg.token), b: await b.evaluate(() => cfg.token), stored: await a.evaluate(() => JSON.parse(localStorage.getItem('notes.config.v2')).token) }));
+  await ctx.close();
+}
+
+/* ===== offline or the broker down during a refresh: nobody is signed out ===== */
+for (const [label, fail] of [['offline', r => r.abort()],
+                             ['broker 502', r => r.fulfill({ status: 502, contentType: 'application/json',
+                               body: JSON.stringify({ error: 'github_unreachable' }) })]]) {
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  const spent = await a.evaluate(() => cfg.refresh);
+  await a.route(H.DEPLOY.broker + '**', fail);
+  const r = await a.evaluate(() => refreshTokens().then(() => 'ok', e => (e.retryable ? 'retry:' : 'fail:') + e.message));
+  await a.waitForTimeout(300);
+  t.check(`${label}: the refresh fails as "try again", not as a sign-out`, /^retry:.*try again/i.test(r), r);
+  t.check(`${label}: the sign-in stays in storage and in both tabs`,
+    (await a.evaluate(() => !!JSON.parse(localStorage.getItem('notes.config.v2') || '{}').refresh)) &&
+    (await a.evaluate(() => cfg.refresh)) === spent && (await b.evaluate(() => cfg.refresh)) === spent &&
+    !(await H.dialogOpen(a)) && !(await H.dialogOpen(b)));
+  t.check(`${label}: the refresh token was never spent, so it still works`, gh.refresh.get(spent).used === false);
+  await a.unroute(H.DEPLOY.broker + '**');
+  t.check(`${label}: and once back, the refresh goes through`,
+    (await a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message))) === 'ok');
+  await ctx.close();
+}
+
+/* ===== storage later still: the waiting tab may give up, but never wipes the new pair ===== */
+{
+  const gh = H.fakeGitHub();
+  const ctx = await H.context(gh);
+  const a = await H.page(ctx);
+  await H.signIn(a);
+  const b = await H.page(ctx);
+  await b.waitForTimeout(500);
+  await b.evaluate(() => {
+    const real = Storage.prototype.getItem;
+    const old = localStorage.getItem('notes.config.v2');
+    window.lagUntil = Date.now() + 6000;
+    Storage.prototype.getItem = function (k) {
+      return this === localStorage && k === 'notes.config.v2' && Date.now() < window.lagUntil ? old : real.call(this, k);
+    };
+  });
+  await a.route(H.DEPLOY.broker + '**', async r => { await new Promise(res => setTimeout(res, 300)); return r.fallback(); });
+  const first = a.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  await a.waitForTimeout(50);
+  const second = b.evaluate(() => refreshTokens().then(() => 'ok', e => 'fail:' + e.message));
+  const [ra] = await Promise.all([first, second]);
+  const kept = await a.evaluate(() => ({ mine: cfg.token, stored: JSON.parse(localStorage.getItem('notes.config.v2') || '{}').token }));
+  t.check('very late storage: the tab that refreshed keeps its new pair, in memory and in storage',
+    ra === 'ok' && !!kept.mine && kept.mine === kept.stored && !(await H.dialogOpen(a)), JSON.stringify({ ra, ...kept }));
   await ctx.close();
 }
 

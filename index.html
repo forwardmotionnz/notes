@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Eh19sDhr6uXBsfypo+PeXGQxQkxCZAc4MG18Aypw8/w=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-xiVGaBGoSXp9gKpmFW6voFbL3UqswswvUi6vz+GQq/E=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -975,22 +975,47 @@ function showSignInAgain(message, session) {
   $("f-session-in").checked = typeof session === "boolean" ? session : true;
 }
 
+// The deadline covers the body as well as the headers. A timeout never
+// proves that a write did not land; callers retain their draft for retry.
+function fetchJSON(url, options) {
+  var controller = new AbortController();
+  var timer = setTimeout(function () { controller.abort(); }, 30000);
+  options.signal = controller.signal;
+  return fetch(url, options).then(function (res) {
+    return res.text().then(function (text) {
+      var data = null;
+      try { data = JSON.parse(text); } catch (e) {}
+      return { res: res, data: data };
+    });
+  }).then(function (reply) { clearTimeout(timer); return reply; }, function (err) {
+    clearTimeout(timer); throw err;
+  });
+}
+
 function broker(body) {
-  return fetch(DEPLOYMENT.broker, {
+  return fetchJSON(DEPLOYMENT.broker, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
-  }).then(function (res) {
-    return res.json().catch(function () { return {}; }).then(function (data) {
-      if (!res.ok || !data.access_token) {
-        var err = new Error(data.error_description || data.error || ("Sign-in failed (" + res.status + ")"));
+  }).then(function (reply) {
+      var res = reply.res, data = reply.data;
+      if (!data || typeof data !== "object") data = {};
+      function token(value) { return typeof value === "string" && value.length > 0 && value.length <= 512 && /^[\w.~-]+$/.test(value); }
+      var valid = token(data.access_token) && Number.isFinite(data.expires_in) && data.expires_in >= 0 &&
+                  (!data.expires_in || token(data.refresh_token)) &&
+                  (data.refresh_token === undefined || data.refresh_token === "" || token(data.refresh_token));
+      if (!res.ok || !valid) {
+        var message = "The sign-in service is temporarily unavailable. Try again.";
+        if (data.error === "bad_verification_code") message = "Sign-in expired. Please sign in again.";
+        if (data.error === "bad_refresh_token") message = "Your sign-in has expired. Sign in again.";
+        if (data.error === "incorrect_client_credentials") message = "The sign-in service needs attention from this app's owner. Try again after it is fixed.";
+        var err = new Error(message);
         err.code = data.error || "";
         throw err;
       }
       return data;
-    });
   }, function () {
-    throw new Error("Could not reach the sign-in service.");
+    throw new Error("Could not reach the sign-in service. Check your connection, then try again.");
   });
 }
 
@@ -1050,8 +1075,11 @@ function refreshTokens(stale) {
       if (cfg.refresh !== spent) return cfg.token;
       applyTokens(t);
       return cfg.token;
-    }, function () {
-      // With the lock held, a failure means the token really is dead. Without
+    }, function (err) {
+      // An outage does not prove that the refresh token is dead. Keep it
+      // and the drafts so the same action can be retried when service returns.
+      if (err.code !== "bad_refresh_token") throw err;
+      // With the lock held, rejection means the token really is dead. Without
       // Web Locks another tab may have won the race, so give it a moment.
       var hasLocks = !!(navigator.locks && navigator.locks.request);
       return waitForNewer(stale, hasLocks ? 0 : 2000).then(function (token) {
@@ -1136,13 +1164,27 @@ window.addEventListener("storage", function (e) {
    ================================================================ */
 
 var API = "https://api.github.com";
+var apiRetryAt = 0;
+
+function rateLimitError() {
+  var err = new Error("GitHub is limiting requests. Wait " + Math.max(1, Math.ceil((apiRetryAt - Date.now()) / 1000)) + " seconds, then try again.");
+  err.status = 429;
+  return err;
+}
+
+function incompleteReply() {
+  return new Error("GitHub returned an incomplete response. Try again.");
+}
 
 function request(path, options, retried) {
   options = options || {};
+  if (Date.now() < apiRetryAt) return Promise.reject(rateLimitError());
   var used = "";
   return currentToken().then(function (token) {
+    // Another request may have hit a limit while this one awaited refresh.
+    if (Date.now() < apiRetryAt) throw rateLimitError();
     used = token;
-    return fetch(API + path, {
+    return fetchJSON(API + path, {
       method: options.method || "GET",
       // GitHub marks its answers cacheable for 60 s; a stale branch head,
       // file list or file would make a move or a save act on the past.
@@ -1154,32 +1196,58 @@ function request(path, options, retried) {
         "Content-Type": "application/json"
       },
       body: options.body ? JSON.stringify(options.body) : undefined
+    }).catch(function () {
+      throw new Error("Could not reach GitHub. Check your connection, then try again.");
     });
-  }).then(function (res) {
+  }).then(function (reply) {
+    var res = reply.res;
     // A token GitHub no longer accepts: refresh once and try again.
     if (res.status === 401 && !retried && cfg.refresh) {
       return refreshTokens(used).then(function () { return request(path, options, true); });
     }
     if (res.status === 404 && options.allow404) return null;
     if (!res.ok) {
-      return res.json().catch(function () { return {}; }).then(function (body) {
-        var msg = body.message || res.statusText || ("HTTP " + res.status);
+      return Promise.resolve(reply.data).then(function (body) {
+        if (!body || typeof body !== "object") body = {};
+        var detail = typeof body.message === "string" ? body.message : "";
+        // GitHub documents 403/429, Retry-After, remaining/reset and a
+        // minimum one-minute wait when a secondary limit has no headers.
+        // https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api#rate-limit-errors
+        if (res.status === 429 || (res.status === 403 && (res.headers.get("x-ratelimit-remaining") === "0" || /rate limit/i.test(detail)))) {
+          var after = Number(res.headers.get("retry-after"));
+          var reset = Number(res.headers.get("x-ratelimit-reset")) * 1000;
+          var delay = null;
+          if (res.headers.has("retry-after") && Number.isFinite(after) && after >= 0) delay = after * 1000;
+          if (res.headers.get("x-ratelimit-remaining") === "0" && Number.isFinite(reset) && reset > Date.now()) delay = Math.max(delay || 0, reset - Date.now());
+          if (delay === null) delay = 60000;
+          apiRetryAt = Math.max(apiRetryAt, Date.now() + Math.max(1000, delay));
+          throw rateLimitError();
+        }
+        var msg = "GitHub could not complete that action. Try again.";
+        if (res.status >= 500) msg = "GitHub is temporarily unavailable. Try again shortly.";
         if (res.status === 401) msg = "Signed out. Sign in again to continue.";
         if (res.status === 403) msg = "GitHub refused. Is the app installed on this repository?";
         // A file over GitHub's 1 MB limit for this API is refused with
         // code "too_large": say that, not that the app is not installed.
-        var tooBig = (body.errors || []).some(function (e) { return e && e.code === "too_large"; });
+        var tooBig = (Array.isArray(body.errors) ? body.errors : []).some(function (e) { return e && e.code === "too_large"; });
         if (tooBig) msg = "That file is larger than 1 MB, too large to edit here, so it is left alone.";
         if (res.status === 409) msg = "Conflict. The file changed on the server.";
+        var writeBlocked = /protected branch|branch protection|repository rule|ruleset/i.test(detail);
+        if (writeBlocked) msg = "GitHub's repository rules refused this change. Ask the repository owner about its rules, then try again.";
         var err = new Error(msg);
         err.status = res.status;
-        err.detail = body.message || "";     // GitHub's own words, for telling 409s apart
+        err.detail = detail;     // Internal only, for telling 409s apart.
         err.refused = tooBig;
+        err.writeBlocked = writeBlocked;
         throw err;
       });
     }
-    if (res.status === 204) return null;
-    return res.json();
+    if (res.status === 204) {
+      if (options.method === "DELETE") return null;
+      throw incompleteReply();
+    }
+    if (!reply.data || typeof reply.data !== "object") throw incompleteReply();
+    return reply.data;
   });
 }
 
@@ -1253,7 +1321,8 @@ function allPages(path, key) {
   var out = [];
   function page(n) {
     return request(path + "?per_page=100&page=" + n).then(function (d) {
-      var items = (d && d[key]) || [];
+      if (!d || !Array.isArray(d[key])) throw incompleteReply();
+      var items = d[key];
       out = out.concat(items);
       var total = d && typeof d.total_count === "number" ? d.total_count : null;
       var more = items.length > 0 && (total === null || out.length < total);
@@ -1308,6 +1377,7 @@ function listTree() {
     }
     throw err;
   }).then(function (data) {
+    if (!data || !Array.isArray(data.tree)) throw incompleteReply();
     repoEmpty = !!data.empty;
     if (data.truncated) flash("Repository is large; the file list is partial.", true);
     var list = (data.tree || []).map(function (n) {
@@ -1336,6 +1406,7 @@ function readFile(path) {
     // Over 1 MB GitHub leaves the content out (encoding "none"). Opening
     // that as an empty note would let a save replace the whole file.
     if (data.encoding === "none") throw refused(tooLargeMessage(path));
+    if (typeof data.sha !== "string" || !data.sha || typeof data.content !== "string") throw incompleteReply();
     var text;
     try { text = fromBase64(data.content || ""); }
     catch (e) {
@@ -1365,6 +1436,7 @@ function writeFile(path, text, sha) {
   if (sha) body.sha = sha;                                  // optimistic concurrency
   var url = repoPath() + "/contents/" + encodePath(path);
   return request(url, { method: "PUT", body: body }).then(function (data) {
+    if (!data || !data.content || typeof data.content.sha !== "string" || !data.content.sha) throw incompleteReply();
     return { sha: data.content.sha };
   });
 }
@@ -1377,7 +1449,7 @@ function deleteFile(path, sha) {
   return request(url, { method: "DELETE", body: { message: "Delete " + path, sha: sha, branch: cfg.branch } })
     .catch(function (err) {
       if (err.status === 404) return null;   // already gone: what was asked for
-      if (err.status) throw err;
+      if (err.status && err.status < 500) throw err;
       return readFile(path).then(function (r) {
         if (r.sha === null) return null;
         throw err;
@@ -1403,6 +1475,7 @@ function moveFile(from, to, sha, mode) {
   }
   function attempt(tries) {
     return request(git + "/ref/" + ref).then(function (r) {
+      if (!r || !r.object || typeof r.object.sha !== "string" || !r.object.sha) throw incompleteReply();
       var head = r.object.sha;
       return Promise.all([contentsAt(from, head), contentsAt(to, head), request(git + "/commits/" + head)])
         .then(function (got) {
@@ -1411,18 +1484,21 @@ function moveFile(from, to, sha, mode) {
                             "open it again, then rename it.");
           }
           if (got[1]) throw new Error(to + " already exists.");
+          if (!got[2] || !got[2].tree || typeof got[2].tree.sha !== "string" || !got[2].tree.sha) throw incompleteReply();
           return request(git + "/trees", { method: "POST", body: { base_tree: got[2].tree.sha, tree: [
             { path: to, mode: mode || "100644", type: "blob", sha: sha },
             { path: from, mode: mode || "100644", type: "blob", sha: null }
           ] } }).then(function (tree) {
+            if (!tree || typeof tree.sha !== "string" || !tree.sha) throw incompleteReply();
             return request(git + "/commits", { method: "POST",
               body: { message: "Rename " + from + " to " + to, tree: tree.sha, parents: [head] } });
           }).then(function (commit) {
+            if (!commit || typeof commit.sha !== "string" || !commit.sha) throw incompleteReply();
             return request(git + "/refs/" + ref, { method: "PATCH", body: { sha: commit.sha, force: false } })
               .catch(function (err) {
                 // No answer at all: the move may have landed. It did if the
                 // new path now holds this version and the old one is gone.
-                if (err.status) throw err;
+                if (err.status && err.status < 500) throw err;
                 return request(git + "/ref/" + ref).then(function (r2) {
                   return Promise.all([contentsAt(to, r2.object.sha), contentsAt(from, r2.object.sha)]);
                 }).then(function (after) {
@@ -1581,13 +1657,12 @@ function flash(msg, isError, ms) {
   el.textContent = msg;                    // may carry a path or GitHub's message: text
   el.className = isError ? "err" : "";
   clearTimeout(statusTimer);
-  if (msg) {
+  if (msg && !isError) {
     statusTimer = setTimeout(function () { el.textContent = ""; }, ms || (isError ? 7000 : 2500));
   }
 }
 
 function fail(err) {
-  console.error(err);
   flash(err.message || String(err), true);
   if (err && err.signedOut) showSignIn();
 }
@@ -2243,22 +2318,32 @@ function saveCurrent(auto) {
   saving = true;
   doc.pending = text;
 
-  var done = writeFile(path, raw, doc.sha).catch(function (err) {
-    // A commit whose reply was lost (a dropped connection, a page suspended
-    // mid-request) leaves us on the old sha, and the next save looks like a
-    // conflict with ourselves. If GitHub holds exactly what we last sent,
-    // it was ours: carry on from there. Anything else is a real conflict.
-    var own = doc.unsure;
-    if ((err.status !== 409 && err.status !== 422) || typeof own !== "string") throw err;
-    // The check reads through cfg; after a change of repository it would
-    // read, and write, the wrong one.
-    if (draftKey(path) !== key) throw err;
-    return readFile(path).then(function (r) {
-      if (r.text !== own) throw err;       // byte for byte, endings included
-      doc.sha = r.sha;
-      return writeFile(path, raw, r.sha);
-    }, function () { throw err; });       // cannot even read it back: still a conflict
-  }).then(function (r) {
+  var attempted = false;
+  // Resolve the previous uncertain write before sending newer text. If a
+  // second attempt is offline too, it must not erase what may have landed.
+  var ready = typeof doc.unsure === "string" ? readFile(path).then(function (r) {
+    if (r.text === doc.unsure) doc.sha = r.sha;  // our exact bytes, endings included
+    else if (r.sha !== doc.sha) {
+      var conflict = new Error("The file changed since the last save.");
+      conflict.status = 409;
+      throw conflict;
+    }
+    doc.unsure = null;
+  }, function (err) {
+    // A file that grew past the limit (or became binary/LFS) cannot be
+    // compared safely. Keep the existing conflict pause and draft recovery.
+    if (err.refused) err.status = 409;
+    throw err;
+  }) : null;
+  function write() {
+    // Recovery waits for a read: settings may have changed while it waited.
+    if (draftKey(path) !== key) throw new Error("The repository changed before retrying. Reopen the draft in its original repository and try again. If a conflict appears, copy your text before using Discard.");
+    attempted = true;
+    return writeFile(path, raw, doc.sha);
+  }
+  // Start an ordinary write before leaving the file can change settings;
+  // writeFile captures this repository and branch synchronously.
+  var done = (ready ? ready.then(write) : write()).then(function (r) {
     doc.unsure = null;
     doc.base = baseOf(raw);              // the next save compares with what this wrote
     if (current === doc) {
@@ -2292,8 +2377,8 @@ function saveCurrent(auto) {
     flash("Saved");
   }).catch(function (err) {
     $("btn-save").disabled = false;
-    if (!err.status) doc.unsure = raw;  // may or may not have landed
-    if (err.status === 409 || err.status === 422) {
+    if (attempted && (!err.status || err.status >= 500)) doc.unsure = raw;  // may or may not have landed
+    if (!err.writeBlocked && (err.status === 409 || err.status === 422)) {
       if (current === doc) {
         current.conflict = true;
         setCrumb(path, "(conflict, not saved)");
@@ -2472,7 +2557,7 @@ function deleteCurrent() {
     loadNote = said;                   // said again once the list has reloaded
     refreshTree();
   }).catch(function (err) {
-    flash("Not deleted: " + (err.status === 409 || err.status === 422
+    flash("Not deleted: " + (!err.writeBlocked && (err.status === 409 || err.status === 422)
       ? name + " has changed on GitHub since it was opened, or your unsaved draft is based on an " +
         "older version. Discard your changes to load the current one, then delete it."
       : err.message || "could not reach GitHub."), true);

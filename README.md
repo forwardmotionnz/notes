@@ -154,6 +154,22 @@ first note you save (or the first task you add) creates its main branch. If
 the repository's main branch is later renamed, or your first push from
 elsewhere creates a differently named one, the app follows it and says so.
 
+## If a request fails
+
+If GitHub or the connection fails, the message stays visible until another
+action. Retry the same button: **Save** for a note, the file-list refresh
+button for the list, or the file name to open it again. A request that does
+not answer times out after 30 seconds. A temporary sign-in service outage
+keeps your sign-in; a rejected refresh token still asks you to sign in again.
+For a rate limit, wait for the time shown before retrying. Notes also holds
+requests during that wait. Repository rules may require the repository
+owner's help before a write can succeed.
+
+An interrupted save keeps your draft. If you reload or change repositories
+before its outcome is known, retrying may report a conflict with your own
+earlier save. Copy the latest text before using **Discard**, then paste it
+back and save. Notes does not silently replace a version it cannot verify.
+
 ## Repositories you cannot change
 
 An archived repository, or one your GitHub account can only read, opens

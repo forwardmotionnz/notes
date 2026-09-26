@@ -122,7 +122,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
     ? r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: IFR }) })
     : r.fallback());
   await pinTab(4);
-  t.check("a pin's hostile error message is text", (await p.textContent('#pin-list')).includes(IFR),
+  t.check("a pin's hostile error is replaced by fixed retry wording", !(await p.textContent('#pin-list')).includes(IFR) && /GitHub is temporarily unavailable\. Try again/.test(await p.textContent('#pin-list')),
     await p.textContent('#pin-list'));
   await pinTab(0);
 
@@ -142,7 +142,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   await p.waitForTimeout(60);
   await p.click('#btn-save');
   await p.waitForTimeout(400);
-  t.check("GitHub's error message shown as text", (await H.status(p)).includes(IMG), await H.status(p));
+  t.check("GitHub's hostile error is replaced by fixed retry wording", !(await H.status(p)).includes(IMG) && /GitHub is temporarily unavailable\. Try again/.test(await H.status(p)), await H.status(p));
 
   // A new note with a hostile name.
   p.removeAllListeners('dialog');
@@ -154,7 +154,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   await p.waitForTimeout(300);
   t.check('no payload element created anywhere', (await dangerous(p)) === 0, String(await dangerous(p)));
   t.check('no payload ever ran', (await pwned(p)) === 0, String(await pwned(p)));
-  // The 500 above is logged on purpose, with its message; nothing else may be.
+  // The browser reports the 500; no script error or hostile message may leak.
   const unexpected = p.errors.filter(e => !/status of 500|Error: <img src=x onerror/.test(e));
   t.check('no page errors', unexpected.length === 0, unexpected.join(' | '));
   await ctx.close();

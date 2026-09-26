@@ -10,6 +10,8 @@ on trusting whoever runs the copy you are using.
 Preview runs in your browser using pinned Marked and DOMPurify scripts from
 cdnjs.cloudflare.com, alongside the existing editor library. Script integrity
 hashes verify the preview downloads. Note text is not sent to the CDN.
+Content search reads files directly from GitHub into browser memory and
+includes this repository's local drafts. It creates no persistent search index.
 
 - Your notes go between your browser and GitHub. They are not sent anywhere
   else by the app.

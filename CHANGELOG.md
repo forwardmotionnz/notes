@@ -12,6 +12,10 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
+- Search inside note contents and local drafts from Files with Enter or Search
+  contents. Filename filtering stays instant; bounded reads and visible
+  incomplete-result notices keep larger repositories manageable.
+
 - Preview current Markdown and drafts with headings, tables, read-only tasks,
   code, links and a frontmatter box. Sanitised with DOMPurify; CDN failure
   preserves editing with a visible notice. Images are not loaded yet.

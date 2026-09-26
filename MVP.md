@@ -188,7 +188,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N11 | 21b | done | Pin toggle and main-area checklist; `pinned-tree` 23/23 both engines; all 37 suites passed both engines in CI 36279330993 on `4eb4756`; PR #7 merged as `00ed737`. |
 | N12 | 21c | doing | Preview implemented; preview regression 15/15 Chromium, CSP 26/26 and hostile 28/28. Review and final combined N12/S2 CI pending. |
 | S1 | 22 | moved | Rendered preview is now MUST N12. |
-| S2 | 23 | todo | SHOULD: search inside note contents, not only file paths. First SHOULD after all MUSTs. |
+| S2 | 23 | doing | Content search implemented; 13/13 checks in each engine including drafts, incomplete results, result retention, expired sign-in, stale repo/query responses and bounded reads. Final combined CI pending. |
 | S3 | 24 | todo | SHOULD: automated axe accessibility check with zero serious violations, after N11 layout changes. |
 | S4 | 25 | todo | SHOULD: show referenced images in preview; depends on N12. |
 
@@ -673,3 +673,35 @@ secret generation or App visibility changes as part of this release.
 - G-3 findings, all taken: (1) Undo put lines back by number after lines were added above, into another section; first fixed with a line-above check, which the re-review showed fooled by a blank line under each heading; now the whole-file check above. (2) Undo lost when refused (access check running, list loading): kept on offer. (3) Undo lost on rename: follows it. (4) Undo left up over another list, or on a read-only repository: withdrawn. Re-review: (5) Undo lost after a conflict with another tab: offered again, and then explains. Also taken: the × on a phone is a finger-sized target (about 31 x 33 px).
 - G-4: screens above; the rows keep their old spacing (the row is now a div around the label, and the settings form's label margin no longer leaks in). No overflow at 390 px.
 - G-5: 131 KB, no new dependency. G-6: README's feature list.
+
+### N12 and S2 — combined validation, 2026-09-27
+
+The owner requested these two items together, extending the original iteration
+cap. N12 implementation: `0a655fc`. S2 follows in a separate commit, with one
+full two-engine CI pass for the final combined PR. Setup and owner smoke checks
+are already complete and are not repeated.
+
+Preview uses pinned Marked 18.0.14 and DOMPurify 3.4.16, SRI, narrow CDN paths
+and sanitised DOM fragments. Frontmatter, tasks, code, links, drafts and CDN
+fallback: 15/15 checks in each engine. Images remain S4.
+
+Content search includes paths and scoped drafts, with at most 300 file reads
+and four workers. Read failures, skipped files and partial lists are visible.
+13/13 checks in each engine, including stale query/repo, auth recovery and
+bounded reads. Both feature suites together take about eight seconds.
+
+Independent review found lost results after selecting a match, and expired
+sign-in leaving search running. Both fixed with regressions; re-review passed
+13/13 and found no residual blocker. Mutations independently caught unsafe
+preview tags, unsafe attributes, stale results and missing sign-in recovery.
+The attribute payload was strengthened to use an allowed paragraph, so that
+check does not accidentally rely on the disallowed-element check.
+
+Screenshots inspected: tests/screens/n12-{1280,390}-{light,dark}.png and
+s2-{1280,390}-{light,dark}.png. No overflow, readable tables/frontmatter/links.
+CSP, hostile, privacy, docs, pinned-view and keyboard regressions passed.
+The keyboard fixture now preserves real preview-library routing.
+
+The app is still one file under 150,000 bytes (148,069 at review), no build.
+Tabs and shortened duplicate introductory prose leave room while preserving
+security/data-loss comments. Existing owner package-lock.json edit untouched.

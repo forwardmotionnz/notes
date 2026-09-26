@@ -25,7 +25,7 @@ Iterations: 21 / 30
 | A2 | 14 | done | `tests/welcome.test.mjs` 19/19: at most three sentences of at most 20 words, above Sign in, saying what Notes is, that it reads and writes files only in repositories the app is installed on (which you choose), that notes stay there and whoever runs the copy's App can reach them; a Privacy link to `PRIVACY.html` (GitHub Pages publishes `PRIVACY.md` there) in a new tab; Sign in has the focus; Forget me promises no more than PRIVACY.md (the privacy test holds the README to that too); fits 320 px. Screens `tests/screens/a2-*.png`; commit d91783c |
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | done | `npm test` runs every suite in Chromium and WebKit (`tests/run.mjs`; a missing engine fails, never skips); `tests/runner.test.mjs` 14/14; GitHub Actions run 18 (https://github.com/forwardmotionnz/notes/actions/runs/36204886187): the whole suite three times in a row, green in both engines, on 72c1af2; three local Chromium runs green. WebKit found one real bug, a Safari sign-in race between tabs, fixed with tests that reproduce it in Chromium; review of that fix found and fixed the offline sign-out. Commits d2b0cec, aaa113f, 8424be2, c7db305, 2a86afd, 72c1af2 |
-| F1 | 16 | doing | |
+| F1 | 16 | done | `manifest.webmanifest` (standalone, start and scope `./`, 192/512 and maskable icons), `icon-180.png` touch icon, `icon.svg`, theme colours light and dark, `manifest-src 'self'`; `tests/manifest.test.mjs` 25/25 (fields, real icon sizes, links, policy, Chromium parses it with no errors, start address equals the sign-in callback); GitHub Actions run 22 (https://github.com/forwardmotionnz/notes/actions/runs/36208864366): three runs in a row, both engines, green; three local Chromium runs green. Screen `tests/screens/f1-icon-shapes.png`. Commit 1326f8c; merged to `main` in forwardmotionnz/notes#1 |
 | F3 | 17 | todo | |
 | G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
 | H1 | 19 | todo | |
@@ -274,7 +274,7 @@ Iterations: 21 / 30
 - G-4: nothing in the app changed. G-5: dev tooling only; no runtime dependency, no request from the app. G-6: README's Tests section.
 
 ### F1: gauntlet record
-- G-1: full suite green three runs in a row, Chromium locally; both engines in CI.
+- G-1: GitHub Actions run 22, three runs in a row in both engines, green; three local Chromium runs green (1326f8c).
 - G-2: each safeguard reverted alone and caught: `manifest-src 'self'` (without it Chromium refuses the manifest, 4 checks fail), the start address (`index.html` would not match the sign-in callback), standalone display, the maskable icon, an icon's claimed size against its real pixels, the iPhone touch icon, the manifest link. The dark-mode colour and the tab-free wording have checks of their own.
 - Rule 6: the harness now serves the manifest and icons with the types GitHub Pages gives them (mime-db: `.webmanifest` is `application/manifest+json`; URL in the harness).
 - G-3 findings, all taken; the reviewer found nothing that could lose notes or a token, and confirmed the scope, start address, icons (opaque, maskable safe zone), policy and safe-area padding. (1) After installing the GitHub App from the home-screen app, iOS opens GitHub outside it, and the page GitHub returns to spoke of "tabs", inviting a sign-in in a throwaway sheet: the wording now names the Notes app too, and the README says to come back to the app. (2) On iPhone the home-screen app's storage is its own: the README now says the two are signed in and out separately and unsaved changes stay where they were typed. (3) The browser bar colour ignored dark mode: a dark `theme-color` too. Known limit, for the release checklist: signing in from the home-screen app on a real iPhone can only be tried there.
@@ -298,6 +298,7 @@ Iterations: 21 / 30
 - 2026-09-25: Before a repository is in use, a public one is never chosen for anyone, even when it is the only one: notes are private by default, and the other mistake cannot be undone.
 - 2026-09-25: A3 goes before A2: the signed-out screen links to the privacy note, so the note has to exist first.
 - 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
+- 2026-09-26: `main` is protected by a ruleset (pull requests only); merges now go through a pull request, the first being forwardmotionnz/notes#1 (F2 and F1), merged at the owner's request.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log
@@ -322,3 +323,4 @@ Iterations: 21 / 30
 - 2026-09-25 · A3 · done · 211e75b (taken before A2, which links to it)
 - 2026-09-25 · A2 · done · d91783c
 - 2026-09-26 · F2 · done · d2b0cec…72c1af2 (WebKit runs in GitHub Actions)
+- 2026-09-26 · F1 · done · 1326f8c

@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-9TLZfVOuY07kbOpKCCiPGf5zmbPrJ1qMos2tOf6qaG8=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hSss7mHYHCaY+bBqPgUOH4Rm7qANEUpQ/AjJrF7qbNU=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -1672,7 +1672,10 @@ var loadNote = "";             // said once the next file list is in (it clears 
    is in, nothing is written; an answer about a repository no longer shown
    is ignored; no answer at all (offline) blocks nothing, since writes
    would fail anyway and drafts keep the text. */
-var pinWriting = Promise.resolve();   // the last pinned-task commit, settling either way
+var pinWriting = Promise.resolve();   // every pinned-task commit asked for so far, settling either way
+var pinNext = pathMap();   // path -> { raw, text, onFail } waiting for the commit before it
+var pinBusy = pathMap();   // path -> true while a commit to it is on its way
+var pinEpoch = 0;          // counts changes of repository: a reply from before one is ignored
 var accessSeq = 0;
 var accessPending = false;
 
@@ -2664,20 +2667,48 @@ function commitPin(path, text, onFail) {
   renderPins();
   flash("Saving...");
 
-  pinWriting = writeFile(path, raw, sha).then(function (r) {
+  /* Each commit names the version it replaces, and the next version is
+     known only once GitHub answers. So writes to a pinned file go one at a
+     time: clicks while one is on its way wait, and share one commit that
+     carries the latest state. https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents */
+  var job = pinNext[path] || { onFail: [] };
+  job.raw = raw;
+  job.text = text;
+  if (onFail) job.onFail.push(onFail);
+  pinNext[path] = job;
+  if (!pinBusy[path]) pinWriting = Promise.all([pinWriting, sendPin(path)]);
+}
+
+function sendPin(path) {
+  var job = pinNext[path];
+  var epoch = pinEpoch;
+  delete pinNext[path];
+  pinBusy[path] = true;
+  var sha = pinCache[path] ? pinCache[path].sha : null;
+  return writeFile(path, job.raw, sha).then(function (r) {
+    if (pinEpoch !== epoch) return;      // another repository by now
     if (pinCache[path]) pinCache[path].sha = r.sha;
+    // The open note follows every commit, so a later one failing leaves it
+    // at what GitHub has, not a version behind.
     if (current && current.path === path && !dirty()) {
       current.sha = r.sha;
-      current.saved = text;
-      current.base = baseOf(raw);
-      editor.setValue(text);
+      current.saved = job.text;
+      current.base = baseOf(job.raw);
+      editor.setValue(job.text);
     }
+    if (pinNext[path]) return sendPin(path);
+    delete pinBusy[path];
     if (!files.some(function (f) { return f.path === path; })) refreshTree();   // a new file
     flash("Saved");
   }).catch(function (err) {
-    delete pinCache[path];     // drop bad state and reload from the server
+    // What was waiting was built on this commit: not sent on a guess.
+    if (pinEpoch !== epoch) { fail(err); return; }
+    var waiting = pinNext[path];
+    delete pinNext[path];
+    delete pinBusy[path];
+    delete pinCache[path];       // drop bad state and reload from the server
     renderPins();
-    if (onFail) onFail();
+    job.onFail.concat(waiting ? waiting.onFail : []).forEach(function (f) { f(); });
     fail(err);
   });
 }
@@ -2905,7 +2936,13 @@ function pointAt(owner, repo, branch, pins) {
 }
 
 function showPointed(changedRepo) {
-  pinCache = pathMap();
+  // Same repository (pins or settings saved): a pinned file with a commit
+  // on its way keeps what it is writing, and what waits behind it, rather
+  // than a read taken before the commit lands.
+  var keep = pathMap();
+  if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
+  pinCache = keep;
+  if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); }
   ui.pin = 0;
   if (changedRepo) {
     files = [];                  // the old repository's list is not this one's

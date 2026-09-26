@@ -255,7 +255,9 @@ Obsidian would not understand, so both can work on the same repository.
   github.com the file's history (or the commit that deleted it) lets you
   copy it back. If it changed elsewhere since you opened it, it is not
   deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
-- Pinned files as a live task list with a one-line capture box
+- Pinned files as a live task list with a one-line capture box. Ticks and
+  captures go to GitHub one at a time; clicks made while one is on its way
+  share the next commit
 - Filter across every path in the repository
 - Light and dark, and a layout that works on a phone: with the keyboard up,
   the app fits the space above it, so the buttons stay at the top and the

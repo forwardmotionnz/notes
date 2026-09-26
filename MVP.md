@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 20 / 30
+Iterations: 22 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -25,8 +25,8 @@ Iterations: 20 / 30
 | A2 | 14 | done | `tests/welcome.test.mjs` 19/19: at most three sentences of at most 20 words, above Sign in, saying what Notes is, that it reads and writes files only in repositories the app is installed on (which you choose), that notes stay there and whoever runs the copy's App can reach them; a Privacy link to `PRIVACY.html` (GitHub Pages publishes `PRIVACY.md` there) in a new tab; Sign in has the focus; Forget me promises no more than PRIVACY.md (the privacy test holds the README to that too); fits 320 px. Screens `tests/screens/a2-*.png`; commit d91783c |
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | blocked | Three failed gauntlet attempts on 2026-09-26. Latest: WebKit `auth.test.mjs`, older repository-list test, second Settings click blocked by a still-open dialog after Escape (candidate line 253). Logs: `tests/screens/f2-gauntlet{,-2,-3}/`; candidate patch: `tests/screens/f2-unfinished.patch`, extra regression suite: `tests/screens/f2-harness-regression.mjs.txt`. All unfinished F2 code/test/README changes reverted; no test removed from the baseline. |
-| F1 | 16 | doing | Add a same-origin manifest, scalable favicon and PNG home-screen icons. Prove relative deployment paths, correct icon sizes, CSP allowance and no service worker with `tests/manifest.test.mjs`; inspect desktop/phone light/dark screenshots and the icon. |
-| F3 | 17 | todo | |
+| F1 | 16 | done | `tests/manifest.test.mjs` 20/20; full 22-suite Chromium gauntlet green three consecutive times; origin restriction mutation caught; viewed icon and `tests/screens/f1-{desktop,phone}-{light,dark}.png`; commit 83c1791 (pushed). |
+| F3 | 17 | doing | Size the shell to the visual viewport when the keyboard opens, keep the header in view and scroll the focused caret within either editor. Test at 390 px using real CodeMirror and the CDN fallback, viewport shrink/pan/restore and unchanged note text; inspect light/dark desktop/phone screens. |
 | G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
@@ -295,6 +295,7 @@ Iterations: 20 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
+- 2026-09-26 · F1 · done · 83c1791 (pushed)
 - 2026-09-26 · F2 · blocked after three gauntlet failures; unfinished changes reverted · 1f6e274 (pushed)
 - 2026-09-25 · C1 · done · daa2754
 - 2026-09-25 · C2 · done · 493850a

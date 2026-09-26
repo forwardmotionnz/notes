@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 30 / 30
+Iterations: 31 (original 30-iteration cap extended by the owner's request to continue N12 and S2)
 
 ## Current handover — 2026-09-27
 
@@ -185,8 +185,8 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N8 | 17c | done | `tests/app.test.mjs` 70/70, new cases with GitHub slowed to 0.4-0.8 s a commit: three quick ticks all land with nothing refused and two commits; tick then untick ends as it began; a tick and a quick capture both land; a failed commit sends nothing after it, shows GitHub's state and the error, and puts the waiting capture back; a change made elsewhere is still a conflict and kept; changing repository mid-commit; saving settings mid-commit; the open note follows each commit. Commit in the log |
 | N9 | 17d | done | `tests/tasks.test.mjs` 52/52 (new suite): a remove control per task, named for it; removes that one line in one commit, no question; Undo puts it back exactly and goes after 8 s or once used; Clear done removes every ticked task and only them, in one commit, with Undo; CRLF kept; remove, untick and clear while GitHub is slow all land; a stale row removes nothing; a failed remove keeps the task and offers no Undo; Undo withdrawn on changing repository, switching list, or the repository becoming read-only; Undo refuses when lines were added above (incl. a blank line under each heading), still works after a tick or a capture, stays on offer while it cannot be sent yet, comes back after a refusal, and follows a rename; × always shown on a phone, on hover on a computer. `tests/access.test.mjs`: no task can be removed read-only. Screens `tests/screens/n9-{desktop,phone}-{light,dark}-{list,undo}.png`. Commit in the log |
 | N10 | 21a | done | Today’s daily note; `daily-notes` 23/23 in both engines; all 36 suites passed both engines in CI 36277448756 on `8e2b0fb`; PR #6 merged as `4f4a279`. |
-| N11 | 21b | doing | Pin/unpin beside the open note; browser-local Pinned section in the tree; checklist in the main area; remove side panel, phone sheet and Settings pins field. |
-| N12 | 21c | todo | Rendered preview toggle beside Save; sanitised Markdown, frontmatter box and wikilinks; CDN libraries with source-preserving fallback. Promoted from S1. |
+| N11 | 21b | done | Pin toggle and main-area checklist; `pinned-tree` 23/23 both engines; all 37 suites passed both engines in CI 36279330993 on `4eb4756`; PR #7 merged as `00ed737`. |
+| N12 | 21c | doing | Preview implemented; preview regression 15/15 Chromium, CSP 26/26 and hostile 28/28. Review and final combined N12/S2 CI pending. |
 | S1 | 22 | moved | Rendered preview is now MUST N12. |
 | S2 | 23 | todo | SHOULD: search inside note contents, not only file paths. First SHOULD after all MUSTs. |
 | S3 | 24 | todo | SHOULD: automated axe accessibility check with zero serious violations, after N11 layout changes. |
@@ -217,6 +217,10 @@ The app is 141,592 bytes with no new runtime dependency or host.
   shown, retaining every draft/capture preservation assertion.
 
 ### N11: verification
+- Completed: [PR #7](https://github.com/forwardmotionnz/notes/pull/7) merged
+  as `00ed737`. All 37 suites passed both engines in
+  [CI 36279330993](https://github.com/forwardmotionnz/notes/actions/runs/36279330993)
+  on `4eb4756`. Next item: N12, sanitised rendered preview.
 - `pinned-tree` failed 0/4 before implementation; final 23/23 in Chromium
   and WebKit, about 10 seconds total. Related app 70/70, tasks 52/52,
   auth-renewal 62/62 and keyboard suites passed focused Chromium checks.

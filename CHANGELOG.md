@@ -12,6 +12,10 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
+- Preview current Markdown and drafts with headings, tables, read-only tasks,
+  code, links and a frontmatter box. Sanitised with DOMPurify; CDN failure
+  preserves editing with a visible notice. Images are not loaded yet.
+
 - Pin/unpin beside the note name and a Pinned section at the top of Files.
   Pinned notes open as a checklist in the main area, with Edit note and Tasks
   controls to switch views. Pins remain local to this browser. This replaces

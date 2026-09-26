@@ -47,6 +47,12 @@ elsewhere creates a differently named one, the app follows it and says so.
 
 ## If a request fails
 
+Use **Preview** beside Save to read the current note, including unsaved edits,
+as rendered Markdown. **Edit** returns to the unchanged source. Frontmatter
+appears as text above the note; task boxes are read-only and wikilinks open
+notes. Images are not loaded yet. If the preview libraries cannot load,
+Notes explains this and keeps the editor available.
+
 If GitHub or the connection fails, the message stays visible until another
 action. Retry the same button: **Save** for a note, the file-list refresh
 button for the list, or the file name to open it again. A request that does

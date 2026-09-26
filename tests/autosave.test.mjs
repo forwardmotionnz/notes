@@ -1,4 +1,6 @@
-/* Autosave: commits after a pause and when the page is hidden, never per keystroke. */
+/* Autosave: commits after a pause and when the page is hidden, never per keystroke.
+   Pauses here stay fixed: they measure time against the app's 2 s timer, and
+   typing makes no request that H.settle could wait for. */
 import * as H from './harness.mjs';
 
 const t = H.suite('autosave');
@@ -144,6 +146,14 @@ const drafts = p => p.evaluate(() => Object.keys(localStorage).filter(k => k.sta
   await q.waitForTimeout(IDLE + 1200);
   t.check('restoring a draft commits nothing by itself', q.puts === 0 &&
     (await H.editorValue(q)) === '# Inbox\n\nleft behind');
+  // Switching apps is the other way an automatic save starts.
+  await hide(q);
+  await q.waitForTimeout(600);
+  t.check('nor when the page is hidden, untouched', q.puts === 0, String(q.puts));
+  await q.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
   await type(q, '# Inbox\n\nleft behind, now kept');
   await q.waitForTimeout(IDLE + 600);
   t.check('typing into it resumes autosave', gh.files['inbox.md'] === '# Inbox\n\nleft behind, now kept');
@@ -158,6 +168,13 @@ const drafts = p => p.evaluate(() => Object.keys(localStorage).filter(k => k.sta
   await p.click('#btn-new');
   await p.waitForTimeout(IDLE + 600);
   t.check('New alone commits nothing', p.puts === 0 && !('later.md' in gh.files));
+  await hide(p);
+  await p.waitForTimeout(600);
+  t.check('not even when the page is hidden', p.puts === 0 && !('later.md' in gh.files), String(p.puts));
+  await p.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
   await type(p, '# later\n\nnow with words\n');
   await p.waitForTimeout(IDLE + 600);
   t.check('typing creates it', gh.files['later.md'] === '# later\n\nnow with words\n' &&

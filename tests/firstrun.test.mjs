@@ -22,7 +22,7 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('the first-run steps are shown', await H.dialogOpen(p) && await p.isVisible('#firstrun'));
   const shown = await controls(p);
   t.check('and nothing else competes: only the two steps, "Check now" and Sign out',
@@ -47,7 +47,7 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   // On GitHub: a new, empty repository, and the app installed on it.
   gh.repos.push(repo('notes'));
   await backToTab(p);
-  await p.waitForTimeout(800);
+  await H.settle(p, 800);
   t.check('coming back, the one repository is chosen by itself', !(await H.dialogOpen(p)) &&
     (await p.textContent('#crumb')).includes('roldaof/notes'), await p.textContent('#crumb'));
   t.check('and it says how to write the first note', /empty.*press \+/i.test(await p.textContent('#tree')),
@@ -55,13 +55,13 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.accept('Welcome'));
   await p.click('#btn-new');
-  await p.waitForTimeout(200);
+  await H.settle(p, 200);
   await p.click('#btn-save');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('and the first note is a commit in it', gh.commits.some(c => c.path === 'Welcome.md' && c.repo === 'roldaof/notes'),
     JSON.stringify(gh.commits));
   t.check('settings later show the usual form again', await (async () => {
-    await p.click('#btn-settings'); await p.waitForTimeout(500);
+    await p.click('#btn-settings'); await H.settle(p, 500);
     return (await p.isHidden('#firstrun')) && (await p.isVisible('#f-repo')) && (await p.isVisible('#f-save'));
   })());
   // GitHub answers 409 for a repository with no commits yet (see B1); the
@@ -77,27 +77,27 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   await p.click('#fr-check');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('"Check now" with still nothing keeps the steps, and says so', await p.isVisible('#firstrun') &&
     /still/i.test(await p.textContent('#firstrun')), await p.textContent('#firstrun'));
   // The network drops just as they check.
   await ctx.route('**/user/installations?**', r => r.abort());
   await p.click('#fr-check');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('a check that fails stays on the steps and says to try again', await p.isVisible('#firstrun') &&
     /try again/i.test(await p.textContent('#fr-status')), await p.textContent('#fr-status'));
   await ctx.unroute('**/user/installations?**');
   gh.repos.push(repo('a'), repo('b'));
   await p.click('#fr-check');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('with two, the steps give way to the usual choice', await p.isHidden('#firstrun') &&
     (await p.$$eval('#f-repo option', o => o.map(x => x.textContent))).join() === 'roldaof/a,roldaof/b' &&
     !(await p.isDisabled('#f-save')));
   await p.selectOption('#f-repo', { label: 'roldaof/b' });
   await p.click('#f-save');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('and choosing one opens it', !(await H.dialogOpen(p)) && (await p.textContent('#crumb')).includes('roldaof/b'));
   await ctx.close();
 }
@@ -110,7 +110,7 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
     contentType: 'application/json', body: JSON.stringify({ message: 'This installation has been suspended' }) }));
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(700);
+  await H.settle(p, 700);
   t.check('an installation that did not answer does not send them off to make a repository',
     await p.isHidden('#firstrun') && /could not be listed/i.test(await p.textContent('#repos-failed')) &&
     await p.isVisible('#f-retry'), await p.textContent('#repos-failed'));
@@ -123,14 +123,14 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   await ctx.route('**/user/installations?**', r => down ? r.abort() : r.fallback());
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(700);
+  await H.settle(p, 700);
   t.check('nor does a list that could not be loaded at all', await p.isHidden('#firstrun') &&
     /could not load/i.test(await p.textContent('#repos-failed')), await p.textContent('#repos-failed'));
   t.check('which says so where it can be seen, with Try again (the dialog cannot be closed yet)',
     await p.isVisible('#repos-failed') && await p.isVisible('#f-retry'));
   down = false;
   await p.click('#f-retry');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('and once it loads, empty, the steps appear', await p.isVisible('#firstrun') && await p.isHidden('#repos-failed'));
   await ctx.close();
 }
@@ -142,11 +142,11 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   // Step 2 with GitHub's default, "All repositories".
   gh.repos.push(pub('blog'), repo('archive'), pub('dotfiles'), repo('notes'));
   await backToTab(p);
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   const chosen = () => p.$eval('#f-repo', s => s.options[s.selectedIndex].textContent);
   t.check('with others listed first, the private "notes" just made is the one chosen',
     (await chosen()) === 'roldaof/notes', await chosen());
@@ -161,7 +161,7 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('only public ones: none is chosen, and Save waits for a choice',
     (await p.$eval('#f-repo', s => s.value)) === '' && await p.isDisabled('#f-save'));
   await ctx.close();
@@ -171,14 +171,14 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('a single public repository is not chosen without asking', await H.dialogOpen(p) &&
     (await p.$eval('#f-repo', s => s.value)) === '' && await p.isDisabled('#f-save'));
   await p.selectOption('#f-repo', { index: 1 });
   t.check('choosing it says it is public', /public: anyone can read/i.test(await p.textContent('#repo-hint')) &&
     await p.isEnabled('#f-save'), await p.textContent('#repo-hint'));
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('but Save uses it once they say so', !(await H.dialogOpen(p)) && (await p.textContent('#crumb')).includes('roldaof/blog'));
   await ctx.close();
 }
@@ -189,13 +189,13 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   // They install on an organisation whose list does not answer (SAML, suspended).
   gh.installations = [{ id: 31, account: { login: 'acme', type: 'Organization' }, repos: [repo('x')] }];
   await ctx.route('**/user/installations/31/repositories**', r => r.fulfill({ status: 403,
     contentType: 'application/json', body: JSON.stringify({ message: 'Resource protected by organization SAML enforcement.' }) }));
   await p.click('#fr-check');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('an account that did not answer is named on the steps, not "nothing happened"',
     /could not be listed/i.test(await p.textContent('#fr-status')), await p.textContent('#fr-status'));
   await ctx.close();
@@ -207,14 +207,14 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   await ctx.route('**/user/installations?**', async r => { if (slow) await new Promise(res => { go = res; }); r.fallback(); });
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   slow = true;
   await p.click('#fr-check');
-  await p.waitForTimeout(200);
+  await H.settle(p, 200);
   t.check('"Check now" shows it is checking, and cannot be pressed twice',
     /checking/i.test(await p.textContent('#fr-status')) && await p.isDisabled('#fr-check'));
   go(); slow = false;
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('and is ready again after', await p.isEnabled('#fr-check') && /still/i.test(await p.textContent('#fr-status')));
   await ctx.close();
 }
@@ -226,12 +226,12 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   await ctx.route('**/user/installations?**', async r => { await new Promise(res => { go = res; }); r.fallback(); });
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   const shown = await controls(p);
   t.check('while the first list loads, only "looking" and Sign out are shown',
     await p.isVisible('#repos-loading') && JSON.stringify(shown) === '["f-forget"]', JSON.stringify(shown));
   go();
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('then the steps', await p.isVisible('#firstrun') && await p.isHidden('#repos-loading'));
   await ctx.close();
 }
@@ -242,7 +242,7 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   const ctx = await H.context(gh, { viewport: { width: 390, height: 780 } });
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   const fits = await p.evaluate(() => [...document.querySelectorAll('#firstrun a, #firstrun button')]
     .every(e => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.height >= 36; }));
   t.check('on a phone the steps fit and are big enough to tap', fits &&

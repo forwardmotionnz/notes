@@ -27,7 +27,7 @@ async function phone() {
   });
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   return { gh, ctx, p };
 }
 
@@ -47,13 +47,13 @@ for (const pan of [0, 120]) {
   const label = pan ? 'keyboard up, page panned' : 'keyboard up';
   const { ctx, p } = await phone();
   await p.click('#btn-tree');
-  await p.waitForTimeout(250);
+  await H.settle(p, 250);
   await H.clickRow(p, 'inbox.md');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   // Caret at the very end of a long note, then the keyboard comes up.
   await p.evaluate(() => { const ta = document.querySelector('#cm-stub'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
   await p.evaluate(([k, pan]) => window.keyboard(k, pan), [KEYBOARD, pan]);
-  await p.waitForTimeout(200);
+  await H.settle(p, 200);
   for (const b of ['#btn-tree', '#btn-save', '#btn-pins', '#btn-settings']) {
     t.check(`${label}: ${b} stays on screen and tappable`, (await onScreen(p, b)) === 'ok', await onScreen(p, b));
   }
@@ -61,7 +61,7 @@ for (const pan of [0, 120]) {
     (await p.evaluate(() => { const r = document.querySelector('#cm-stub').getBoundingClientRect(), vv = visualViewport;
       return r.top >= vv.offsetTop && r.bottom <= vv.offsetTop + vv.height + 0.5; })), await onScreen(p, '#cm-stub'));
   await p.keyboard.type('\nnew words at the end');
-  await p.waitForTimeout(150);
+  await H.settle(p, 150);
   const caret = await p.evaluate(() => {
     const ta = document.querySelector('#cm-stub'), r = ta.getBoundingClientRect(), vv = visualViewport;
     // The caret is on the last line: in view when the textarea shows its end,
@@ -75,7 +75,7 @@ for (const pan of [0, 120]) {
   t.check(`${label}: and what was typed is there`, (await H.editorValue(p)).endsWith('new words at the end'));
 
   await p.evaluate(() => window.keyboard(0, 0));
-  await p.waitForTimeout(200);
+  await H.settle(p, 200);
   t.check(`${label}: keyboard down, the app fills the screen again`, await p.evaluate(() =>
     Math.abs(document.getElementById('shell').getBoundingClientRect().bottom - innerHeight) < 1));
   t.check(`${label}: no page errors`, p.errors.length === 0, p.errors.join(' | '));
@@ -90,7 +90,7 @@ for (const pan of [0, 120]) {
     vv.scale = 2; vv.height = innerHeight / 2; vv.offsetTop = 200;
     vv.dispatchEvent(new Event('resize'));
   });
-  await p.waitForTimeout(150);
+  await H.settle(p, 150);
   t.check('zoomed in: the app keeps its full size', await p.evaluate(() => {
     const r = document.getElementById('shell').getBoundingClientRect();
     return Math.abs(r.height - innerHeight) < 1 && Math.abs(r.top) < 1;
@@ -112,12 +112,12 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   });
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   await p.click('#btn-pins');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   await p.focus('#pin-input');
   await p.evaluate(k => window.keyboard(k), keyboard);
-  await p.waitForTimeout(250);
+  await H.settle(p, 250);
   t.check(`pins sheet, ${label}: the "Add a task" box stays above the keyboard`, (await onScreen(p, '#pin-input')) === 'ok', await onScreen(p, '#pin-input'));
   t.check(`pins sheet, ${label}: and its Add button`, (await onScreen(p, '#pin-go')) === 'ok', await onScreen(p, '#pin-go'));
   await ctx.close();
@@ -138,20 +138,20 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
 {
   const { ctx, p } = await phone();
   await p.evaluate(() => openFile('inbox.md'));
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await p.evaluate(() => { const ta = document.querySelector('#cm-stub'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); window.cmScrolls = 0; window.cmRefreshes = 0; });
   await p.evaluate(k => window.keyboard(k), KEYBOARD);
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   const up = await p.evaluate(() => [window.cmRefreshes, window.cmScrolls]);
   t.check('keyboard up while typing: the editor re-measures and shows the caret, once', up[0] === 1 && up[1] === 1, JSON.stringify(up));
   // Rereading above the caret, then Safari pans the page.
   await p.evaluate(() => { const vv = visualViewport; for (const y of [10, 40, 80, 20]) { vv.offsetTop = vv.pageTop = y; vv.dispatchEvent(new Event('scroll')); } });
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   const panned = await p.evaluate(() => [window.cmRefreshes, window.cmScrolls]);
   t.check('panning does not pull the note back to the caret, nor re-measure it', panned[0] === 1 && panned[1] === 1, JSON.stringify(panned));
   // The keyboard goes and comes back while the filter, not the note, has focus.
   await p.evaluate(k => { document.getElementById('filter').focus(); window.keyboard(0); window.keyboard(k); }, KEYBOARD);
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   const other = await p.evaluate(() => [window.cmRefreshes, window.cmScrolls]);
   t.check('typing elsewhere: the note is re-measured but not moved to its caret', other[0] === 3 && other[1] === 1, JSON.stringify(other));
   await ctx.close();
@@ -163,11 +163,11 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   const ctx = await H.context(gh, { viewport: { width: W, height: FULL } });
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('Android is asked to resize the page for the keyboard', await p.evaluate(() =>
     /interactive-widget=resizes-content/.test(document.querySelector('meta[name=viewport]').content)));
   await p.setViewportSize({ width: W, height: FULL - KEYBOARD });
-  await p.waitForTimeout(200);
+  await H.settle(p, 200);
   t.check('resized: Save and settings still on screen', (await onScreen(p, '#btn-save')) === 'ok' &&
     (await onScreen(p, '#btn-settings')) === 'ok');
   await ctx.close();

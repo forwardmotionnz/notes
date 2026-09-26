@@ -508,6 +508,12 @@ export async function context(gh, opts = {}) {
 /* A page that records errors, ignoring the ones the app expects. */
 export async function page(ctx, url = APP()) {
   const p = await ctx.newPage();
+  // Requests in flight, for settle().
+  p.inflight = 0; p.lastNet = Date.now();
+  p.on('request', () => { p.inflight++; p.lastNet = Date.now(); });
+  for (const ev of ['requestfinished', 'requestfailed']) {
+    p.on(ev, () => { p.inflight = Math.max(0, p.inflight - 1); p.lastNet = Date.now(); });
+  }
   p.errors = [];
   p.on('pageerror', e => p.errors.push(String(e)));
   p.on('console', m => {
@@ -525,6 +531,26 @@ export async function page(ctx, url = APP()) {
   return p;
 }
 
+/* Wait for the app to settle after an action, instead of a fixed pause:
+   at least 150 ms (so a check that something did NOT happen still gives it
+   time, even to encode a large note), then until no page of the test (any
+   tab) has had a request in flight for 80 ms, and never longer than `ms`, the
+   pause this replaces. Not for time measured against the app's timers, nor
+   for another tab reacting to a storage event, which makes no request. The app's own timers (autosave
+   at 2 s, the status line) are longer than anything this replaces; waits
+   for those stay fixed. */
+export async function settle(p, ms) {
+  if (p.inflight === undefined) return p.waitForTimeout(ms);
+  const start = Date.now(), floor = Math.min(ms, 150);
+  const tabs = () => p.context().pages().filter(x => x.inflight !== undefined);
+  for (;;) {
+    await p.waitForTimeout(20);
+    const now = Date.now();
+    if (now - start >= ms) return;
+    if (now - start >= floor && tabs().every(x => x.inflight === 0 && now - x.lastNet >= 80)) return;
+  }
+}
+
 /* Full sign-in through the real flow. */
 export async function signIn(p, { remember = true } = {}) {
   await p.waitForSelector('#f-signin:not([disabled])');
@@ -533,7 +559,7 @@ export async function signIn(p, { remember = true } = {}) {
     p.waitForURL(u => u.toString().startsWith(APP()) && !u.search.includes('code='), { timeout: 5000 }),
     p.click('#f-signin'),
   ]);
-  await p.waitForTimeout(500);
+  await settle(p, 500);
 }
 
 /* Helpers used across suites. */
@@ -544,14 +570,14 @@ export const clickRow = async (p, name) => {
     const el = els.find(e => e.textContent.replace(/[▸▾]/g, '').trim() === n);
     if (el) el.click();
   }, name);
-  await p.waitForTimeout(300);
+  await settle(p, 300);
 };
 export const expand = async (p, name) => {
   await p.$$eval('#tree .row.dir', (els, n) => {
     const el = els.find(e => e.textContent.replace(/[▸▾]/g, '').trim() === n);
     if (el) el.click();
   }, name);
-  await p.waitForTimeout(100);
+  await settle(p, 100);
 };
 export const editorValue = p => p.evaluate(
   () => document.querySelector('#cm-stub, .fallback-editor')?.value ?? null);

@@ -91,7 +91,7 @@ const directive = name => dir(meta, name);
     out.ran = window.__ran === 1;
     return out;
   });
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('fetch to a third party blocked', results.fetch === 'blocked', results.fetch);
   t.check('image beacon to a third party blocked', results.img === 'blocked', results.img);
   // sendBeacon says true once queued; the policy stops it on the way out.
@@ -165,7 +165,7 @@ const directive = name => dir(meta, name);
   const gh = H.fakeGitHub();
   const ctx = await H.context(gh, { deploy: { broker: 'https://somewhere-else.example/' } });
   const p = await H.page(ctx);
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('broker missing from the policy is reported', await p.evaluate(() =>
     !document.getElementById('not-deployed').hidden &&
     /Content-Security-Policy/.test(document.getElementById('not-deployed').innerText)));

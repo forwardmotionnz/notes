@@ -70,7 +70,7 @@ await p.exposeFunction('noteViolation', v => blocked.push(v));
 await p.addInitScript(() => document.addEventListener('securitypolicyviolation',
   e => window.noteViolation(e.violatedDirective + ' ' + e.blockedURI)));
 await p.goto(H.APP());
-await p.waitForTimeout(600);
+await H.settle(p, 600);
 const link = await p.evaluate(() => document.querySelector('link[rel=manifest]').href);
 const res = await p.request.get(link);
 t.check('the manifest is served, as GitHub Pages serves it', res.ok() &&

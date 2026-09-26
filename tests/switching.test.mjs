@@ -26,7 +26,7 @@ async function ready(ghOpts = {}) {
   return { gh, ctx, p };
 }
 
-const type = async (p, v) => { await H.setEditor(p, v); await p.waitForTimeout(60); };
+const type = async (p, v) => { await H.setEditor(p, v); await H.settle(p, 60); };
 const drafts = p => p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('notes.draft.')));
 const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textContent || '');
 
@@ -36,7 +36,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await H.clickRow(p, 'inbox.md');
   await type(p, '# Inbox\n\ntyped then left');
   await H.clickRow(p, 'plan.md');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('switching files asks nothing', p.asked.length === 0, JSON.stringify(p.asked));
   t.check('the file left behind is committed', gh.files['inbox.md'] === '# Inbox\n\ntyped then left');
   t.check('the new file is open', (await H.editorValue(p)) === '# Plan\n');
@@ -56,7 +56,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
     r.request().method() === 'PUT' ? r.abort() : r.fallback());
   await type(p, '# Inbox\n\nwritten on a train');
   await H.clickRow(p, 'plan.md');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('offline switch asks nothing', p.asked.length === 0);
   t.check('offline switch keeps a draft', (await drafts(p)).length === 1);
   await H.clickRow(p, 'inbox.md');
@@ -73,9 +73,9 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   gh.files['inbox.md'] = '# Inbox\n\ntheirs\n';
   await type(p, '# Inbox\n\nmine');
   await p.click('#btn-save');
-  await p.waitForTimeout(350);
+  await H.settle(p, 350);
   await H.clickRow(p, 'plan.md');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('conflicted file: switching asks nothing', p.asked.length === 0);
   t.check('their text still stands', gh.files['inbox.md'] === '# Inbox\n\ntheirs\n');
   await H.clickRow(p, 'inbox.md');
@@ -94,7 +94,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   });
   await type(p, '# Inbox\n\none');
   await p.click('#btn-save');
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   await type(p, '# Inbox\n\none two');           // not yet on its way
   await H.clickRow(p, 'plan.md');
   await p.waitForTimeout(2500);
@@ -110,7 +110,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   t.check('without a false warning about GitHub', !/changed on github/i.test(await H.status(p)),
     await H.status(p));
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('and it saves cleanly on top of the earlier commit',
     gh.files['inbox.md'] === '# Inbox\n\none two' && !/conflict/i.test(await H.status(p)), await H.status(p));
   await ctx.close();
@@ -126,7 +126,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   });
   await type(p, '# Inbox\n\none');
   await p.click('#btn-save');
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   await H.clickRow(p, 'plan.md');
   await H.clickRow(p, 'inbox.md');                 // back before the commit lands
   await p.waitForTimeout(1500);
@@ -144,7 +144,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await H.clickRow(p, 'inbox.md');
   await p.route('https://api.github.com/**/contents/plan.md*', r => r.abort());
   await H.clickRow(p, 'plan.md');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('a failed open leaves the old file on screen', (await H.editorValue(p)) === FILES()['inbox.md']);
   await type(p, '# Inbox\n\nstill here');
   await p.waitForTimeout(2600);
@@ -159,11 +159,11 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await type(p, '# Inbox\n\nbefore new');
   p.answer = 'fresh';
   await p.click('#btn-new');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('New asks nothing about the file left', p.asked.length === 0);
   t.check('New commits the file left', gh.files['inbox.md'] === '# Inbox\n\nbefore new');
   await H.clickRow(p, 'plan.md');                   // leave the template untouched
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   t.check('an untouched New template leaves no draft', (await drafts(p)).length === 0,
     JSON.stringify(await drafts(p)));
   t.check('and no file', !('fresh.md' in gh.files));
@@ -180,14 +180,14 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/alpha' });
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   await H.clickRow(p, 'inbox.md');
   await type(p, '# Inbox\n\nfor alpha');
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/beta' });
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   t.check('changing repository asks nothing', p.asked.length === 0, JSON.stringify(p.asked));
   const c = gh.commits.at(-1);
   t.check('the open file is committed first', gh.files['inbox.md'] === '# Inbox\n\nfor alpha' && !!c);
@@ -200,7 +200,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
   const b = await H.page(ctx);
-  await b.waitForTimeout(700);                     // tab B has inbox.md open too
+  await H.settle(b, 700);                     // tab B has inbox.md open too
   await p.route('https://api.github.com/**/contents/**', async r => {
     if (r.request().method() === 'PUT') await new Promise(res => setTimeout(res, 900));
     return r.fallback();
@@ -248,7 +248,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/alpha' });
   await p.click('#f-save');
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   await H.clickRow(p, 'inbox.md');
   let lose = true;
   await p.route('https://api.github.com/**/contents/**', r => {
@@ -261,13 +261,13 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   });
   await type(p, '# Inbox\n\nalpha one');
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await type(p, '# Inbox\n\nalpha two');
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/beta' });
   await p.click('#f-save');
-  await p.waitForTimeout(800);
+  await H.settle(p, 800);
   t.check('nothing from alpha is written into beta', !gh.commits.some(c => c.repo === 'roldaof/beta'),
     JSON.stringify(gh.commits.map(c => c.repo)));
   await ctx.close();

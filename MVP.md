@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 23 / 30
+Iterations: 24 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -28,7 +28,7 @@ Iterations: 23 / 30
 | F1 | 16 | done | `manifest.webmanifest` (standalone, start and scope `./`, 192/512 and maskable icons), `icon-180.png` touch icon, `icon.svg`, theme colours light and dark, `manifest-src 'self'`; `tests/manifest.test.mjs` 25/25 (fields, real icon sizes, links, policy, Chromium parses it with no errors, start address equals the sign-in callback); GitHub Actions run 22 (https://github.com/forwardmotionnz/notes/actions/runs/36208864366): three runs in a row, both engines, green; three local Chromium runs green. Screen `tests/screens/f1-icon-shapes.png`. Commit 1326f8c; merged to `main` in forwardmotionnz/notes#1 |
 | F3 | 17 | doing | |
 | N6 | 17a | doing | |
-| N7 | 17b | todo | |
+| N7 | 17b | doing | |
 | G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review (offline refresh signing out): fixed in F2 (2a86afd). Also from F2: `broker()` has no timeout, so a stalled connection holds the refresh lock until the browser gives up. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
@@ -307,6 +307,14 @@ Iterations: 23 / 30
 - Change: a 32 px PNG tab icon (367 bytes) beside the SVG, raster first with explicit sizes (so Chromium still prefers the SVG). The test now checks every tab-icon link: the file exists, its type and real pixel size match, it is served with its type.
 - G-3: nothing wrong found. Chrome, Edge, Firefox and current Safari use the SVG; older Safari the PNG; iOS the PNG or the 180 px touch icon. Favicons are same-origin, so `img-src 'self'` allows them where a browser applies the policy. The globe the owner saw: the link was already on `main`, so most likely a page loaded before the deploy finished (Pages also caches for up to 10 minutes) or Chrome's favicon cache; hard reload, or open the app in a new tab.
 - G-4: a browser's tab strip cannot be screenshotted headless; the icon itself was checked at 32 px. G-5: one 367-byte file, no request beyond the app's own files. G-6: no behaviour described in the README changed.
+
+### N7: gauntlet record
+- Result: a full run went from about 300 s to 103 s (three runs: 103, 103, 103 s; 92 s before the review's fixes below). Two changes. (1) The runner runs suites in parallel, four at a time by default (`--jobs`), each suite's output kept together; each suite has its own simulated GitHub and browser, so nothing they test changes. (2) The 367 fixed pauses under 1.5 s became `H.settle(page, ms)`: at least 100 ms, then until no tab of the test has had a request in flight for 80 ms, and never longer than the pause it replaced, so a test can only get faster and a check that something did NOT happen still waits at least 150 ms. The 31 pauses of 1.5 s and more wait for the app's own timers (autosave at 2 s, the status line) and stay fixed; the app has no other timer but a 150 ms poll inside sign-in renewal.
+- G-1: three local runs green (Chromium); CI both engines.
+- G-2, across the suites rather than one (the risk being a check made hollow by waiting less): 18 of the app's safeguards broken one at a time against the suite that should notice, 16 caught at once. The other two, and two more found the same way, were gaps before N7 as well (the old tests, with their fixed pauses, missed them too), and are closed here with new checks: an untouched restored draft, or an untouched new note, is not committed when the page is hidden (switching apps); a PNG is not opened through an Obsidian embed link (`![[image.png]]`) or as the remembered last file after a reload; a rename onto a file already in the list is refused before any request to GitHub. One remains unobservable by design: leaving a note checks "touched" before saving, and the save checks it again; breaking either alone changes nothing, as the other still holds (the save's own check is the one caught).
+- The runner's own tests: parallel output stays per suite, one at a time gives the same verdict, `--jobs` must be a whole number from 1; failing and crashing suites still fail the run.
+- G-3 findings, all taken: (1) real: "no commit while typing steadily" had become hollow. Typing makes no request, so each settle returned after the floor, the six keystrokes fitted inside one 2 s autosave window, and a mutant whose keystrokes did not push autosave back passed. Every pause in the autosave suite is fixed again (they measure time against the app's timer), and that mutant is caught again. (2) settle watched one tab while three auth checks were about another tab reacting to a storage event or a Web Lock, which make no request: settle now watches every tab of the test, and those three checks keep their fixed pauses. (3) The app spent 128 ms encoding a 1 MB note before its request started, past the 100 ms floor: the floor is now 150 ms. (4) The pins-sheet check waits out its 180 ms slide again (fixed 260 ms). (5) The new rename check counts every request to GitHub, not only git calls. Checked by the reviewer: Playwright counts a request held by a route handler as in flight until it is fulfilled, and aborted ones as finished; parallel suites share no port, file or state.
+- G-4: no visible change. G-5: tests only. G-6: README's Tests section.
 
 ## Decisions
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.

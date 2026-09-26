@@ -29,11 +29,16 @@ Iterations: 24 / 30
 | F3 | 17 | done | `tests/keyboard.test.mjs` 29/29: with the keyboard up (faked `visualViewport` at real iPhone 14 and SE heights, and panned), the header buttons stay on screen and tappable, the editor ends at the keyboard and typing at the end of a long note keeps the caret in view, the pinned-tasks "Add a task" box and Add stay above it; pinch zoom leaves the layout alone; every field is 16px on phones; panning does not move the note; Android asked to resize (`interactive-widget`). GitHub Actions run 32 (https://github.com/forwardmotionnz/notes/actions/runs/36216435977): three in a row, both engines, green. Screens `tests/screens/f3-*.png`. Commits 7219a9b, 07173fe; merged in forwardmotionnz/notes#2 |
 | N6 | 17a | done | a 32 px PNG tab icon beside the SVG (older Safari); `tests/manifest.test.mjs` 30/30 checks every tab-icon link (exists, type, real size, served type); run 32, both engines, green. Commit 74c2291; merged in forwardmotionnz/notes#2 |
 | N7 | 17b | done | a full local run about 300 s -> 73 s (8 suites at a time; three runs green); CI runs the repeats as side-by-side jobs, three over in both engines in 5 min 42 s instead of about 35 min (run 43, https://github.com/forwardmotionnz/notes/actions/runs/36221083063, green). 367 short fixed pauses became `H.settle`; four missing checks found and added; the review's hollow check restored. Commits 5574a13, 47b968c, b1a75bd, 66dbef4, ae130fa |
+| N8 | 17c | todo | |
+| N9 | 17d | todo | |
 | G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review (offline refresh signing out): fixed in F2 (2a86afd). Also from F2: `broker()` has no timeout, so a stalled connection holds the refresh lock until the browser gives up. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
-| S1 | 22 | todo | SHOULD |
+| N10 | 21a | todo | |
+| N11 | 21b | todo | |
+| N12 | 21c | todo | S1 brought forward as a MUST at the owner's request |
+| S1 | 22 | moved | now N12 |
 | S2 | 23 | todo | SHOULD |
 | S3 | 24 | todo | SHOULD |
 | S4 | 25 | todo | SHOULD |
@@ -133,6 +138,26 @@ Iterations: 24 / 30
 ### N7: plan (asked by the owner, 2026-09-26)
 - Done looks like: a full run takes about a minute or two instead of five, and is less sensitive to a slow machine. The 394 fixed pauses (about 232 s of waiting per run) become waits for the condition each one stands for, and the runner runs several suites at once (each has its own fake GitHub and browser). No check is weakened or removed; every check still fails for the right reason.
 - Proof: timings before and after; every suite passes three runs in a row in both engines; a sample of each suite's checks reverted against the app still caught (G-2 across the suites, not only one); the runner's own tests extended for parallel runs (a failure in one suite still fails the run, output stays per suite).
+
+### Owner's requests (2026-09-26), in the order agreed
+Reviewed with the owner before adding; decisions: pinned files move into the file tree and the side panel goes; daily notes follow the vault's Obsidian settings.
+
+### N8: plan: quick clicks on a pinned task end in "Conflict"
+- Cause (found in the code): each tick is a commit naming the version of the file it replaces, and the app learns the new version only when GitHub answers; a second tick in that time names the old version, GitHub refuses it (409), and the app reloads, losing that tick. The simulated GitHub accepted it ("rapid toggles all land" passes), which breaks rule 6.
+- Done looks like: first the fake refuses a stale sha as GitHub does, and the test fails for this bug; then pinned-task writes go to GitHub one at a time per file, each waiting for the last, several quick clicks may share one commit carrying the latest state, and no click is lost or reported as a conflict.
+
+### N9: plan: remove tasks
+- Done looks like: each task has a remove control (always visible on a phone, on hover on desktop) that removes that one line in one commit, with a short "Removed · Undo"; and "Clear done" removes every ticked task in one commit. No confirmation step (the history keeps every line). Goes through the same one-at-a-time writing as N8.
+
+### N10: plan: today's daily note
+- Done looks like: a Today button opens today's note, creating it only when first saved (like New). Folder, date format and template come from the vault's `.obsidian/daily-notes.json` when there is one (read, never written), otherwise `Daily/YYYY-MM-DD.md` with a heading. Obsidian's date tokens that matter (YYYY, MM, DD, and common variants) are honoured; an unsupported format falls back to the default and says so.
+
+### N11: plan: pin and unpin; pinned files at the top of the tree
+- Done looks like: a pin toggle beside the open note's name; a "Pinned" section at the top of the file tree; opening a pinned file shows it as a checklist (tick, add, remove, as now) in the main area; the right-hand pins panel is removed (and the phone's bottom sheet with it). Pins stay per browser, stored with the settings, and the app says so; the Settings field for pins goes.
+- Decision: pins are not written into the repository (rule 2: no app-specific files in the user's repo). Syncing them between devices is left for later.
+
+### N12: plan: rendered preview (was S1)
+- Done looks like: a Preview toggle beside Save shows the note rendered (headings, tables, task lists, links, code), read-only; frontmatter shown as a small box; wikilinks open notes as E1 does. Rendered with `marked` and sanitised with `DOMPurify`, both from cdnjs, with the page's policy allowing exactly those two files (hashes pinned where cdnjs can be reached); no script from a note ever runs (tested with hostile notes). If the CDN is down, Preview says so and the text stays as it is.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -336,6 +361,7 @@ Iterations: 24 / 30
 - 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
 - 2026-09-26: `main` is protected by a ruleset (pull requests only); merges now go through a pull request, the first being forwardmotionnz/notes#1 (F2 and F1), merged at the owner's request.
 - 2026-09-26: F3 and N6 merged into `main` in forwardmotionnz/notes#2 at the owner's request, before N7.
+- 2026-09-26: Owner's requests N8-N12 added after review with the owner: the two bugs they hit (N8, N9) go before G3; the rest after the MUSTs; S1 (preview) is now N12. Pinned files move into the file tree and the side panel goes; pins stay per browser (rule 2).
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 
 ## Log

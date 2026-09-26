@@ -14,7 +14,7 @@
   (Measured on 4 CPUs: 4 at a time 109 s, 8 at a time 72 s, 12 at a time 60 s,
   each three runs in a row without a failure here; but 12 at a time on
   GitHub's slower 4-CPU runners failed sign-ins and loads for lack of time,
-  so the default is 8, and CI asks for 4.)
+  so the default is 8; CI now asks for 2 in each engine to limit contention.)
 
   An engine that is not installed fails the run, with the command that
   installs it. It is never skipped: a run that quietly left out Safari's

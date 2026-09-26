@@ -86,6 +86,17 @@ They are not instructions to repeat completed setup.
   every assertion and deliberate in-flight race case remains unchanged.
   All 33 checks passed three times per engine; logs:
   `tests/screens/switch-ready-final-{chromium,webkit}-{1,2,3}.log`.
+- A further duplicate Chromium failure was EOL setup editing the previous
+  note while its requested note was loading, leaving Save disabled when the
+  new note arrived. An independent held-response probe reproduced it and
+  confirmed the old note's text remained recoverable in its scoped draft.
+  EOL editing cases now await their requested path and completed opening;
+  the deliberate non-UTF-8 refusal is unchanged. All 31 checks passed three
+  times per engine: `tests/screens/eol-ready-final-{chromium,webkit}-{1,2,3}.log`.
+  CI now runs two independent suites at a time in each engine to limit CPU
+  contention; assertions, both engines, repeat counts and each suite's
+  deliberate concurrent operations are unchanged. Independent review
+  confirmed no weakened coverage or production change.
 
 ## Items
 | ID | Priority | Status | Evidence |

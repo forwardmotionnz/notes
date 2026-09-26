@@ -4,6 +4,11 @@ Iterations: 31 (original 30-iteration cap extended by the owner's request to con
 
 ## Current handover — 2026-09-27
 
+N12 preview (`0a655fc`) and S2 content search (`ec8d7b5`) are implemented and
+reviewed in [PR #8](https://github.com/forwardmotionnz/notes/pull/8). Its checks
+record the final combined CI result; merge only when both engines are green.
+Next items after this PR: S3 accessibility checks, then S4 preview images.
+
 Account setup is complete. The reconciled MVP and faster development
 workflow were merged into `main` in [PR #5](https://github.com/forwardmotionnz/notes/pull/5),
 commit `032f6e6`, and the published Pages app matched that commit.
@@ -186,9 +191,9 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N9 | 17d | done | `tests/tasks.test.mjs` 52/52 (new suite): a remove control per task, named for it; removes that one line in one commit, no question; Undo puts it back exactly and goes after 8 s or once used; Clear done removes every ticked task and only them, in one commit, with Undo; CRLF kept; remove, untick and clear while GitHub is slow all land; a stale row removes nothing; a failed remove keeps the task and offers no Undo; Undo withdrawn on changing repository, switching list, or the repository becoming read-only; Undo refuses when lines were added above (incl. a blank line under each heading), still works after a tick or a capture, stays on offer while it cannot be sent yet, comes back after a refusal, and follows a rename; × always shown on a phone, on hover on a computer. `tests/access.test.mjs`: no task can be removed read-only. Screens `tests/screens/n9-{desktop,phone}-{light,dark}-{list,undo}.png`. Commit in the log |
 | N10 | 21a | done | Today’s daily note; `daily-notes` 23/23 in both engines; all 36 suites passed both engines in CI 36277448756 on `8e2b0fb`; PR #6 merged as `4f4a279`. |
 | N11 | 21b | done | Pin toggle and main-area checklist; `pinned-tree` 23/23 both engines; all 37 suites passed both engines in CI 36279330993 on `4eb4756`; PR #7 merged as `00ed737`. |
-| N12 | 21c | doing | Preview implemented; preview regression 15/15 Chromium, CSP 26/26 and hostile 28/28. Review and final combined N12/S2 CI pending. |
+| N12 | 21c | done | `0a655fc`, reviewed with `ec8d7b5`; preview 15/15 both engines, CSP 26/26, hostile 28/28. Screens and mutations below; final CI/merge status in PR #8. |
 | S1 | 22 | moved | Rendered preview is now MUST N12. |
-| S2 | 23 | doing | Content search implemented; 13/13 checks in each engine including drafts, incomplete results, result retention, expired sign-in, stale repo/query responses and bounded reads. Final combined CI pending. |
+| S2 | 23 | done | `ec8d7b5`; content-search 13/13 each engine: drafts, incomplete results, retained matches, expired sign-in, stale repo/query responses, bounded reads. Independent re-review clear; final CI/merge status in PR #8. |
 | S3 | 24 | todo | SHOULD: automated axe accessibility check with zero serious violations, after N11 layout changes. |
 | S4 | 25 | todo | SHOULD: show referenced images in preview; depends on N12. |
 

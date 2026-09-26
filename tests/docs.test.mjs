@@ -5,6 +5,7 @@ const t = H.suite('docs');
 const root = new URL('../', import.meta.url);
 const readme = readFileSync(new URL('README.md', root), 'utf8');
 const html = readFileSync(new URL('index.html', root), 'utf8');
+const deployment = JSON.parse(html.match(/<script type="application\/json" id="deployment">([\s\S]*?)<\/script>/)[1]);
 const first = readme.match(/^## (.+)$/m)?.[1];
 const intro = readme.split(/^## /m)[1] || '';
 const firstNote = intro.split('\n3. ')[1]?.split('\n\n')[0] || '';
@@ -17,7 +18,7 @@ t.check('a repository is explained and creation help is linked', /repository[^\n
 t.check('Try it explains owner trust and links privacy', /\]\(PRIVACY.md\)/.test(intro) &&
   /app's owner\s+also has access through that installation/i.test(intro));
 t.check('Try it needs no developer setup', !/```|npx |npm |client secret|wrangler|register.*App/i.test(intro));
-t.check('unfinished sign-in is stated before the shared link', !/REPLACE_ME/.test(html) ||
+t.check('unfinished sign-in is stated before the shared link', !/REPLACE_ME/.test(deployment.broker) ||
   /not ready for sign-in[\s\S]*https:\/\/forwardmotionnz.github.io\/notes\//i.test(intro));
 t.check('self-hosting and architecture follow user guidance', readme.indexOf('## Setup') > readme.indexOf('## What it does') &&
   readme.indexOf('## How it fits together') > readme.indexOf('## What it does'));
@@ -54,8 +55,12 @@ t.check('phone limitations do not claim a real-device pass', /iPhone or iPad[\s\
   /real.phone[\s\S]*still pending/i.test(changes));
 t.check('F2 remains an explicit release blocker', !/\| F2 \|[^\n]*\| blocked \|/.test(ledger) ||
   /WebKit[\s\S]*blocked[\s\S]*release gate has not passed/i.test(changes));
-t.check('unfinished shared sign-in names the owner setup', !/REPLACE_ME/.test(html) ||
+t.check('unfinished shared sign-in names the owner setup', !/REPLACE_ME/.test(deployment.broker) ||
   /owner[\s\S]*broker[\s\S]*GitHub App/.test(changes));
 t.check('release status and privacy have working local links', /\]\(MVP.md\)/.test(changes) && /\]\(PRIVACY.md\)/.test(changes));
 t.check('README links the changelog', /\]\(CHANGELOG.md\)/.test(readme));
+t.check('configured public deployment is not presented as awaiting account setup', /sign-in is configured/.test(intro) &&
+  /GitHub App is public/.test(intro) && !/not ready for sign-in|needs to connect/.test(intro) &&
+  !/still needs to configure the broker|Shared sign-in is disabled/.test(changes));
+t.check('owner checklist records public App setup as complete', /GitHub App visibility[^\n]*complete/i.test(ledger));
 t.finish();

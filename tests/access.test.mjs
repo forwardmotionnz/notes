@@ -6,14 +6,14 @@ await H.start();
 
 const repo = extra => [{ owner: { login: 'roldaof' }, name: 'vault', full_name: 'roldaof/vault',
                          default_branch: 'main', private: true, ...extra }];
-const FILES = () => ({ 'todo.md': '- [ ] one\n', 'inbox.md': 'hello\n' });
+const FILES = () => ({ 'todo.md': '- [ ] one\n- [x] two\n', 'inbox.md': 'hello\n' });
 
 async function readOnlyCase(name, extra, reason) {
   const gh = H.fakeGitHub({ files: FILES(), repos: repo(extra) });
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check(`${name}: a read-only badge is shown`, await p.isVisible('#readonly'));
   t.check(`${name}: with the reason`, reason.test((await p.getAttribute('#readonly', 'title')) + ' ' + await H.status(p)),
     (await p.getAttribute('#readonly', 'title')) + ' / ' + await H.status(p));
@@ -28,6 +28,8 @@ async function readOnlyCase(name, extra, reason) {
   t.check(`${name}: Save is off`, (await p.isDisabled('#btn-save')) || !(await p.isVisible('#btn-save')));
   t.check(`${name}: the pinned capture is off`, await p.isDisabled('#pin-input') &&
     await p.evaluate(() => [...document.querySelectorAll('#pin-list input')].every(b => b.disabled)));
+  t.check(`${name}: no task can be removed`,
+    await p.evaluate(() => [...document.querySelectorAll('#pin-list button')].every(b => b.disabled || b.hidden)));
   t.check(`${name}: nothing was ever sent`, gh.commits.length === 0 && !gh.log.refusedWrites,
     String(gh.log.refusedWrites));
   t.check(`${name}: no draft either`, await p.evaluate(() =>
@@ -46,12 +48,12 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'typed before the archive\n');   // autosave is 2 s away
   repos[0].archived = true;                             // archived on GitHub meanwhile
   await p.click('#btn-refresh');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('the open note locks when the repository turns read-only',
     await p.evaluate(() => document.querySelector('#cm-stub').readOnly));
   await p.keyboard.press('Control+s');
@@ -79,7 +81,7 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   await p.press('#pin-input', 'Enter').catch(() => {});
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'typed too early\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.keyboard.press('Control+s');
   await p.waitForTimeout(3500);
   t.check('a task or a save before access is known is not sent', gh.commits.length === 0 && !gh.log.refusedWrites,
@@ -101,12 +103,12 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/old' });
   await p.click('#f-save');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   await ctx.route('https://api.github.com/repos/roldaof/old', async r => {
     await new Promise(res => setTimeout(res, 1500)); return r.fallback();
   });
   await p.click('#btn-refresh');                   // asks about "old", slowly
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/live' });
@@ -122,7 +124,7 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');
   gh.gone = true;
   await p.click('#btn-refresh');
@@ -153,13 +155,13 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check('a writable repository shows no badge', !(await p.isVisible('#readonly')));
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'changed\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('and saves', gh.files['inbox.md'] === 'changed\n');
   await ctx.close();
 }
@@ -170,10 +172,10 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   gh.gone = true;
   await p.click('#btn-refresh');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   const tree = await p.textContent('#tree');
   t.check('a repository that is gone says so, with what to do', /no longer be reached|can't be reached|cannot be reached/i.test(tree) &&
     /settings/i.test(tree), tree);

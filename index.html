@@ -22,15 +22,19 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-xiVGaBGoSXp9gKpmFW6voFbL3UqswswvUi6vz+GQq/E=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
-<meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1K6b/sqd2sbtG05rfOBdSknanZESYbQfA4zhGRDixpw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
-<meta name="theme-color" content="#2f6f4f">
-<meta name="apple-mobile-web-app-title" content="Notes">
+<!-- Add to Home Screen: the manifest for Android and desktop, the touch
+     icon and title for iOS, which does not use the manifest's icons. -->
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Notes">
+<meta name="theme-color" content="#2f6f4f" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16181c" media="(prefers-color-scheme: dark)">
 
 <!--
   A single-file markdown notes app backed by a git repository.
@@ -318,7 +322,7 @@
   }
   #pin-tabs button.active { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
   #pin-add { padding: 8px; display: flex; gap: 6px; }
-  #pin-add input { font-size: 13.5px; }
+  #pin-add textarea { font-size: 13.5px; resize: none; }
   #pin-list { flex: 1; overflow: auto; padding: 0 8px 40px; -webkit-overflow-scrolling: touch; }
   .task {
     display: flex;
@@ -329,7 +333,46 @@
     font-size: 13.5px;
   }
   .task:hover { background: var(--bg-sunk); }
+  /* The row keeps the look it had when it was the label itself. */
+  .task { margin-bottom: 11px; color: var(--fg-soft); }
+  .task label { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: inherit; }
   .task input { width: auto; flex: none; margin: 3px 0 0; accent-color: var(--accent); }
+  /* Remove: on hover (or keyboard focus) on desktop, always on a phone. */
+  .task .rm {
+    flex: none;
+    background: none;
+    border: none;
+    padding: 0 6px;
+    font-size: 16px;
+    line-height: 1.2;
+    color: var(--fg-soft);
+    opacity: 0;
+  }
+  .task:hover .rm, .task .rm:focus-visible { opacity: 1; }
+  .task .rm:hover { color: var(--danger); }
+  .task .rm:disabled { visibility: hidden; }
+  @media (hover: none) { .task .rm { opacity: 1; } }
+  .clear-done {
+    margin: 10px 4px 0;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-size: 12.5px;
+    color: var(--fg-soft);
+    text-decoration: underline;
+  }
+  #pin-undo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 8px 6px;
+    padding: 6px 8px;
+    border-radius: var(--radius);
+    background: var(--bg-sunk);
+    font-size: 12.5px;
+  }
+  #pin-undo[hidden] { display: none; }
+  #pin-undo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .task span { flex: 1; word-break: break-word; }
   .task.done span { color: var(--fg-soft); text-decoration: line-through; }
   .task-head {
@@ -450,6 +493,10 @@
   .only-narrow { display: none; }
 
   @media (max-width: 820px) {
+    /* iOS Safari zooms the page into any field whose text is under 16px
+       when it is tapped, and stays zoomed. Here every field is 16px. */
+    input, textarea, select, #filter, #pin-add textarea,
+    #editor-pane .CodeMirror, .fallback-editor { font-size: 16px; }
     .only-narrow { display: inline-block; }
     #editor-pane .CodeMirror, .fallback-editor { font-size: 16px; }
 
@@ -478,6 +525,10 @@
       box-shadow: 0 -4px 40px rgba(0,0,0,.25);
       padding-bottom: env(safe-area-inset-bottom);
     }
+    /* Never taller than the space there is: with the keyboard up that is
+       much less than the screen, and the "Add a task" box is at the top. */
+    #pins { max-height: 100%; }
+    .task .rm { opacity: 1; padding: 6px 12px; margin: -6px -4px -6px 0; }   /* a finger-sized target */
     body.pins-open #pins { transform: none; }
 
     #scrim {
@@ -537,9 +588,10 @@
     <aside id="pins">
       <div id="pin-tabs"></div>
       <div id="pin-add">
-        <input id="pin-input" placeholder="Add a task" autocomplete="off">
+        <textarea id="pin-input" rows="1" placeholder="Add a task" autocomplete="off"></textarea>
         <button id="pin-go" class="primary">Add</button>
       </div>
+      <div id="pin-undo" hidden><span></span><button type="button">Undo</button></div>
       <div id="pin-list"></div>
     </aside>
 
@@ -608,7 +660,7 @@
           <li><a id="fr-install" class="step" target="_blank" rel="noopener">2. Let Notes use it</a>
             <em>Choose Only select repositories, pick yours, then press Install (or Save).</em></li>
         </ol>
-        <p class="hint"><span id="fr-status">Then come back to this tab: it notices by itself.</span>
+        <p class="hint"><span id="fr-status">Then come back here, to this tab or the Notes app: it notices by itself.</span>
           <button id="fr-check">Check now</button></p>
       </div>
 
@@ -650,7 +702,7 @@
 {
   "clientId": "Iv23liBrUeC67BfCYF9c",
   "appSlug":  "forwardmotion-notes",
-  "broker":   "https://notes-token-broker.REPLACE_ME.workers.dev"
+  "broker":   "https://notes-token-broker.forwardmotionnz.workers.dev"
 }
 </script>
 <script>
@@ -859,13 +911,26 @@ function forgetDrafts() {
 
 // On changing mode, drafts follow the settings into the other store and no
 // copy is left behind in the one being left.
-function moveDrafts() {
-  var from = sessionOnly ? localStorage : sessionStorage;
-  var to = draftStore();
-  draftKeys(from).forEach(function (k) {
-    try { to.setItem(k, from.getItem(k)); } catch (e) {}
-    try { from.removeItem(k); } catch (e) {}
-  });
+function moveDrafts(nextSessionOnly) {
+  var from = nextSessionOnly ? localStorage : sessionStorage;
+  var to = nextSessionOnly ? sessionStorage : localStorage;
+  var keys = draftKeys(from), previous = [];
+  try {
+    keys.forEach(function (k) {
+      previous.push({ key: k, value: to.getItem(k) });
+      to.setItem(k, from.getItem(k));
+    });
+  } catch (e) {
+    previous.forEach(function (old) {
+      try {
+        if (old.value === null) to.removeItem(old.key);
+        else to.setItem(old.key, old.value);
+      } catch (ignored) {}
+    });
+    return false;
+  }
+  keys.forEach(function (k) { try { from.removeItem(k); } catch (e) {} });
+  return true;
 }
 
 function signedIn() {
@@ -1011,11 +1076,14 @@ function broker(body) {
         if (data.error === "incorrect_client_credentials") message = "The sign-in service needs attention from this app's owner. Try again after it is fixed.";
         var err = new Error(message);
         err.code = data.error || "";
+        err.status = res.status;
         throw err;
       }
       return data;
   }, function () {
-    throw new Error("Could not reach the sign-in service. Check your connection, then try again.");
+    var err = new Error("Could not reach the sign-in service. Check your connection, then try again.");
+    err.status = 0;
+    throw err;
   });
 }
 
@@ -1043,12 +1111,17 @@ function adoptStoredTokens() {
 /* Two tabs refreshing at once would both spend the same single-use refresh
    token; GitHub honours one and the other would be signed out. A browser-wide
    lock makes them take turns: the second tab waits, then finds the first
-   tab's new tokens already in storage and uses those. */
+   tab's new tokens in storage and uses those. `fn` is told whether it had to
+   wait: in WebKit (Safari, every iOS browser) another tab's storage write
+   can reach this tab a moment after the lock does. */
 function withRefreshLock(fn) {
   if (navigator.locks && navigator.locks.request) {
-    return navigator.locks.request("notes-token-refresh", fn);
+    return navigator.locks.request("notes-token-refresh", { ifAvailable: true }, function (lock) {
+      if (lock) return fn(false);
+      return navigator.locks.request("notes-token-refresh", function () { return fn(true); });
+    });
   }
-  return Promise.resolve().then(fn);
+  return Promise.resolve().then(function () { return fn(false); });
 }
 
 var refreshing = null;
@@ -1060,9 +1133,22 @@ function refreshTokens(stale) {
   if (refreshing) return refreshing;
   if (stale === undefined) stale = cfg.token;
 
-  refreshing = withRefreshLock(function () {
+  refreshing = withRefreshLock(function (waited) {
     adoptStoredTokens();
-    if (cfg.token && cfg.token !== stale && !nearExpiry()) return cfg.token;
+    if (newerThan(stale)) return cfg.token;
+    // Having waited, the tab before us most likely refreshed: let its new
+    // tokens arrive rather than spend the refresh token it just used up.
+    // ("Forget me" tabs share no storage, so there is nothing to wait for.)
+    var shared = waited && !sessionOnly;
+    return (shared ? waitForNewer(stale, 1500) : Promise.resolve(null)).then(function (newer) {
+      return newer || spend(shared);
+    });
+  });
+  refreshing.then(done, done);
+  function done() { refreshing = null; }
+  return refreshing;
+
+  function spend(waited) {
     if (!cfg.refresh) { signOutLocally(""); throw signedOutError(); }
 
     var spent = cfg.refresh;
@@ -1076,22 +1162,25 @@ function refreshTokens(stale) {
       applyTokens(t);
       return cfg.token;
     }, function (err) {
-      // An outage does not prove that the refresh token is dead. Keep it
-      // and the drafts so the same action can be retried when service returns.
-      if (err.code !== "bad_refresh_token") throw err;
-      // With the lock held, rejection means the token really is dead. Without
-      // Web Locks another tab may have won the race, so give it a moment.
-      var hasLocks = !!(navigator.locks && navigator.locks.request);
-      return waitForNewer(stale, hasLocks ? 0 : 2000).then(function (token) {
+      // Only a rejected refresh token proves sign-in has expired.
+      // Outages and malformed replies keep credentials and drafts for retry.
+      if (err.code !== "bad_refresh_token") { err.retryable = true; throw err; }
+      // Safari storage may arrive after the refresh lock; allow its newer
+      // token to arrive even while this tab holds the lock.
+      return waitForNewer(stale, 2000).then(function (token) {
         if (token) return token;
-        signOutLocally(spent);
+        if (waited) {
+          // Storage may still be behind: what it shows as ours may already
+          // be the other tab's new pair on its way. Forget only this tab's
+          // copy; the storage event brings the new pair if it comes.
+          cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
+        } else {
+          signOutLocally(spent);
+        }
         throw signedOutError();
       });
     });
-  });
-  refreshing.then(done, done);
-  function done() { refreshing = null; }
-  return refreshing;
+  }
 }
 
 /* Resolves with a usable token newer than `stale`, or null after `ms`. The
@@ -1102,11 +1191,17 @@ function waitForNewer(stale, ms) {
     var until = Date.now() + ms;
     (function poll() {
       adoptStoredTokens();
-      if (cfg.token && cfg.token !== stale && !nearExpiry()) return resolve(cfg.token);
+      if (newerThan(stale)) return resolve(cfg.token);
       if (Date.now() >= until) return resolve(null);
       setTimeout(poll, 150);
     })();
   });
+}
+
+// Another tab's new token is ours to use while it still works, even if it
+// is due for renewal soon: renewing it is not this call's job.
+function newerThan(stale) {
+  return !!cfg.token && cfg.token !== stale && !(cfg.expires && Date.now() > cfg.expires - 5000);
 }
 
 function nearExpiry() {
@@ -1467,10 +1562,10 @@ function deleteFile(path, sha) {
    commit landing meanwhile (the branch would not fast-forward) is retried
    on top of it. */
 function moveFile(from, to, sha, mode) {
-  var git = repoPath() + "/git";
+  var root = repoPath(), git = root + "/git";
   var ref = "heads/" + encodePath(cfg.branch);
   function contentsAt(path, head) {
-    return request(repoPath() + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(head),
+    return request(root + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(head),
                    { allow404: true });
   }
   function attempt(tries) {
@@ -1686,6 +1781,7 @@ function applyAccess(reason) {
   editorLock();
   $("pin-input").disabled = !!reason;
   $("pin-go").disabled = !!reason;
+  if (reason) hideUndo();
   if (was !== reason) renderPins();
   if (reason && reason !== was) flash(reason, true);
 }
@@ -1699,7 +1795,10 @@ var loadNote = "";             // said once the next file list is in (it clears 
    is in, nothing is written; an answer about a repository no longer shown
    is ignored; no answer at all (offline) blocks nothing, since writes
    would fail anyway and drafts keep the text. */
-var pinWriting = Promise.resolve();   // the last pinned-task commit, settling either way
+var pinWriting = Promise.resolve();   // every pinned-task commit asked for so far, settling either way
+var pinNext = pathMap();   // path -> { raw, text, onFail } waiting for the commit before it
+var pinBusy = pathMap();   // path -> true while a commit to it is on its way
+var pinEpoch = 0;          // counts changes of repository: a reply from before one is ignored
 var accessSeq = 0;
 var accessPending = false;
 
@@ -1715,13 +1814,16 @@ function checkAccess() {
   });
 }
 
+var treeSeq = 0;
 function refreshTree() {
   if (!configured()) return Promise.resolve();
+  var sequence = ++treeSeq, epoch = pinEpoch;
   flash("Loading...");
   checkAccess();
   treeState = "loading";
   if (!files.length) renderTree();
   return listTree().then(function (list) {
+    if (sequence !== treeSeq || epoch !== pinEpoch || !configured()) return;
     if (list.movedTo) {
       // Follow the repository to its default branch, as if chosen in settings.
       var changed = pointAt(cfg.owner, cfg.repo, list.movedTo, cfg.pins);
@@ -1734,9 +1836,11 @@ function refreshTree() {
     files = list;
     treeState = "ok";
     renderTree();
+    if (activePin() && !pinCache[activePin()]) renderPins();
     flash(loadNote);
     loadNote = "";
   }).catch(function (err) {
+    if (sequence !== treeSeq || epoch !== pinEpoch) return;
     treeState = "failed";
     treeError = err.unreachable ? err.message : "";
     if (err.unreachable) {
@@ -1996,37 +2100,6 @@ function ensureEditor() {
   return editor;
 }
 
-// A phone keyboard shrinks the visual viewport, sometimes panning it too,
-// while the layout viewport stays full height. Keep the shell inside the
-// visible area. Leave pinch zoom to the browser so normal panning still works.
-(function () {
-  var viewport = window.visualViewport;
-  if (!viewport) return;
-  var queued = false, reveal = false;
-  function update(event) {
-    reveal = reveal || event.type !== "scroll";
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(function () {
-      queued = false;
-      var mobile = matchMedia("(max-width: 820px)").matches && viewport.scale === 1;
-      var shell = $("shell");
-      shell.style.height = mobile ? viewport.height + "px" : "";
-      shell.style.top = mobile ? viewport.offsetTop + "px" : "";
-      if (mobile && reveal && editor && editor.getWrapperElement().contains(document.activeElement)) {
-        editor.refresh();
-        if (editor.scrollIntoView) editor.scrollIntoView(null, 12);
-      }
-      reveal = false;
-    });
-  }
-  viewport.addEventListener("resize", update);
-  viewport.addEventListener("scroll", update);
-  window.addEventListener("resize", update);
-  document.addEventListener("focusin", update);
-  update({ type: "resize" });
-})();
-
 /* ================================================================
    WIKILINKS
    ================================================================ */
@@ -2171,13 +2244,15 @@ function setCrumb(path, tag) {
 // `discarding`: the user asked to throw this file's draft away. It is only
 // dropped once GitHub's version is in hand, so a failed fetch leaves the
 // draft, and the editor still tracking it, exactly as they were.
+var openSeq = 0;
 function openFile(path, discarding) {
   // Guards the restore-on-boot path as well as a click.
   if (!isTextFile(path)) {
     flash(path.split("/").pop() + " is not a text file.", true);
     return;
   }
-  var left = current;
+  var left = current, sequence = ++openSeq, epoch = pinEpoch;
+  function stillHere() { return sequence === openSeq && epoch === pinEpoch && signedIn(); }
   if (discarding) {
     // Nothing on screen may be committed while GitHub's version loads.
     if (current) current.leaving = true;
@@ -2190,7 +2265,8 @@ function openFile(path, discarding) {
   // Read it only once that has settled, so the editor starts from what
   // GitHub really holds and never from the version before it.
   var ahead = inflight && inflight.key === draftKey(path) ? inflight.done : Promise.resolve();
-  ahead.then(function () { return readNote(path); }).then(function (r) {
+  ahead.then(function () { if (stillHere()) return readNote(path); }).then(function (r) {
+    if (!r || !stillHere()) return;
     ensureEditor();
     if (discarding) dropDraft(path);
     var draft = readDraft(path);
@@ -2225,6 +2301,7 @@ function openFile(path, discarding) {
   }).catch(function (err) {
     // Unsaved text for a file that can no longer be opened here (it grew
     // past 1 MB elsewhere, say) must not become unreachable.
+    if (!stillHere()) return;
     var draft = err.refused && readDraft(path);
     if (draft) { rescueDraft(path, draft, err.message); return; }
     // Still on the old file after all: it is live again.
@@ -2410,6 +2487,8 @@ function newFile() {
 }
 
 function startNote(path) {
+  document.body.classList.remove("tree-open");
+  openSeq++;
   // A note already there, or one typed but never committed: open it, never
   // replace its draft with a fresh template.
   if (readDraft(path) || files.some(function (f) { return f.path === path; })) {
@@ -2443,7 +2522,7 @@ var moveChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel(
 function renameCurrent() {
   if (!current || !current.sha || readOnly || moving) return;
   if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
-  var doc = current, from = doc.path;
+  var doc = current, from = doc.path, epoch = pinEpoch;
   var to = prompt("Rename or move to (the full path in the repository)", from);
   if (!to) return;
   to = to.replace(/^\/+/, "").trim();
@@ -2464,6 +2543,7 @@ function renameCurrent() {
     editorLock();
     return moveFile(from, to, doc.sha, modeOf(from));
   }).then(function () {
+    if (epoch !== pinEpoch || !signedIn()) return;
     followMove(from, to);
     if (moveChannel) moveChannel.postMessage({ kind: "moved", repo: describe(), from: from, to: to });
     loadNote = "Renamed to " + to + ".";
@@ -2504,6 +2584,7 @@ function followMove(from, to) {
     setCrumb(to, dirty() ? "(unsaved)" : "");
   }
   cfg.pins = cfg.pins.map(function (p) { return p === from ? to : p; });
+  if (pinUndo && pinUndo.path === from) pinUndo.path = to;
   if (pinCache[from]) { pinCache[to] = pinCache[from]; delete pinCache[from]; }
   if (ui.last === from) ui.last = to;
   saveCfg();
@@ -2527,7 +2608,7 @@ if (moveChannel) {
 function deleteCurrent() {
   if (!current || !current.sha || readOnly || moving) return;
   if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
-  var doc = current, path = doc.path, name = path.split("/").pop();
+  var doc = current, path = doc.path, name = path.split("/").pop(), epoch = pinEpoch;
   if (!confirm("Delete " + name + "?\n\nIt is removed from the repository in a new commit. As long as " +
                "the repository's history is kept, it can be recovered: on GitHub, open the commit " +
                "\"Delete " + path + "\" and copy the note back from there." +
@@ -2540,8 +2621,10 @@ function deleteCurrent() {
   // pinned task still on its way.
   var ahead = Promise.all([inflight ? inflight.done : null, pinWriting]);
   ahead.then(function () {
+    if (epoch !== pinEpoch || !signedIn()) throw new Error("The repository changed. Reopen the note before deleting it.");
     return deleteFile(path, doc.sha);  // the sha after any save in flight
   }).then(function () {
+    if (epoch !== pinEpoch || !signedIn()) return;
     var pinned = cfg.pins.indexOf(path) !== -1;
     followDelete(path, false);
     if (pinned) {
@@ -2632,6 +2715,7 @@ function renderPinTabs() {
     b.textContent = path.split("/").pop();
     if (i === ui.pin) b.className = "active";
     b.onclick = function () {
+      if (ui.pin !== i) hideUndo();       // it would undo in a list no longer shown
       ui.pin = i;
       persist(UI_KEY, ui);
       renderPinTabs();
@@ -2652,7 +2736,9 @@ function emptyNote(text) {
   return e;
 }
 
+var pinReadSeq = 0;
 function renderPins() {
+  var sequence = ++pinReadSeq, epoch = pinEpoch;
   var host = $("pin-list");
   var path = activePin();
   host.textContent = "";
@@ -2666,9 +2752,11 @@ function renderPins() {
   if (!cached) {
     host.appendChild(emptyNote("Loading..."));
     readNote(path).then(function (r) {
+      if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
       pinCache[path] = r;
       if (activePin() === path) renderPins();
     }).catch(function (err) {
+      if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
       host.textContent = "";
       var e = document.createElement("div");
       e.className = "empty";
@@ -2680,14 +2768,17 @@ function renderPins() {
 
   var lines = cached.text.split("\n");
   var any = false;
+  var ticked = [];
 
   lines.forEach(function (line, index) {
     var task = line.match(/^(\s*[-*]\s+)\[([ xX])\]\s?(.*)$/);
     if (task) {
       any = true;
       var done = task[2].toLowerCase() === "x";
-      var row = document.createElement("label");
+      if (done) ticked.push({ index: index, line: line });
+      var row = document.createElement("div");
       row.className = "task" + (done ? " done" : "");
+      var lab = document.createElement("label");
       var box = document.createElement("input");
       box.type = "checkbox";
       box.checked = done;
@@ -2695,8 +2786,20 @@ function renderPins() {
       box.onchange = function () { toggleTask(path, index, box.checked); };
       var txt = document.createElement("span");
       txt.textContent = task[3];             // a line of the note: text, never markup
-      row.appendChild(box);
-      row.appendChild(txt);
+      lab.appendChild(box);
+      lab.appendChild(txt);
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "rm";
+      rm.textContent = "\u00d7";
+      rm.title = "Remove";
+      rm.setAttribute("aria-label", "Remove task: " + task[3]);   // an attribute's value: text
+      rm.disabled = !!readOnly;
+      rm.onclick = function () {
+        removeTasks(path, [{ index: index, line: line }], "Removed \u201c" + task[3] + "\u201d.");
+      };
+      row.appendChild(lab);
+      row.appendChild(rm);
       host.appendChild(row);
       return;
     }
@@ -2709,6 +2812,17 @@ function renderPins() {
       host.appendChild(h);
     }
   });
+
+  if (ticked.length && !readOnly) {
+    var clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "clear-done";
+    clear.textContent = "Clear " + ticked.length + " done";
+    clear.onclick = function () {
+      removeTasks(path, ticked, "Cleared " + ticked.length + (ticked.length === 1 ? " done task." : " done tasks."));
+    };
+    host.appendChild(clear);
+  }
 
   if (!any) {
     var e2 = document.createElement("div");
@@ -2726,6 +2840,69 @@ function toggleTask(path, index, checked) {
   if (commitPin(path, lines.join("\n")) === false) renderPins();   // not saved: show it as it is
 }
 
+/* Remove task lines in one commit, with a moment to undo instead of a
+   question first (the repository's history keeps every line anyway).
+   `gone` is [{ index, line }] as the rows were drawn, in order. */
+var pinUndo = null;   // { path, gone, timer } while Undo is offered; withdrawn on changing repository
+
+function removeTasks(path, gone, said) {
+  var cached = pinCache[path];
+  if (!cached) return;
+  var lines = cached.text.split("\n");
+  // The file changed since the rows were drawn: remove nothing, never the wrong line.
+  if (!gone.every(function (g) { return lines[g.index] === g.line; })) { renderPins(); return; }
+  for (var i = gone.length - 1; i >= 0; i--) lines.splice(gone[i].index, 1);
+  var left = lines.join("\n");
+  // Undo puts the lines back by position, so it keeps the text they were
+  // taken from, to check the positions still mean the same thing.
+  var offer = { path: path, gone: gone.slice(), left: left, said: said };
+  var ok = commitPin(path, left, function () { if (pinUndo === offer) hideUndo(); });
+  if (ok === false) { renderPins(); return; }
+  showUndo(offer);
+}
+
+function showUndo(offer) {
+  hideUndo();
+  pinUndo = offer;
+  var bar = $("pin-undo");
+  bar.firstChild.textContent = offer.said;   // carries a task's words: text
+  bar.hidden = false;
+  offer.timer = setTimeout(function () { if (pinUndo === offer) hideUndo(); }, 8000);
+}
+
+function hideUndo() {
+  if (pinUndo) clearTimeout(pinUndo.timer);
+  pinUndo = null;
+  $("pin-undo").hidden = true;
+}
+
+// A tick is not a move: text compares with its boxes cleared.
+function untick(text) { return text.replace(/^(\s*[-*]\s+)\[[xX]\]/gm, "$1[ ]"); }
+
+function undoRemove() {
+  var u = pinUndo;
+  if (!u) return;
+  var cached = pinCache[u.path];
+  if (!cached) { flash("Still loading that file. Try Undo again in a moment.", true); return; }
+  // The positions hold only in the text the lines were taken from, give or
+  // take ticks and tasks added at the end since. Anything else (lines added
+  // or removed above, here or in another tab) and a line would land in the
+  // wrong place: nothing is put back, and the history on GitHub still has it.
+  var now = untick(cached.text), then = untick(u.left);
+  if (now !== then && now.indexOf(then.replace(/\s*$/, "") + "\n") !== 0) {
+    hideUndo();
+    flash("Not undone: the list has changed since. The removed lines are in the file's history on GitHub.", true);
+    return;
+  }
+  var lines = cached.text.split("\n");
+  // In order, so each line goes back where it was.
+  u.gone.forEach(function (g) { lines.splice(g.index, 0, g.line); });
+  // Offered until GitHub has taken it: a refusal or a failure offers it again
+  // (and the check above then says if the file has moved on).
+  var ok = commitPin(u.path, lines.join("\n"), function () { showUndo(u); });
+  if (ok !== false) hideUndo();
+}
+
 function addTask() {
   var input = $("pin-input");
   var text = input.value.trim();
@@ -2736,14 +2913,19 @@ function addTask() {
   if (!cached) { flash("Still loading that file.", true); return; }
 
   var body = cached.text.replace(/\s*$/, "");
-  var next = (body ? body + "\n" : "") + "- [ ] " + text + "\n";
+  var next = (body ? body + "\n" : "") + text.split(/\r?\n/).filter(function (line) {
+    return line.trim();
+  }).map(function (line) { return "- [ ] " + line; }).join("\n") + "\n";
 
   // Refused, or failed to save: the task goes back in the box.
-  var ok = commitPin(path, next, function () { if (!input.value) input.value = text; });
-  if (ok !== false) input.value = "";
+  var ok = commitPin(path, next, function () {
+    input.value = (input.value ? input.value + "\n" : "") + text;
+    input.rows = Math.min(4, input.value.split("\n").length);
+  }, text);
+  if (ok !== false) { input.value = ""; input.rows = 1; }
 }
 
-function commitPin(path, text, onFail) {
+function commitPin(path, text, onFail, capture) {
   if (accessPending) { flash("Checking whether this repository can be changed...", true); return false; }
   var cached = pinCache[path];
   var sha = cached ? cached.sha : null;
@@ -2754,20 +2936,53 @@ function commitPin(path, text, onFail) {
   renderPins();
   flash("Saving...");
 
-  pinWriting = writeFile(path, raw, sha).then(function (r) {
+  /* Each commit names the version it replaces, and the next version is
+     known only once GitHub answers. So writes to a pinned file go one at a
+     time: clicks while one is on its way wait, and share one commit that
+     carries the latest state. https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents */
+  var job = pinNext[path] || { onFail: [], captures: [] };
+  job.raw = raw;
+  job.text = text;
+  if (onFail) job.onFail.push(onFail);
+  if (capture) job.captures.push(capture);
+  pinNext[path] = job;
+  if (!pinBusy[path]) pinWriting = Promise.all([pinWriting, sendPin(path)]);
+}
+
+var pinActive = pathMap();
+function sendPin(path) {
+  var job = pinNext[path];
+  pinActive[path] = job;
+  var epoch = pinEpoch;
+  delete pinNext[path];
+  pinBusy[path] = true;
+  var sha = pinCache[path] ? pinCache[path].sha : null;
+  return writeFile(path, job.raw, sha).then(function (r) {
+    if (pinEpoch !== epoch) return;      // another repository by now
     if (pinCache[path]) pinCache[path].sha = r.sha;
+    // The open note follows every commit, so a later one failing leaves it
+    // at what GitHub has, not a version behind.
     if (current && current.path === path && !dirty()) {
       current.sha = r.sha;
-      current.saved = text;
-      current.base = baseOf(raw);
-      editor.setValue(text);
+      current.saved = job.text;
+      current.base = baseOf(job.raw);
+      editor.setValue(job.text);
     }
+    if (pinNext[path]) return sendPin(path);
+    delete pinBusy[path];
+    delete pinActive[path];
     if (!files.some(function (f) { return f.path === path; })) refreshTree();   // a new file
     flash("Saved");
   }).catch(function (err) {
-    delete pinCache[path];     // drop bad state and reload from the server
+    // What was waiting was built on this commit: not sent on a guess.
+    if (pinEpoch !== epoch) { fail(err); return; }
+    var waiting = pinNext[path];
+    delete pinNext[path];
+    delete pinBusy[path];
+    delete pinActive[path];
+    delete pinCache[path];       // drop bad state and reload from the server
     renderPins();
-    if (onFail) onFail();
+    job.onFail.concat(waiting ? waiting.onFail : []).forEach(function (f) { f(); });
     fail(err);
   });
 }
@@ -2963,7 +3178,7 @@ var firstRunShown = false;
 function firstRun() {
   $("fr-status").textContent = firstRunShown
     ? "Still no repository Notes can use. Finish both steps on GitHub, then come back."
-    : "Then come back to this tab: it notices by itself.";
+    : "Then come back here, to this tab or the Notes app: it notices by itself.";
   var first = !firstRunShown;
   firstRunShown = true;
   accountView("firstrun");
@@ -2983,9 +3198,37 @@ function checkRepos() {
 /* Point this tab at a repository and pinned files. The open file is
    committed (or kept as a draft) first, while cfg still names the
    repository it came from. Returns whether the repository changed. */
-function pointAt(owner, repo, branch, pins) {
+function prepareRepositoryChange() {
+  leaveCurrent();
+  try {
+    // A queued capture has not reached GitHub yet. Keep it under its old
+    // repository before replacing the queue, without erasing editor drafts.
+    Object.keys(pinBusy).forEach(function (path) {
+      var cached = pinCache[path];
+      if (!cached) return;
+      var draft = readDraft(path);
+      var captures = (pinActive[path] ? pinActive[path].captures : []).concat(
+        pinNext[path] ? pinNext[path].captures : []);
+      if (draft && captures.length) draft.text += "\n" + captures.map(function (text) {
+        return text.split(/\r?\n/).map(function (line) { return "- [ ] " + line; }).join("\n");
+      }).join("\n") + "\n";
+      try {
+        draftStore().setItem(draftKey(path), JSON.stringify(draft || {
+          text: cached.text, sha: cached.sha, at: Date.now()
+        }));
+      } catch (e) {
+        throw new Error("Could not keep pending tasks. Wait for them to save before changing repository.");
+      }
+    });
+  } catch (err) {
+    if (current) current.leaving = false;
+    throw err;
+  }
+}
+
+function pointAt(owner, repo, branch, pins, prepared) {
   var changedRepo = owner !== cfg.owner || repo !== cfg.repo || branch !== cfg.branch;
-  if (changedRepo) leaveCurrent();
+  if (changedRepo && !prepared) prepareRepositoryChange();
   cfg.owner = owner;
   cfg.repo = repo;
   cfg.branch = branch;
@@ -2995,7 +3238,13 @@ function pointAt(owner, repo, branch, pins) {
 }
 
 function showPointed(changedRepo) {
-  pinCache = pathMap();
+  // Same repository (pins or settings saved): a pinned file with a commit
+  // on its way keeps what it is writing, and what waits behind it, rather
+  // than a read taken before the commit lands.
+  var keep = pathMap();
+  if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
+  pinCache = keep;
+  if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinActive = pathMap(); hideUndo(); }
   ui.pin = 0;
   if (changedRepo) {
     files = [];                  // the old repository's list is not this one's
@@ -3020,7 +3269,9 @@ function followSettings() {
   if (!s.owner || !s.repo || !s.branch) return;
   var pins = Array.isArray(s.pins) ? s.pins : cfg.pins;
   var pinsChanged = JSON.stringify(pins) !== JSON.stringify(cfg.pins);
-  var changedRepo = pointAt(s.owner, s.repo, s.branch, pins);
+  var changedRepo;
+  try { changedRepo = pointAt(s.owner, s.repo, s.branch, pins); }
+  catch (err) { fail(err); return; }
   if (changedRepo || pinsChanged) showPointed(changedRepo);
 }
 
@@ -3028,15 +3279,27 @@ function saveSettings() {
   var pick = repoChoices[Number($("f-repo").value)];
   if (!pick) return;
 
+  var nextSessionOnly = $("f-session").checked;
+  syncDraft();
+  try {
+    if (pick.owner !== cfg.owner || pick.repo !== cfg.repo || pick.branch !== cfg.branch) prepareRepositoryChange();
+  } catch (err) { $("settings").close(); fail(err); return; }
+  if (!moveDrafts(nextSessionOnly)) {
+    if (current) current.leaving = false;
+    $("settings").close();
+    flash("Settings were not changed: browser storage is full or blocked. Your drafts remain in their original storage. Save them before trying again.", true);
+    return;
+  }
+
+  sessionOnly = nextSessionOnly;
   var changedRepo = pointAt(pick.owner, pick.repo, pick.branch,
     $("f-pins").value.split(",").map(function (s) {
       return s.trim().replace(/^\/+/, "");
-    }).filter(Boolean));
+    }).filter(Boolean), true);
 
   // Switching mode clears the store we are leaving (persist() below does
   // it), so nothing is left on disk after choosing session-only.
-  sessionOnly = $("f-session").checked;
-  moveDrafts();
+  sessionOnly = nextSessionOnly;
   document.body.classList.toggle("session-only", sessionOnly);
 
   saveCfg();
@@ -3067,6 +3330,44 @@ function forget() {
    WIRING
    ================================================================ */
 
+/* The on-screen keyboard. Android Chrome shrinks the page for it (the
+   viewport tag asks it to). iOS Safari does not: the page stays full height
+   behind the keyboard and Safari pans it to reach the caret, taking the
+   header off the top. There the app follows the visible area instead, as
+   visualViewport reports it, so the header stays at the top of what can be
+   seen and the editor ends at the keyboard, keeping the caret in view. */
+(function followVisibleArea() {
+  var vv = window.visualViewport;
+  if (!vv) return;
+  var shell = $("shell");
+  var lastHeight = vv.height;
+  function fit(e) {
+    // Where the visible area starts on the page (pageTop allows for the
+    // page itself having scrolled, not only for Safari panning it).
+    var top = vv.pageTop != null ? vv.pageTop : vv.offsetTop + (window.scrollY || 0);
+    var whole = Math.abs(window.innerHeight - vv.height) < 1 && !top;
+    // Pinch zoom also shrinks the visible area; that is not a keyboard.
+    if (whole || vv.scale > 1.01) {
+      shell.style.height = "";
+      shell.style.transform = "";
+    } else {
+      shell.style.height = vv.height + "px";
+      shell.style.transform = top ? "translateY(" + top + "px)" : "";
+    }
+    // Only when the space itself changed (the keyboard came or went), not
+    // on every pan: the editor re-measures, and keeps the caret in view if
+    // that is where the person is typing.
+    if (e.type === "resize" && vv.height !== lastHeight && editor) {
+      editor.refresh();
+      var typing = editor.getWrapperElement && editor.getWrapperElement().contains(document.activeElement);
+      if (typing && editor.scrollIntoView) editor.scrollIntoView(null, 40);
+    }
+    lastHeight = vv.height;
+  }
+  vv.addEventListener("resize", fit);
+  vv.addEventListener("scroll", fit);
+})();
+
 // Phones never show a title: tapping the badge says why, again.
 $("readonly").onclick = function () { flash(readOnly, true); };
 
@@ -3096,6 +3397,7 @@ $("settings").addEventListener("cancel", function (e) {
   if (!configured()) e.preventDefault();
 });
 $("pin-go").onclick       = addTask;
+$("pin-undo").lastChild.onclick = undoRemove;
 
 $("pin-input").addEventListener("keydown", function (e) {
   if (e.key === "Enter") { e.preventDefault(); addTask(); }
@@ -3208,8 +3510,9 @@ function start() {
     if (!r || !r.installed) return;
     // start() has already opened settings when no repository is chosen yet.
     if (signedIn()) { if (configured()) openSettings(); return; }
-    showSignIn("", "Back from GitHub. If you started in another Notes tab, close this one and " +
-               "carry on there. Otherwise sign in to use the repositories you chose.");
+    showSignIn("", "Back from GitHub. If you started in another Notes tab, or in the Notes app on " +
+               "your home screen, close this and carry on there. Otherwise sign in to use the " +
+               "repositories you chose.");
     // Nothing here says whether they wanted to be remembered on this
     // computer, so start from the choice that leaves nothing behind.
     $("f-session-in").checked = true;

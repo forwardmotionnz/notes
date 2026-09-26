@@ -40,7 +40,10 @@ for (const m of page.matchAll(/Content-Security-Policy" content="([^"]+)"/g)) {
   for (const h of m[1].matchAll(/https:\/\/([a-z0-9.-]+\.[a-z]+)/g)) hosts.add(h[1]);
 }
 hosts.add('github.com');                               // where sign-in and settings happen
-const unnamed = [...hosts].filter(h => !said(h) && !h.includes('REPLACE_ME'));
+// The broker's host is each copy's own (the DEPLOYMENT block); the note
+// names it by what it is, "the broker", in a section of its own.
+const brokerHost = new URL(JSON.parse(page.match(/<script type="application\/json" id="deployment">([\s\S]*?)<\/script>/)[1]).broker).hostname;
+const unnamed = [...hosts].filter(h => !said(h) && !(h === brokerHost && /^## What the broker sees/m.test(doc)));
 t.check('every host in the page\'s policies is named in the note', hosts.size >= 4 && unnamed.length === 0,
   JSON.stringify(unnamed));
 
@@ -103,12 +106,12 @@ for (const remember of [true, false]) {
   });
   const p = await H.page(ctx);
   await H.signIn(p, { remember });
-  await p.waitForTimeout(500);
+  await H.settle(p, 500);
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'hello\nunsaved words\n');               // a draft
   await p.fill('#pin-input', 'a task');
   await p.click('#pin-go');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   const k = await keysOf(p);
   const all = [...k.local, ...k.session].map(family);
   t.check(`${label}: every key in storage is named in the note`, all.length >= 3 && all.every(inTable),
@@ -128,9 +131,9 @@ for (const remember of [true, false]) {
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.accept());
   await p.click('#btn-settings');
-  await p.waitForTimeout(300);
+  await H.settle(p, 300);
   await p.click('#f-forget');
-  await p.waitForTimeout(800);
+  await H.settle(p, 800);
   const after = await keysOf(p);
   t.check(`${label}: signing out leaves nothing, as the note says`, after.local.length + after.session.length === 0,
     JSON.stringify(after));
@@ -143,15 +146,19 @@ for (const remember of [true, false]) {
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'hello\nnot saved yet\n');
-  await p.waitForTimeout(100);
+  await H.settle(p, 100);
   // Revoked on GitHub: the token and the refresh token both stop working.
   gh.expireAll();
   for (const v of gh.refresh.values()) v.used = true;
   await p.click('#btn-refresh');
-  await p.waitForTimeout(800);
+  // A refused refresh waits up to 2 s for another tab's tokens before
+  // signing out; wait for the sign-out itself.
+  await p.waitForFunction(() => document.getElementById('settings').open &&
+    !document.getElementById('view-signin').hidden, null, { timeout: 5000 }).catch(() => {});
+  await H.settle(p, 100);
   const k = await keysOf(p);
   t.check('revoked: signed out, the sign-in gone from storage', !k.local.includes('notes.config.v2') &&
     await p.evaluate(() => !document.getElementById('view-signin').hidden), JSON.stringify(k));

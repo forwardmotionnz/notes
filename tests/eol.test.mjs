@@ -37,13 +37,13 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   const { gh, ctx, p } = await ready();
   for (const f of ['win.md', 'mac.md', 'mixed.md']) {
     await H.clickRow(p, f);
-    await p.waitForTimeout(100);
+    await H.settle(p, 100);
     t.check(`${f} opens clean`, await p.isDisabled('#btn-save') && (await drafts(p)) === 0 && !(await tag(p)),
       `draft=${await drafts(p)} tag=${await tag(p)}`);
   }
   await H.clickRow(p, 'win.md');
   await p.reload({ waitUntil: 'load' });
-  await p.waitForTimeout(700);
+  await H.settle(p, 700);
   t.check('and is not "restored" after a reload', !/draft/i.test(await tag(p)) && await p.isDisabled('#btn-save'));
   await p.waitForTimeout(2600);
   t.check('nothing committed by opening them', gh.commits.length === 0, String(gh.commits.length));
@@ -58,40 +58,40 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   const v = await H.editorValue(p);
   t.check('the editor shows plain lines', v === '# Windows\n\nfirst line\nsecond line\n', JSON.stringify(v));
   await H.setEditor(p, v.replace('second line', 'second line, edited'));
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('CRLF file saved with CRLF, only the edited line changed',
     gh.files['win.md'] === '# Windows\r\n\r\nfirst line\r\nsecond line, edited\r\n', JSON.stringify(gh.files['win.md']));
 
   await H.clickRow(p, 'mac.md');
   await H.setEditor(p, (await H.editorValue(p)) + 'three\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('CR file saved with CR', gh.files['mac.md'] === '# Old Mac\r\rone\rtwo\rthree\r', JSON.stringify(gh.files['mac.md']));
 
   await H.clickRow(p, 'unix.md');
   await H.setEditor(p, (await H.editorValue(p)) + 'second\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('LF file stays LF', gh.files['unix.md'] === '# Unix\n\nfirst line\nsecond\n', JSON.stringify(gh.files['unix.md']));
 
   await H.clickRow(p, 'mixed.md');
   await H.setEditor(p, (await H.editorValue(p)) + 'four\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('mixed file: untouched lines keep their own endings, new ones take the usual',
     gh.files['mixed.md'] === '# Mixed\r\none\r\ntwo\nthree\r\nfour\r\n', JSON.stringify(gh.files['mixed.md']));
 
   const edit = async (name, from, to) => {
     await H.clickRow(p, name);
     await H.setEditor(p, (await H.editorValue(p)).replace(from, to));
-    await p.waitForTimeout(60);
+    await H.settle(p, 60);
     await p.click('#btn-save');
-    await p.waitForTimeout(400);
+    await H.settle(p, 400);
   };
   await edit('tie.md', 'a', 'A');
   t.check('a tie rewrites nothing untouched', gh.files['tie.md'] === 'A\r\nb\n', JSON.stringify(gh.files['tie.md']));
@@ -105,9 +105,9 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await H.clickRow(p, 'twoedits2.md');
   await H.setEditor(p, (await H.editorValue(p)).replace('one', 'ONE').replace('two\n', 'two\nnew\n')
     .replace('five', 'FIVE'));
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('edits and an insertion in one save leave the lines between untouched',
     gh.files['twoedits2.md'] === 'ONE\r\ntwo\nnew\r\nthree\r\nfour\nFIVE\r\n', JSON.stringify(gh.files['twoedits2.md']));
   t.check('two separate edits leave the lines between untouched',
@@ -126,15 +126,15 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
     return r.abort();                              // nothing landed
   });
   await H.setEditor(p, '# Windows\n\nfirst line\nsecond line!\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   // Meanwhile another device commits the same words with LF endings.
   gh.files['win.md'] = '# Windows\n\nfirst line\nsecond line!\n';
   await H.setEditor(p, '# Windows\n\nfirst line\nsecond line!!\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(600);
+  await H.settle(p, 600);
   t.check("a commit differing only in endings is someone else's: a conflict",
     /conflict/i.test(await H.status(p)) && gh.files['win.md'] === '# Windows\n\nfirst line\nsecond line!\n',
     await H.status(p));
@@ -206,13 +206,13 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await H.signIn(p);
   await H.clickRow(p, 'h.md');
   await H.setEditor(p, 'X\nH\nA\nB\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   await H.setEditor(p, 'X\nH2\nA\nB\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('a line untouched since the last save keeps the ending it was saved with',
     gh.files['h.md'] === 'X\r\nH2\nA\r\nB\r\n', JSON.stringify(gh.files['h.md']));
   await ctx.close();
@@ -242,9 +242,9 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   t.check('a BOM file opens clean, the mark not shown', await p.isDisabled('#btn-save') &&
     (await H.editorValue(p)) === 'first\nsecond\n', JSON.stringify(await H.editorValue(p)));
   await H.setEditor(p, 'first\nsecond, edited\n');
-  await p.waitForTimeout(60);
+  await H.settle(p, 60);
   await p.click('#btn-save');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('and keeps its BOM and CRLF when saved', gh.files['bom.txt'] === '\uFEFFfirst\r\nsecond, edited\r\n',
     JSON.stringify(gh.files['bom.txt']));
 
@@ -262,12 +262,12 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   const tasks = await p.$$eval('#pin-list .task span', e => e.map(s => s.textContent));
   t.check('CRLF tasks are listed', JSON.stringify(tasks) === '["ring the panelbeater","swap the spare"]', JSON.stringify(tasks));
   await p.locator('#pin-list .task input').nth(0).click();
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('ticking keeps CRLF and changes one line',
     gh.files['todo.md'] === '# Today\r\n\r\n- [x] ring the panelbeater\r\n- [x] swap the spare\r\n', JSON.stringify(gh.files['todo.md']));
   await p.fill('#pin-input', 'book the wof');
   await p.press('#pin-input', 'Enter');
-  await p.waitForTimeout(400);
+  await H.settle(p, 400);
   t.check('capture appends with CRLF', gh.files['todo.md'].endsWith('- [x] swap the spare\r\n- [ ] book the wof\r\n'),
     JSON.stringify(gh.files['todo.md']));
   await ctx.close();

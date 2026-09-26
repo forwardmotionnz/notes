@@ -2,9 +2,9 @@
 
 ## Try it
 
-**Preview: this shared copy is not ready for sign-in yet.** The owner still
-needs to connect its sign-in service and complete the release checks.
-See [MVP progress and owner steps](MVP.md). Once it is ready:
+**MVP preview:** sign-in is configured and the GitHub App is public.
+Final release checks and real-device smoke tests are still in progress;
+see the [release checklist](RELEASE_CHECKLIST.md) and [MVP progress](MVP.md).
 
 1. Open [Notes](https://forwardmotionnz.github.io/notes/) on your computer or
    phone. You need a GitHub account and an internet connection.
@@ -61,6 +61,15 @@ before its outcome is known, retrying may report a conflict with your own
 earlier save. Copy the latest text before using **Discard**, then paste it
 back and save. Notes does not silently replace a version it cannot verify.
 
+If a task save fails, every queued capture returns to the Add a task box,
+alongside any newer typing. After the wait shown for a rate limit, refresh
+the file list, then add again; each recovered line becomes a separate task.
+Changing repositories while tasks are saving keeps their pending text as a
+draft in the original repository. Return there and open the pinned file to
+recover it; copy the text before discarding if it reports a conflict.
+If browser storage is full, changing between remembered and session-only
+mode stops and explains why, keeping the drafts in their original storage.
+
 ## Repositories you cannot change
 
 An archived repository, or one your GitHub account can only read, opens
@@ -91,7 +100,8 @@ The home-screen shortcut is named **Notes**, uses the paper icon and opens
 the app in its own window. It still needs a connection to GitHub to load
 and commit notes.
 On iPhone or iPad, sign in again in the home-screen app. Save any browser
-drafts first; they stay in the browser.
+drafts first; they stay in the browser. When GitHub opens in a browser to
+choose repositories, return to the Notes home-screen app afterwards.
 On a phone, the editor follows the space above the keyboard, keeping the
 caret and header controls visible. Pinch zoom remains available.
 
@@ -160,7 +170,11 @@ Obsidian would not understand, so both can work on the same repository.
   github.com the file's history (or the commit that deleted it) lets you
   copy it back. If it changed elsewhere since you opened it, it is not
   deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
-- Pinned files as a live task list with a one-line capture box
+- Pinned files as a live task list with a one-line capture box. Ticks and
+  captures go to GitHub one at a time; clicks made while one is on its way
+  share the next commit. × removes a task (always shown on a phone, on
+  hover on a computer) and **Clear done** removes every ticked one, each
+  in one commit, with a few seconds to press **Undo**
 - Filter across every path in the repository
 - Light and dark, and a layout that works on a phone
 
@@ -342,7 +356,9 @@ of every browser on iOS. (That is Playwright's testing build of WebKit, which
 catches engine differences; it is not an iPhone, so iOS-only behaviour such
 as Safari's storage limits is not covered.) `npm run test:chromium` or `npm run test:webkit`
 runs one on purpose; a missing engine fails the run rather than being
-skipped. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
+skipped. Suites run up to eight at a time (each has its own simulated
+GitHub and browser; `--jobs` changes it), and a run takes a little over a
+minute. GitHub Actions runs both on every push (`.github/workflows/test.yml`).
 
 The browser is headless, with GitHub simulated and the real broker code in
 the loop. The simulation verifies the PKCE challenge, expires tokens and

@@ -7,7 +7,7 @@
   after one use, as GitHub's do.
 */
 import * as playwright from 'playwright';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { createServer } from 'http';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
@@ -30,8 +30,17 @@ const PAGE = () => pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
 export const ENGINES = ['chromium', 'webkit'];
 const ENGINE = process.env.NOTES_TEST_ENGINE || 'chromium';
 export const engine = () => ENGINE;
+// A request a test deliberately failed (route.abort), as each engine words it
+// in the console: Chromium "Failed to fetch", WebKit "Load failed", or, for a
+// request cut off as the page unloads, "... due to access control checks".
+// Only for filtering failures a test injected itself.
+export const networkFailure = /Failed to fetch|Load failed|due to access control checks/;
 // The engine really running, as Playwright reports it.
 export const launched = () => browser?.browserType().name();
+
+// GitHub Pages takes types from mime-db (webmanifest: application/manifest+json):
+// https://github.com/jshttp/mime-db/blob/master/db.json
+const ASSET_TYPES = { webmanifest: 'application/manifest+json', png: 'image/png', svg: 'image/svg+xml' };
 
 export const DEPLOY = {
   clientId: 'Iv23liTESTCLIENT',
@@ -183,7 +192,7 @@ export async function start() {
   server = createServer((req, res) => {
     const asset = new URL(req.url, 'http://localhost').pathname.split('/').pop();
     const types = { 'manifest.webmanifest': 'application/manifest+json', 'icon.svg': 'image/svg+xml',
-      'icon-180.png': 'image/png', 'icon-192.png': 'image/png', 'icon-512.png': 'image/png' };
+      'icon-32.png': 'image/png', 'icon-180.png': 'image/png', 'icon-192.png': 'image/png', 'icon-512.png': 'image/png' };
     if (Object.hasOwn(types, asset)) {
       res.writeHead(200, { 'Content-Type': types[asset] });
       res.end(readFileSync(ROOT + asset));
@@ -233,7 +242,10 @@ window.CodeMirror = function (host, opts) {
       return i + pos.ch;
     },
     getWrapperElement: function () { return ta; },
-    clearHistory: function () {}, refresh: function () {}, focus: function () { ta.focus(); },
+    clearHistory: function () {}, focus: function () { ta.focus(); },
+    // Counted, so tests can see when the app asks for them.
+    refresh: function () { window.cmRefreshes = (window.cmRefreshes || 0) + 1; },
+    scrollIntoView: function () { window.cmScrolls = (window.cmScrolls || 0) + 1; },
     on: function (e, f) { if (e === 'change') hs.push(f); } };
 };
 window.CodeMirror.defineMode = function () {};`;
@@ -498,6 +510,12 @@ export async function context(gh, opts = {}) {
 /* A page that records errors, ignoring the ones the app expects. */
 export async function page(ctx, url = APP()) {
   const p = await ctx.newPage();
+  // Requests in flight, for settle().
+  p.inflight = 0; p.lastNet = Date.now();
+  p.on('request', () => { p.inflight++; p.lastNet = Date.now(); });
+  for (const ev of ['requestfinished', 'requestfailed']) {
+    p.on(ev, () => { p.inflight = Math.max(0, p.inflight - 1); p.lastNet = Date.now(); });
+  }
   p.errors = [];
   p.on('pageerror', e => p.errors.push(String(e)));
   p.on('console', m => {
@@ -505,11 +523,34 @@ export async function page(ctx, url = APP()) {
     const t = m.text();
     if (/404 \(Not Found\)|401 \(Unauthorized\)|net::ERR_FAILED/.test(t)) return;
     if (/Signed out/.test(t)) return;
+    // WebKit notes that it ignores the viewport tag's interactive-widget, which
+    // is for Android Chrome; Safari takes the visualViewport path instead.
+    if (/Viewport argument key "interactive-widget" not recognized/.test(t)) return;
     p.errors.push('console: ' + t);
   });
   p.on('dialog', d => d.accept());
   await p.goto(url, { waitUntil: 'load' });
   return p;
+}
+
+/* Wait for the app to settle after an action, instead of a fixed pause:
+   at least 150 ms (so a check that something did NOT happen still gives it
+   time, even to encode a large note), then until no page of the test (any
+   tab) has had a request in flight for 120 ms, and never longer than `ms`, the
+   pause this replaces. Not for time measured against the app's timers, nor
+   for another tab reacting to a storage event, which makes no request. The app's own timers (autosave
+   at 2 s, the status line) are longer than anything this replaces; waits
+   for those stay fixed. */
+export async function settle(p, ms) {
+  if (p.inflight === undefined) return p.waitForTimeout(ms);
+  const start = Date.now(), floor = Math.min(ms, 150);
+  const tabs = () => p.context().pages().filter(x => x.inflight !== undefined);
+  for (;;) {
+    await p.waitForTimeout(20);
+    const now = Date.now();
+    if (now - start >= ms) return;
+    if (now - start >= floor && tabs().every(x => x.inflight === 0 && now - x.lastNet >= 120)) return;
+  }
 }
 
 /* Full sign-in through the real flow. */
@@ -520,28 +561,42 @@ export async function signIn(p, { remember = true } = {}) {
     p.waitForURL(u => u.toString().startsWith(APP()) && !u.search.includes('code='), { timeout: 5000 }),
     p.click('#f-signin'),
   ]);
-  await p.waitForTimeout(500);
+  // Done when the sign-in is stored (the app then loads the list), not when
+  // the network is quiet: between the steps of a sign-in the app computes,
+  // and on a busy machine (WebKit on CI) a gap can outlast any quiet window.
+  // Bounded, and not an error here: some tests sign in to see it fail.
+  await p.waitForFunction(() => /"token":"[^"]/.test(localStorage.getItem('notes.config.v2') ||
+    sessionStorage.getItem('notes.config.v2') || ''), null, { timeout: 5000 }).catch(() => {});
+  await settle(p, 500);
 }
 
 /* Helpers used across suites. */
 export const rows = p => p.$$eval('#tree .row',
   els => els.map(e => e.textContent.replace(/[▸▾]/g, '').trim()));
 export const clickRow = async (p, name) => {
+  // The list may still be loading on a busy machine: wait for the row (not
+  // an error here; clicking a row that never comes does nothing, as before).
+  await p.waitForFunction(n => [...document.querySelectorAll('#tree .row')]
+    .some(e => e.textContent.replace(/[▸▾]/g, '').trim() === n), name, { timeout: 5000 }).catch(() => {});
   await p.$$eval('#tree .row', (els, n) => {
     const el = els.find(e => e.textContent.replace(/[▸▾]/g, '').trim() === n);
     if (el) el.click();
   }, name);
-  await p.waitForTimeout(300);
+  await settle(p, 300);
 };
 export const expand = async (p, name) => {
   await p.$$eval('#tree .row.dir', (els, n) => {
     const el = els.find(e => e.textContent.replace(/[▸▾]/g, '').trim() === n);
     if (el) el.click();
   }, name);
-  await p.waitForTimeout(100);
+  await settle(p, 100);
 };
 export const editorValue = p => p.evaluate(
   () => document.querySelector('#cm-stub, .fallback-editor')?.value ?? null);
+// Until every CSS transition and animation on the page has finished (the
+// phone's sheets slide for 180 ms): measure positions only after this.
+export const still = p => p.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'),
+  null, { timeout: 5000 }).catch(() => {});
 export const setEditor = (p, v) => p.evaluate(v => {
   const ta = document.querySelector('#cm-stub, .fallback-editor');
   ta.value = v; ta.dispatchEvent(new Event('input', { bubbles: true }));

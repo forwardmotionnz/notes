@@ -2,12 +2,13 @@
 
 ## Unreleased — MVP candidate
 
-This candidate is on `mvp`; it is not ready to share as a finished release.
-WebKit testing (F2) is blocked, so the release gate has not passed. The owner
-still needs to configure the broker and make the GitHub App installable by
-other accounts. Shared sign-in is disabled until that setup is complete.
+This is an MVP candidate, not yet a finished release.
+The broker and its secret are configured, and the GitHub App is public.
+Safari fixes and MVP error recovery have been brought together; the
+release gate has not passed yet.
 The real-phone and real-GitHub smoke tests are still pending. See
 [MVP progress and exact owner steps](MVP.md).
+Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
@@ -28,6 +29,16 @@ The real-phone and real-GitHub smoke tests are still pending. See
   persistent retry guidance; temporary sign-in outages preserve credentials.
 - A Try it guide and a bug report template for device, browser and expected
   result.
+
+### Fixed
+
+- Delayed note and task reads cannot replace content after changing
+  repositories or selecting another note. A queued deletion stays tied to
+  the repository where it was confirmed.
+- Failed task saves recover every queued capture, preserving newer typing.
+  Switching repositories keeps pending task text as an original-repository
+  draft. Storage quota failures preserve drafts when changing sign-in mode.
+- Creating a note on a phone closes the file drawer so the editor is usable.
 
 ### Known limitations
 

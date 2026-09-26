@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 22 / 30
+Iterations: 23 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -26,8 +26,8 @@ Iterations: 22 / 30
 | A3 | 13 | done | `PRIVACY.md`; `tests/privacy.test.mjs` 40/40: every storage key a real session writes (remembered and Forget me, even for a moment) has its own row in the note and sits where the note says; sign-out leaves nothing; an automatic sign-out keeps drafts, as the note says; the broker only ever receives `code`, `code_verifier` and `refresh_token`, never a note, and its code and deployment keep and log nothing; every host in the page's policies is named; the revoke pages are GitHub's documented ones; the note states what sign-out does not do (eight hours, six months), the app owner's own access and Uninstall, the page and CDN trust, restored and duplicated tabs, and repositories others installed on. Commit 211e75b |
 | F2 | 15 | blocked | Three failed gauntlet attempts on 2026-09-26. Latest: WebKit `auth.test.mjs`, older repository-list test, second Settings click blocked by a still-open dialog after Escape (candidate line 253). Logs: `tests/screens/f2-gauntlet{,-2,-3}/`; candidate patch: `tests/screens/f2-unfinished.patch`, extra regression suite: `tests/screens/f2-harness-regression.mjs.txt`. All unfinished F2 code/test/README changes reverted; no test removed from the baseline. |
 | F1 | 16 | done | `tests/manifest.test.mjs` 20/20; full 22-suite Chromium gauntlet green three consecutive times; origin restriction mutation caught; viewed icon and `tests/screens/f1-{desktop,phone}-{light,dark}.png`; commit 83c1791 (pushed). |
-| F3 | 17 | doing | Size the shell to the visual viewport when the keyboard opens, keep the header in view and scroll the focused caret within either editor. Test at 390 px using real CodeMirror and the CDN fallback, viewport shrink/pan/restore and unchanged note text; inspect light/dark desktop/phone screens. |
-| G3 | 18 | todo | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
+| F3 | 17 | done | `tests/keyboard.test.mjs` 22/22 using real CodeMirror and the fallback; full 23-suite Chromium gauntlet green three times; five independent mutations caught; `tests/screens/f3-{desktop,phone}-{light,dark}.png` viewed; commit 3486a8f (pushed). |
+| G3 | 18 | doing | Note from D2 review: network errors show the browser's raw text ("Failed to fetch", "Load failed"); a lost delete reply followed by someone recreating the file is reported as not deleted. Note from B3 review: a write refused by branch protection or a ruleset comes back as 409/422 and is shown as "Conflict … Discard", which misleads. Note from C3 review: with the token near expiry and no network, `refreshTokens` treats "could not reach the sign-in service" as a dead token and signs the user out. Fix under G3. |
 | H1 | 19 | todo | |
 | H2 | 20 | todo | |
 | H3 | 21 | todo | |
@@ -134,6 +134,10 @@ Iterations: 22 / 30
 - The marker's separate text sink was also changed alone to HTML and caught by the existing hostile-source test, 27/28 (`tests/f3-mutation-marker-text.log`); restored to the same verified source afterwards.
 - Viewed `tests/screens/f3-{desktop,phone}-{light,dark}.png`: real editor at 1280 px and 390 px, phone cropped to the 360 px area above a simulated keyboard. Header and final line fit, both themes are legible. Normal reading scroll and pinch-zoom layout are preserved by tests. The phone test does not launch a real OS keyboard.
 - Rules/docs: app remains one HTML file, 121,983 bytes, no new external request or runtime dependency. Test fixtures retain the upstream MIT licence and source URLs. README explains the phone layout. Full Chromium gauntlet passed three consecutive times, all 23 suites each time: `tests/screens/f3-gauntlet/run-{1,2,3}.json`. WebKit is still blocked under F2.
+
+### G3: plan
+- Done looks like: connection failures, invalid outage responses, server errors and rate limits use fixed human messages with a clear retry action. Temporary refresh failures keep sign-in and drafts; only a rejected refresh token signs out. Rate-limited requests wait for the documented cooldown. Failed writes keep drafts and existing lost-reply safeguards; repository rules do not falsely instruct Discard.
+- Proof: new error tests inject outages and documented rate-limit responses, retry reads/writes, preserve drafts and sign-in, distinguish genuine conflicts, and prevent requests during cooldown. Existing hostile-error tests will continue checking that payloads neither become DOM elements nor execute, while requiring human wording instead of raw server text.
 
 ## Needs the owner
 (exact steps for human-only actions)
@@ -269,7 +273,11 @@ Iterations: 22 / 30
 - G-1: full suite green three runs in a row, Chromium.
 - G-2: the note is held to the code, so each check was broken from both sides and caught: the app writing a new storage key; the broker logging, storing, reading a new field, or its deployment switching logs on; a new host in the page's policy; the app wiping drafts on an automatic sign-out; and each claim removed from the note (the key table rows, "logs nothing" in both places, the CDN host, the revoke link, the eight-hour and six-month honesty, the app owner's own access and Uninstall, control of the page, CDN code running in the page, restored tabs, duplicated tabs, drafts kept on automatic sign-out, repositories others installed on). Three note mutations first went unnoticed because the words also appeared elsewhere; the checks now look at the table row or the exact sentence.
 - G-3 findings, all taken: (1) It left out that whoever owns a shared copy's GitHub App can use the app's access to installed repositories directly, without the person, and that Revoke does not stop that but Uninstall does; and that they control the page: a new "Who you are trusting" section; tests. (2) "At most eight hours" was false for a copied sign-in: the refresh token lasts six months and the broker renews it for anyone holding it: the note and the README now say so; test. (3) "Nothing is written to disk" with Forget me is not true where the browser restores tabs: now a warning to Sign out; test. (4) A duplicated tab keeps its own session copy: said; test. (5) An automatic sign-out (revoked, expired) keeps drafts on purpose: the note says so, and a test shows it happens. (6) CDN code runs inside the page with full access: said (integrity pinning is already under Needs the owner). (7) The sign-in reaches every repository the app is installed on that the person can use, not only ones they chose, and public repositories: corrected; test. (8) Self-hosting still involves GitHub and the hosts; "twenty minutes" as in the README. (9) The table's details corrected: what `notes.signin` holds and when it goes, the branch and time in draft keys, what the config keeps. Not done here, noted for later: revoking the token on GitHub at sign-out would need the broker (GitHub's token-revocation endpoint takes the client secret), so the owner would have to redeploy it; the note says what sign-out does and does not do instead.
-- Ledger: the `## Needs the owner` heading was lost in B2's ledger commit (a plan was inserted in its place); restored here, with nothing else missing.
+- Ledger: the `### G3: plan
+- Done looks like: connection failures, invalid outage responses, server errors and rate limits use fixed human messages with a clear retry action. Temporary refresh failures keep sign-in and drafts; only a rejected refresh token signs out. Rate-limited requests wait for the documented cooldown. Failed writes keep drafts and existing lost-reply safeguards; repository rules do not falsely instruct Discard.
+- Proof: new error tests inject outages and documented rate-limit responses, retry reads/writes, preserve drafts and sign-in, distinguish genuine conflicts, and prevent requests during cooldown. Existing hostile-error tests will continue checking that payloads neither become DOM elements nor execute, while requiring human wording instead of raw server text.
+
+## Needs the owner` heading was lost in B2's ledger commit (a plan was inserted in its place); restored here, with nothing else missing.
 - G-4: nothing in the app changed. G-5: no code, dependency or request changed. G-6: README's known limits corrected and linked to PRIVACY.md.
 
 ### A2: gauntlet record
@@ -303,6 +311,7 @@ Iterations: 22 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
+- 2026-09-26 · F3 · done · 3486a8f (pushed)
 - 2026-09-26 · F1 · done · 83c1791 (pushed)
 - 2026-09-26 · F2 · blocked after three gauntlet failures; unfinished changes reverted · 1f6e274 (pushed)
 - 2026-09-25 · C1 · done · daa2754

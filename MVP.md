@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 26 / 30
+Iterations: 27 / 30
 
 ## Items
 | ID | Priority | Status | Evidence |
@@ -30,7 +30,7 @@ Iterations: 26 / 30
 | G3 | 18 | done | `tests/errors.test.mjs` 90/90; all 24 Chromium suites green three consecutive runs (`tests/screens/g3-gauntlet-2/`); 26 safeguards independently removed and caught; fresh review findings fixed or documented below; viewed `tests/screens/g3-{desktop,phone}-{light,dark}.png`; commit c57046d (pushed). |
 | H1 | 19 | done | `tests/docs.test.mjs` 10/10; all 25 Chromium suites green three times (`tests/screens/h1-gauntlet-2/`); four misleading wording variants caught; reviewed `tests/screens/h1-{desktop,phone}-{light,dark}.png`; fresh review fixes recorded below; commit a7b60d0 (pushed). |
 | H2 | 20 | done | `.github/ISSUE_TEMPLATE/bug_report.md`; `tests/docs.test.mjs` 20/20, five template mutations caught; all 25 Chromium suites green three times (`tests/screens/h2-gauntlet/`); fresh review and viewed `tests/screens/h2-{desktop,phone}-{light,dark}.png`; commit a66ce72 (pushed). |
-| H3 | 21 | doing | Add an unreleased MVP changelog entry with features, known limits and explicit release blockers; plan below. |
+| H3 | 21 | done | `CHANGELOG.md`; `tests/docs.test.mjs` 30/30, six misleading wording variants caught; all 25 Chromium suites green three times (`tests/screens/h3-gauntlet/`); fresh review fix and viewed `tests/screens/h3-{desktop,phone}-{light,dark}.png`; commit 2a16de0 (pushed). |
 | S1 | 22 | todo | SHOULD |
 | S2 | 23 | todo | SHOULD |
 | S3 | 24 | todo | SHOULD |
@@ -325,6 +325,7 @@ Iterations: 26 / 30
 - G-4: `tests/screens/a2-{desktop,phone,small}-{light,dark}.png`: fits at 320 px with Sign in in view and focused; the link is visible in both themes. G-5: markup and one CSS rule, outside the hashed script; no request added. G-6: README says where the privacy note is published, and the Forget me paragraph matches PRIVACY.md.
 
 ## Decisions
+- 2026-09-26: F1, F3, G3 and H1–H3 are complete on mvp. The only unfinished MUST is F2, blocked after its three failed gauntlet attempts. Stop this checklist run at that boundary and the owner-only deployment steps above. The release gate has not started: both-engine validation, whole-codebase release review, the first-run phone walkthrough and RELEASE_CHECKLIST.md remain for after F2 is resolved. No main commit, merge, broker deployment, secret handling or GitHub App settings change was performed. The pre-existing package-lock.json working-tree change was left unstaged and untouched.
 - 2026-09-26: The current request supersedes the earlier branch exception: work is on `mvp`, created from `main` at 5ba9c81. No commit or push to `main` is permitted. The old branch notes below remain historical.
 - 2026-09-26: F2's attempted local gauntlet ran all 22 suite entry points in both engines in isolated Node processes, four at a time. Each complete pass finished before the next could begin, and any non-zero suite exit stopped the three-pass attempt. The normal `npm test` entry point was also run. All output stays under ignored `tests/screens/` or `*.log` paths. After the third failure, its unfinished changes were reverted.
 - 2026-09-25: Work happens on `claude/pensive-sagan-0vk6ud`, not `mvp`. The session that runs this loop is only permitted to push that branch; it plays the role the command gives `mvp`. Rename or merge it as you see fit.
@@ -348,6 +349,7 @@ Iterations: 26 / 30
 
 ## Log
 (one line per iteration: date, item, result, commit)
+- 2026-09-26 · H3 · done · 2a16de0 (pushed)
 - 2026-09-26 · H2 · done · a66ce72 (pushed)
 - 2026-09-26 · H1 · done · a7b60d0 (pushed)
 - 2026-09-26 · G3 · done · c57046d (pushed)

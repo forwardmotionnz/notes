@@ -162,6 +162,13 @@ Iterations: 25 / 30
 - Done looks like: GitHub offers a Bug report template asking for device, browser/version, steps, expected result and actual result, without asking people to share private notes or credentials.
 - Proof: add failing documentation checks, create the minimal Markdown issue template, fresh review, four viewed screenshots and three full Chromium passes. No runtime change is planned.
 
+### H2: gauntlet record
+- Test first: `tests/h2-before.log` failed the nine new template checks (10/19 overall). The Markdown template now requests device/OS, browser/version and home-screen context, reproducible steps, expected result and actual result; the final docs suite passes 20/20.
+- Fresh reviewer found no data, credential or sign-in defect. The reviewer noted that the README template link alone left beginners to find the issue composer; a new failing check (`tests/h2-review-before.log`, 19/20) preceded an explicit new-issue link. No issue was created or sent.
+- GitHub documents the name/about frontmatter, directory and default-branch requirement at https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates . The template becomes selectable only after the owner's future merge into main; mvp does not activate it yet.
+- Five independent removals (public-report privacy guidance, frontmatter, device, browser, expected result) failed their checks: `tests/h2-mutations.log` and `tests/screens/h2-mutation-*.log`. These variants only changed test-local strings; the files remained intact. No runtime safeguard changed.
+- Viewed `tests/screens/h2-{desktop,phone}-{light,dark}.png`: clear existing app layout and reachable Save, no overflow. No runtime code, dependency, build or request changed; index.html remains 127,373 bytes. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h2-gauntlet/run-{1,2,3}.json`. WebKit remains blocked under F2.
+
 ## Needs the owner
 (exact steps for human-only actions)
 - **F2 needs a fresh authorised attempt after the three-failure limit.** The full release gate cannot pass while WebKit is blocked. In a fresh session, reapply `tests/screens/f2-unfinished.patch` and copy `tests/screens/f2-harness-regression.mjs.txt` to `tests/harness.test.mjs` if continuing this candidate, reproduce the modal/Escape failure in the older-repository-list case in `tests/auth.test.mjs`, then rerun the complete three-pass gauntlet in both engines. These candidate files and detailed logs are local ignored evidence, not part of a pushed release.

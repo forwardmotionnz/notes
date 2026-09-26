@@ -1,5 +1,5 @@
 /* First-time readers should reach a note without deployment instructions. */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import * as H from './harness.mjs';
 const t = H.suite('docs');
 const root = new URL('../', import.meta.url);
@@ -23,4 +23,18 @@ t.check('self-hosting and architecture follow user guidance', readme.indexOf('##
   readme.indexOf('## How it fits together') > readme.indexOf('## What it does'));
 t.check('phone readers can find New behind Files', /Files[\s\S]*\*\*\+\*\*[\s\S]*New note/.test(intro));
 t.check('the repository choice is saved before making a note', /choose your repository[^.]*Save[\s\S]*Files/i.test(firstNote));
+
+// Markdown templates require name/about in YAML frontmatter on the default branch:
+// https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates
+const bugPath = new URL('.github/ISSUE_TEMPLATE/bug_report.md', root);
+const bug = existsSync(bugPath) ? readFileSync(bugPath, 'utf8') : '';
+t.check('a recognised Markdown bug template exists', /^---\r?\nname: Bug report\r?\nabout: [^\r\n]+\r?\n---/.test(bug));
+for (const heading of ['Device', 'Browser', 'Steps to reproduce', 'Expected result', 'Actual result']) {
+  t.check(`bug report asks for ${heading.toLowerCase()}`, new RegExp(`^## ${heading}$`, 'm').test(bug));
+}
+t.check('browser version and home-screen context can be reported', /version/.test(bug) && /home.screen/i.test(bug));
+t.check('public reports keep notes and credentials private', /reports are public/i.test(bug) &&
+  /Do not include private notes, passwords, tokens/.test(bug) && /made.up example/i.test(bug));
+t.check('README links the report template', /\]\(\.github\/ISSUE_TEMPLATE\/bug_report.md\)/.test(readme));
+t.check('readers can find where to submit their report', /\]\(https:\/\/github.com\/forwardmotionnz\/notes\/issues\/new\)/.test(readme));
 t.finish();

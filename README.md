@@ -368,6 +368,13 @@ network.
   [PRIVACY.md](PRIVACY.md) says what the broker, GitHub and your browser
   each see and keep, and how to take access back.
 
+## Reporting a bug
+
+Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) to describe
+your device, browser, the steps you took, and what you expected to happen.
+Use made-up note text and remove private details from screenshots and messages.
+Copy your answers into [a new issue](https://github.com/forwardmotionnz/notes/issues/new).
+
 ## Licence
 
 MIT.

@@ -1,139 +1,30 @@
 # notes
 
-Markdown notes in one HTML file, stored in a GitHub repository you own.
-Sign in with GitHub, pick the repository, write. Works in any browser, on any
-computer or phone, with nothing to install.
+## Try it
 
-- **Your notes are plain `.md` files in your repo.** No database, no export
-  step. Obsidian, nvim or github.com can edit the same files.
-- **One file is the whole app.** `index.html`, vanilla JavaScript, no build.
-- **Scoped access.** Sign-in goes through a GitHub App installed only on the
-  repositories you choose. It cannot see anything else in your account.
+**Preview: this shared copy is not ready for sign-in yet.** The owner still
+needs to connect its sign-in service and complete the release checks.
+See [MVP progress and owner steps](MVP.md). Once it is ready:
 
-## How it fits together
+1. Open [Notes](https://forwardmotionnz.github.io/notes/) on your computer or
+   phone. You need a GitHub account and an internet connection.
+2. Choose **Sign in with GitHub**. When GitHub asks where to install Notes,
+   choose only the private repository you want to use for notes.
+   A repository is a folder of files on GitHub, with a history of your changes.
+   [No notes repository yet?](#no-notes-repository-yet) Follow the two steps
+   in Notes to create one and let the app use it.
+3. Back in Notes, choose your repository if asked, then press **Save** to
+   close settings. On a phone, open **☰ Files** first. Press **+** (*New note*)
+   in the file list, give your note a name such as `Hello.md`, write a few
+   words and press **Save** above the editor.
+   Your note is now a plain file in your repository; you can edit it in
+   Obsidian or on GitHub too.
 
-```
- browser ──── sign in ────▶ github.com ──── code ────▶ browser
-    │                                                     │
-    │                       broker (Cloudflare Worker)    │
-    │   code + PKCE ───────▶ holds the client secret ─────┘
-    │   ◀──────── token ─── swaps code for token
-    │
-    └──────── every read and write ────────▶ api.github.com
-```
-
-GitHub requires a client secret to turn a sign-in code into a token, and a web
-page cannot keep a secret. The broker (`broker/worker.js`, about 100 lines)
-holds it and does only that swap, plus a refresh every 8 hours. It stores
-nothing and never sees your notes: those go straight from the browser to
-GitHub.
-
-## Setup
-
-About twenty minutes, once. You need a GitHub account and a free Cloudflare
-account. The examples assume your GitHub user is `roldaof` and this repo is
-called `notes`; substitute your own.
-
-### 1. Put this repo on GitHub and turn on Pages
-
-Push this repository to GitHub as **public**. It contains no secrets, and
-GitHub Pages only serves public repositories on a free plan. Your notes live
-in a separate, private repository.
-
-Settings → Pages → Source: *Deploy from a branch*, branch `main`, folder `/`.
-After a minute the app is at `https://roldaof.github.io/notes/`. Pages also
-publishes `PRIVACY.md` beside it as `PRIVACY.html`, which the sign-in
-screen's *Privacy* link opens. On another host, serve the note at that
-address too (or change the *Privacy* link in the sign-in screen's markup,
-`id="about"` in `index.html`).
-
-### 2. Register a GitHub App
-
-github.com → Settings → Developer settings → GitHub Apps → **New GitHub App**.
-
-| Field | Value |
-|---|---|
-| GitHub App name | anything unique, e.g. `roldaof-notes` |
-| Homepage URL | `https://roldaof.github.io/notes/` |
-| Callback URL | `https://roldaof.github.io/notes/` (exactly, trailing slash included) |
-| Expire user authorization tokens | ✅ on |
-| Request user authorization (OAuth) during installation | ✅ on |
-| Enable Device Flow | off |
-| Webhook → Active | ❌ **off** |
-| Repository permissions → **Contents** | **Read and write** |
-| Where can this GitHub App be installed? | **Any account**, so other people can use your copy (choose *Only on this account* if it is just for you) |
-
-Leave every other permission at *No access*. Metadata (read) is added
-automatically.
-
-Create it, then on the app's page note the **Client ID** and the **slug** (the
-last part of `github.com/apps/<slug>`). Click **Generate a new client secret**
-and copy it somewhere safe for the next step.
-
-### 3. Deploy the broker
-
-```sh
-cd broker
-# edit wrangler.toml: CLIENT_ID, ALLOWED_ORIGIN, REDIRECT_URI
-npx wrangler login
-npx wrangler deploy
-npx wrangler secret put CLIENT_SECRET     # paste the secret from step 2
-```
-
-`ALLOWED_ORIGIN` is the site with no path (`https://roldaof.github.io`) and
-`REDIRECT_URI` is the app's full URL, identical to the callback URL in step 2.
-Deploy prints the worker's URL; you need it next.
-
-If you would rather not use Cloudflare, `worker.js` is a standard
-Request/Response handler and runs on Deno Deploy, Bun, or a small Node server.
-
-### 4. Point the app at your deployment
-
-Two edits in `index.html`, both plain text.
-
-The deployment block, just above the script:
-
-```html
-<script type="application/json" id="deployment">
-{
-  "clientId": "Iv23li...",
-  "appSlug":  "roldaof-notes",
-  "broker":   "https://notes-token-broker.<you>.workers.dev"
-}
-</script>
-```
-
-`clientId` and `appSlug` come from step 2, `broker` from step 3.
-
-The second `Content-Security-Policy` tag at the very top, the one that is
-only `connect-src`: replace `https://notes-token-broker.REPLACE_ME.workers.dev`
-with the same broker origin.
-
-```html
-<meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.<you>.workers.dev">
-```
-
-That policy is the list of hosts the page may talk to at all, so if anything
-ever got into the page it could reach GitHub and your broker and nothing
-else. If the broker there and in the deployment block do not match, the
-sign-in screen says so. Leave the first policy alone: it pins the app's own
-script by its hash, and your edits above do not affect it. (If you change the
-app's script, `npm test` fails first thing and prints the new hash to paste
-into that first policy.)
-
-Commit and push. Pages redeploys on its own.
-
-### 5. Sign in
-
-Open the app, **Sign in with GitHub**, and install the app on your notes
-repository when GitHub asks. If it is installed on one repository you go
-straight in; with several you choose. To add or remove repositories later,
-use *Choose repositories* in the app's settings. It opens GitHub in a new
-tab; save your choice there, come back to the Notes tab, and the list has
-updated. (GitHub does not send you back after a change, only after a first
-install.) Arriving from a GitHub install never signs you in by itself: you
-are asked to sign in, with *Forget me* ticked, since the app cannot tell
-whether this is your own computer.
+Read the [privacy note](PRIVACY.md) before signing in. Notes reads and writes
+files in repositories its GitHub App is installed on that you can access;
+this may include repositories someone else installed it on. The app's owner
+also has access through that installation. Only use a copy whose owner you
+trust. To run your own copy, see [Setup](#setup) below.
 
 ## No notes repository yet
 
@@ -300,6 +191,131 @@ No offline queue, no backlinks, no graph, no plugins,
 no attachment upload, no merge tool. Each of those is a common reason a notes
 app becomes unmaintainable.
 
+## How it fits together
+
+```
+ browser ──── sign in ────▶ github.com ──── code ────▶ browser
+    │                                                     │
+    │                       broker (Cloudflare Worker)    │
+    │   code + PKCE ───────▶ holds the client secret ─────┘
+    │   ◀──────── token ─── swaps code for token
+    │
+    └──────── every read and write ────────▶ api.github.com
+```
+
+GitHub requires a client secret to turn a sign-in code into a token, and a web
+page cannot keep a secret. The broker (`broker/worker.js`, about 100 lines)
+holds it and does only that swap, plus a refresh every 8 hours. It stores
+nothing and never sees your notes: those go straight from the browser to
+GitHub.
+
+## Setup
+
+Optional self-hosting: run your own copy of Notes. About twenty minutes, once. You need a GitHub account and a free Cloudflare
+account. The examples assume your GitHub user is `roldaof` and this repo is
+called `notes`; substitute your own.
+
+### 1. Put this repo on GitHub and turn on Pages
+
+Push this repository to GitHub as **public**. It contains no secrets, and
+GitHub Pages only serves public repositories on a free plan. Your notes live
+in a separate, private repository.
+
+Settings → Pages → Source: *Deploy from a branch*, branch `main`, folder `/`.
+After a minute the app is at `https://roldaof.github.io/notes/`. Pages also
+publishes `PRIVACY.md` beside it as `PRIVACY.html`, which the sign-in
+screen's *Privacy* link opens. On another host, serve the note at that
+address too (or change the *Privacy* link in the sign-in screen's markup,
+`id="about"` in `index.html`).
+
+### 2. Register a GitHub App
+
+github.com → Settings → Developer settings → GitHub Apps → **New GitHub App**.
+
+| Field | Value |
+|---|---|
+| GitHub App name | anything unique, e.g. `roldaof-notes` |
+| Homepage URL | `https://roldaof.github.io/notes/` |
+| Callback URL | `https://roldaof.github.io/notes/` (exactly, trailing slash included) |
+| Expire user authorization tokens | ✅ on |
+| Request user authorization (OAuth) during installation | ✅ on |
+| Enable Device Flow | off |
+| Webhook → Active | ❌ **off** |
+| Repository permissions → **Contents** | **Read and write** |
+| Where can this GitHub App be installed? | **Any account**, so other people can use your copy (choose *Only on this account* if it is just for you) |
+
+Leave every other permission at *No access*. Metadata (read) is added
+automatically.
+
+Create it, then on the app's page note the **Client ID** and the **slug** (the
+last part of `github.com/apps/<slug>`). Click **Generate a new client secret**
+and copy it somewhere safe for the next step.
+
+### 3. Deploy the broker
+
+```sh
+cd broker
+# edit wrangler.toml: CLIENT_ID, ALLOWED_ORIGIN, REDIRECT_URI
+npx wrangler login
+npx wrangler deploy
+npx wrangler secret put CLIENT_SECRET     # paste the secret from step 2
+```
+
+`ALLOWED_ORIGIN` is the site with no path (`https://roldaof.github.io`) and
+`REDIRECT_URI` is the app's full URL, identical to the callback URL in step 2.
+Deploy prints the worker's URL; you need it next.
+
+If you would rather not use Cloudflare, `worker.js` is a standard
+Request/Response handler and runs on Deno Deploy, Bun, or a small Node server.
+
+### 4. Point the app at your deployment
+
+Two edits in `index.html`, both plain text.
+
+The deployment block, just above the script:
+
+```html
+<script type="application/json" id="deployment">
+{
+  "clientId": "Iv23li...",
+  "appSlug":  "roldaof-notes",
+  "broker":   "https://notes-token-broker.<you>.workers.dev"
+}
+</script>
+```
+
+`clientId` and `appSlug` come from step 2, `broker` from step 3.
+
+The second `Content-Security-Policy` tag at the very top, the one that is
+only `connect-src`: replace `https://notes-token-broker.REPLACE_ME.workers.dev`
+with the same broker origin.
+
+```html
+<meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.<you>.workers.dev">
+```
+
+That policy is the list of hosts the page may talk to at all, so if anything
+ever got into the page it could reach GitHub and your broker and nothing
+else. If the broker there and in the deployment block do not match, the
+sign-in screen says so. Leave the first policy alone: it pins the app's own
+script by its hash, and your edits above do not affect it. (If you change the
+app's script, `npm test` fails first thing and prints the new hash to paste
+into that first policy.)
+
+Commit and push. Pages redeploys on its own.
+
+### 5. Sign in
+
+Open the app, **Sign in with GitHub**, and install the app on your notes
+repository when GitHub asks. If it is installed on one repository you go
+straight in; with several you choose. To add or remove repositories later,
+use *Choose repositories* in the app's settings. It opens GitHub in a new
+tab; save your choice there, come back to the Notes tab, and the list has
+updated. (GitHub does not send you back after a change, only after a first
+install.) Arriving from a GitHub install never signs you in by itself: you
+are asked to sign in, with *Forget me* ticked, since the app cannot tell
+whether this is your own computer.
+
 ## Design rules
 
 Keep these if you contribute:
@@ -322,7 +338,7 @@ npm test
 ```
 
 Runs every suite twice: in Chromium, and in WebKit, the engine of Safari and
-of every browser on iOS. (That is Playwright's WebKit build on Linux, which
+of every browser on iOS. (That is Playwright's testing build of WebKit, which
 catches engine differences; it is not an iPhone, so iOS-only behaviour such
 as Safari's storage limits is not covered.) `npm run test:chromium` or `npm run test:webkit`
 runs one on purpose; a missing engine fails the run rather than being

@@ -1,0 +1,26 @@
+/* First-time readers should reach a note without deployment instructions. */
+import { readFileSync } from 'node:fs';
+import * as H from './harness.mjs';
+const t = H.suite('docs');
+const root = new URL('../', import.meta.url);
+const readme = readFileSync(new URL('README.md', root), 'utf8');
+const html = readFileSync(new URL('index.html', root), 'utf8');
+const first = readme.match(/^## (.+)$/m)?.[1];
+const intro = readme.split(/^## /m)[1] || '';
+const firstNote = intro.split('\n3. ')[1]?.split('\n\n')[0] || '';
+t.check('README opens with Try it', first === 'Try it');
+t.check('Try it links the shared app', /\]\(https:\/\/forwardmotionnz.github.io\/notes\/\)/.test(intro));
+t.check('a beginner reaches the first saved note', /GitHub account/.test(intro) && /Sign in with GitHub/.test(intro) &&
+  /private repository/i.test(intro) && /New/.test(intro) && /Save/.test(intro));
+t.check('a repository is explained and creation help is linked', /repository[^\n]*folder|folder[^\n]*repository/i.test(intro) &&
+  /\]\(#no-notes-repository-yet\)/.test(intro));
+t.check('Try it explains owner trust and links privacy', /\]\(PRIVACY.md\)/.test(intro) &&
+  /app's owner\s+also has access through that installation/i.test(intro));
+t.check('Try it needs no developer setup', !/```|npx |npm |client secret|wrangler|register.*App/i.test(intro));
+t.check('unfinished sign-in is stated before the shared link', !/REPLACE_ME/.test(html) ||
+  /not ready for sign-in[\s\S]*https:\/\/forwardmotionnz.github.io\/notes\//i.test(intro));
+t.check('self-hosting and architecture follow user guidance', readme.indexOf('## Setup') > readme.indexOf('## What it does') &&
+  readme.indexOf('## How it fits together') > readme.indexOf('## What it does'));
+t.check('phone readers can find New behind Files', /Files[\s\S]*\*\*\+\*\*[\s\S]*New note/.test(intro));
+t.check('the repository choice is saved before making a note', /choose your repository[^.]*Save[\s\S]*Files/i.test(firstNote));
+t.finish();

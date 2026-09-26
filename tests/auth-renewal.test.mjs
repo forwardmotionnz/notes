@@ -459,10 +459,13 @@ for (const how of ['forget me', 'sign out']) {
   await a.click('#btn-settings');
   await H.settle(a, 300);
   await a.click('#f-forget');
-  await H.settle(a, 700);
+  await a.waitForFunction(() => localStorage.getItem('notes.config.v2') === null &&
+    document.getElementById('settings').open && !document.getElementById('view-signin').hidden,
+    null, { timeout: 5000 });
   t.check('sign out clears storage', (await H.stored(a)).local === null);
   t.check('sign out lands on the sign-in view', await H.dialogOpen(a));
-  await H.settle(b, 300);
+  await b.waitForFunction(() => document.getElementById('settings').open &&
+    !document.getElementById('view-signin').hidden, null, { timeout: 5000 });
   t.check('other open tabs are signed out too', await H.dialogOpen(b));
   await ctx.close();
 }

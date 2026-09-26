@@ -22,8 +22,9 @@ for related cases; use the affected engine for browser-specific changes.
 Do not repeat every suite three times for a small edit. Keep all assertions
 and run the complete two-engine suite once on the final PR. Reserve three
 full repeats for the release gate. This supersedes the older per-edit
-gauntlet workflow below. The three full release runs already recorded here
-remain valid evidence for the unchanged application.
+gauntlet workflow below. The three full release runs recorded here cover the
+earlier application baseline; the sign-out follow-up below uses focused
+regressions and a final full CI check, not another three-run edit loop.
 
 CI now runs once per PR update instead of twice (push plus PR), cancels
 superseded runs, and preserves full coverage in both engines. Manual repeat
@@ -40,6 +41,25 @@ run. Logs: `tests/screens/fast-runner-{before,after}.log` and
 `tests/screens/dev-{mobile,drafts}-timing.log`. Independent review found no
 blocker or weakened coverage. Full CI on 9586d76 passed twice per engine
 after the readiness corrections; application code remains unchanged.
+
+The final workflow check exposed a real sign-out race: a late account reply
+could restore credentials between storage removal and page destruction.
+The independent reviewer reproduced both tabs regaining their tokens.
+`auth-signout` first failed 0/3 in 3.5 seconds. Sign-out now invalidates live
+tokens immediately, configuration persistence requires sign-in, and pending
+repository lists are invalidated. The final regression holds the profile and
+final repository responses, keeps the old document alive through a
+same-document navigation, and then really reloads; it passes 4/4 in each
+engine in under three seconds. Removing each of the three safeguards
+independently fails its corresponding assertion in both engines.
+
+Related checks passed in both engines: auth-renewal 62/62, drafts 45/45,
+CSP 26/26. The earlier WebKit version of the new regression cancelled its
+own held request on navigation; the final cross-engine setup fixes that.
+Logs: `tests/screens/signout-{race-before,fix-targeted,race-restored}.log`
+and `tests/screens/signout-mutation-*.log`. The sign-out UI test now waits
+for the actual signed-out state instead of a short quiet-network interval.
+The app is 141,592 bytes with no new runtime dependency or host.
 
 ### Integration and release review
 

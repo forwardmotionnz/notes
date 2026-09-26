@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1K6b/sqd2sbtG05rfOBdSknanZESYbQfA4zhGRDixpw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rKI+GS5RMEQYIsFOXP5cczgVGZg+y7U5gaH4t6NzS2Y=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -941,7 +941,7 @@ function configured() {
   return !!(cfg.token && cfg.owner && cfg.repo && cfg.branch);
 }
 
-function saveCfg() { persist(CFG_KEY, cfg); }
+function saveCfg() { if (signedIn()) persist(CFG_KEY, cfg); }
 
 /* ================================================================
    AUTH  -  GitHub App user tokens via the broker.
@@ -3319,6 +3319,10 @@ function forget() {
       ". Cancel and save them first if you want to keep them."
     : "";
   if (!confirm("Sign out on this browser?" + warn)) return;
+  // Replies can finish before the replacement page loads. Invalidate this
+  // page's credentials too, so a late profile or refresh cannot restore them.
+  cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
+  repoListSeq++;
   forgetStored(CFG_KEY);
   forgetStored(UI_KEY);
   forgetDrafts();

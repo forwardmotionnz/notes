@@ -32,6 +32,9 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Fixed
 
+- Signing out invalidates the current page immediately. Delayed account or
+  repository replies cannot restore credentials or forgotten preferences
+  while the replacement sign-in page loads.
 - Delayed note and task reads cannot replace content after changing
   repositories or selecting another note. A queued deletion stays tied to
   the repository where it was confirmed.

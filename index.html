@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-24R+YAxU1fzdl0nuyfui09yEY8uS4VO92lsLlueFFms=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Eh19sDhr6uXBsfypo+PeXGQxQkxCZAc4MG18Aypw8/w=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; manifest-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.REPLACE_ME.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
@@ -134,7 +134,7 @@
 
   /* ---- shell ---------------------------------------------------- */
 
-  #shell { display: flex; flex-direction: column; height: 100%; }
+  #shell { position: relative; display: flex; flex-direction: column; height: 100%; }
 
   header {
     display: flex;
@@ -252,6 +252,7 @@
   #editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   #editor-pane .CodeMirror {
     flex: 1;
+    min-height: 0;
     height: auto;
     font-family: var(--mono);
     font-size: 14px;
@@ -262,6 +263,7 @@
   }
   .fallback-editor {
     flex: 1;
+    min-height: 0;
     width: 100%;
     border: 0;
     border-radius: 0;
@@ -449,6 +451,7 @@
 
   @media (max-width: 820px) {
     .only-narrow { display: inline-block; }
+    #editor-pane .CodeMirror, .fallback-editor { font-size: 16px; }
 
     #sidebar {
       position: absolute;
@@ -1841,6 +1844,28 @@ function textareaEditor(host) {
     setValue: function (v) { ta.value = v; },
     clearHistory: function () {},
     refresh: function () {},
+    scrollIntoView: function () {
+      // Measure the caret without changing the value, selection or focus.
+      // A text node and span wrap exactly as the textarea does, including
+      // long lines. The temporary mirror is hidden and never parsed as HTML.
+      var mirror = document.createElement("div"), marker = document.createElement("span");
+      var style = getComputedStyle(ta);
+      ["font", "lineHeight", "letterSpacing", "padding", "border", "boxSizing", "wordSpacing", "tabSize"].forEach(function (key) {
+        mirror.style[key] = style[key];
+      });
+      mirror.style.cssText += ";position:fixed;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;";
+      mirror.style.width = ta.getBoundingClientRect().width + "px";
+      var caret = ta.selectionDirection === "backward" ? ta.selectionStart : ta.selectionEnd;
+      mirror.textContent = ta.value.slice(0, caret);
+      // Keep the suffix: truncating the word can move it to the line above.
+      marker.textContent = ta.value.slice(caret) || "\u200b";
+      mirror.appendChild(marker);
+      document.body.appendChild(mirror);
+      var top = marker.offsetTop, bottom = top + parseFloat(style.lineHeight);
+      if (bottom > ta.scrollTop + ta.clientHeight - 12) ta.scrollTop = bottom - ta.clientHeight + 12;
+      else if (top < ta.scrollTop + 12) ta.scrollTop = Math.max(0, top - 12);
+      mirror.remove();
+    },
     focus: function () { ta.focus(); },
     on: function (ev, fn) { if (ev === "change") handlers.push(fn); },
     setOption: function (k, v) { if (k === "readOnly") ta.readOnly = !!v; },
@@ -1895,6 +1920,37 @@ function ensureEditor() {
   followLinks(editor.getWrapperElement());
   return editor;
 }
+
+// A phone keyboard shrinks the visual viewport, sometimes panning it too,
+// while the layout viewport stays full height. Keep the shell inside the
+// visible area. Leave pinch zoom to the browser so normal panning still works.
+(function () {
+  var viewport = window.visualViewport;
+  if (!viewport) return;
+  var queued = false, reveal = false;
+  function update(event) {
+    reveal = reveal || event.type !== "scroll";
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () {
+      queued = false;
+      var mobile = matchMedia("(max-width: 820px)").matches && viewport.scale === 1;
+      var shell = $("shell");
+      shell.style.height = mobile ? viewport.height + "px" : "";
+      shell.style.top = mobile ? viewport.offsetTop + "px" : "";
+      if (mobile && reveal && editor && editor.getWrapperElement().contains(document.activeElement)) {
+        editor.refresh();
+        if (editor.scrollIntoView) editor.scrollIntoView(null, 12);
+      }
+      reveal = false;
+    });
+  }
+  viewport.addEventListener("resize", update);
+  viewport.addEventListener("scroll", update);
+  window.addEventListener("resize", update);
+  document.addEventListener("focusin", update);
+  update({ type: "resize" });
+})();
 
 /* ================================================================
    WIKILINKS

@@ -185,6 +185,8 @@ the app in its own window. It still needs a connection to GitHub to load
 and commit notes.
 On iPhone or iPad, sign in again in the home-screen app. Save any browser
 drafts first; they stay in the browser.
+On a phone, the editor follows the space above the keyboard, keeping the
+caret and header controls visible. Pinch zoom remains available.
 
 On a work or shared computer, tick **Forget me when I close the browser**
 before signing in. The sign-in and drafts are kept for this browser session

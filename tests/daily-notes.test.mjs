@@ -47,8 +47,8 @@ async function today(p) { await p.evaluate(()=>todayNote()); }
   t.check('existing note is opened unchanged',await H.editorValue(p)==='Already written');
   await ctx.close();
 }
-{
-  const {p,ctx}=await setup({'.obsidian/daily-notes.json':JSON.stringify({format:'GGGG-[W]WW'})});
+for (const format of ['GGGG-[W]WW','YYYY-DDD']) {
+  const {p,ctx}=await setup({'.obsidian/daily-notes.json':JSON.stringify({format})});
   await today(p); await p.waitForFunction(()=>current?.path==='2026-09-27.md');
   t.check('unsupported date format explains fallback',/unsupported.*YYYY-MM-DD/i.test(await H.status(p)));
   await ctx.close();

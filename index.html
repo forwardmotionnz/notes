@@ -22,7 +22,7 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-GsBYUfa9ruEdLd8ySYhX1J6a2qReKF1LaKtHIPzNKMQ=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ItInKnDf84crTQArPk3oB95HVn7bZYrXAynsV2mk+d4=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -2502,7 +2502,7 @@ function dailyDate(format, date) {
     HH: pad(hour), H: String(hour), hh: pad(hour % 12 || 12), h: String(hour % 12 || 12),
     mm: pad(date.getMinutes()), m: String(date.getMinutes()), ss: pad(date.getSeconds()), s: String(date.getSeconds()),
     A: hour < 12 ? "AM" : "PM", a: hour < 12 ? "am" : "pm" };
-  return format.replace(/\[[^\]]*\]|YYYY|YY|MMMM|MMM|MM|M|DD|Do|D|dddd|ddd|dd|d|HH|H|hh|h|mm|m|ss|s|A|a|[A-Za-z\[\]]/g, function (token) {
+  return format.replace(/\[[^\]]*\]|Do|([A-Za-z])\1*|[\[\]]/g, function (token) {
     if (token[0] === "[" && token.length > 1) return token.slice(1, -1);
     if (!(token in tokens)) throw new Error("Unsupported date format");
     return tokens[token];

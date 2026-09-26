@@ -204,8 +204,8 @@ The app is 141,592 bytes with no new runtime dependency or host.
   G3 and H1–H3 are already complete and are not reopened.
 
 ### N10: verification — 2026-09-27
-- New `daily-notes` suite failed before the button existed, then passed 22/22
-  in Chromium and WebKit (final focused run: 12 seconds total). Related
+- New `daily-notes` suite failed before the button existed, then passed 23/23
+  in Chromium and WebKit (final focused run: 13 seconds total). Related
   `drafts` 45/45, `switching` 33/33, CSP 26/26 and phone New 6/6 passed in
   both engines; documentation 32/32 passed. Full CI remains the final gate.
 - Independent review found repeated Today could drop an untouched template,
@@ -222,6 +222,9 @@ The app is 141,592 bytes with no new runtime dependency or host.
   beside the filter; the drawer closes and the editor is reachable.
 - App remains under 150 KB, with no new runtime library, host or build step.
   The owner's existing `package-lock.json` edit remains untouched.
+- Implementation commit `d513796`, [PR #6](https://github.com/forwardmotionnz/notes/pull/6).
+  A final date-format check also covers unsupported day-of-year tokens;
+  those must fall back rather than be interpreted as two day-of-month tokens.
 - Updated the documentation test's old “still pending” requirement because
   the owner explicitly reported completion. It now requires dated,
   owner-attributed completion and retains the separate iOS storage warning.

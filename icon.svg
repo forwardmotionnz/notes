@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Notes: a page with a folded corner. Full-bleed background, so it can
+       also be cut to a circle or squircle (maskable); the page sits well
+       inside the central safe zone. -->
+  <rect width="512" height="512" fill="#2f6f4f"/>
+  <path d="M168 128h124l52 52v204a16 16 0 0 1-16 16H168a16 16 0 0 1-16-16V144a16 16 0 0 1 16-16z" fill="#fbfaf7"/>
+  <path d="M292 128v36a16 16 0 0 0 16 16h36z" fill="#cfe6d9"/>
+  <rect x="192" y="232" width="128" height="16" rx="8" fill="#2f6f4f"/>
+  <rect x="192" y="276" width="128" height="16" rx="8" fill="#2f6f4f"/>
+  <rect x="192" y="320" width="84" height="16" rx="8" fill="#2f6f4f"/>
+</svg>

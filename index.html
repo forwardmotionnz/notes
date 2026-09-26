@@ -22,10 +22,18 @@
   injected code could do; it is not a reason to let any in.
   GitHub Pages cannot send headers, so both live here.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-NoClfGlmHMK2Z3CcXTS7Hb08S9g5D9XU/iksqza7ReY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-V3gI++z1V5kw1n1EBPnzG/3OCn6sQlQE5zWUCHlkD38=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notes</title>
+<!-- Add to Home Screen: the manifest for Android and desktop, the touch
+     icon and title for iOS, which does not use the manifest's icons. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Notes">
+<meta name="theme-color" content="#2f6f4f" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16181c" media="(prefers-color-scheme: dark)">
 
 <!--
   A single-file markdown notes app backed by a git repository.
@@ -600,7 +608,7 @@
           <li><a id="fr-install" class="step" target="_blank" rel="noopener">2. Let Notes use it</a>
             <em>Choose Only select repositories, pick yours, then press Install (or Save).</em></li>
         </ol>
-        <p class="hint"><span id="fr-status">Then come back to this tab: it notices by itself.</span>
+        <p class="hint"><span id="fr-status">Then come back here, to this tab or the Notes app: it notices by itself.</span>
           <button id="fr-check">Check now</button></p>
       </div>
 
@@ -2857,7 +2865,7 @@ var firstRunShown = false;
 function firstRun() {
   $("fr-status").textContent = firstRunShown
     ? "Still no repository Notes can use. Finish both steps on GitHub, then come back."
-    : "Then come back to this tab: it notices by itself.";
+    : "Then come back here, to this tab or the Notes app: it notices by itself.";
   var first = !firstRunShown;
   firstRunShown = true;
   accountView("firstrun");
@@ -3102,8 +3110,9 @@ function start() {
     if (!r || !r.installed) return;
     // start() has already opened settings when no repository is chosen yet.
     if (signedIn()) { if (configured()) openSettings(); return; }
-    showSignIn("", "Back from GitHub. If you started in another Notes tab, close this one and " +
-               "carry on there. Otherwise sign in to use the repositories you chose.");
+    showSignIn("", "Back from GitHub. If you started in another Notes tab, or in the Notes app on " +
+               "your home screen, close this and carry on there. Otherwise sign in to use the " +
+               "repositories you chose.");
     // Nothing here says whether they wanted to be remembered on this
     // computer, so start from the choice that leaves nothing behind.
     $("f-session-in").checked = true;

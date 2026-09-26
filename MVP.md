@@ -406,4 +406,4 @@ Reviewed with the owner before adding; decisions: pinned files move into the fil
 - 2026-09-26 · N6 · done · 74c2291
 - 2026-09-26 · N7 · done · 5574a13…ae130fa
 - 2026-09-26 · N8 · done · 9d690c3 (CI run 50: 5 of 6 jobs green; the delete suite's wait was too short on one runner, fixed on its own in the next commit)
-- 2026-09-26 · N9 · done · (commit after this line: "N9: remove tasks, Clear done, and Undo")
+- 2026-09-26 · N9 · done · 6d53c3d; the delete suite's wait fixed in 30c52b7. CI run 52 (three runs, both engines) then failed once each in auth (WebKit), drafts (Chromium) and keyboard (WebKit), all tests waiting a fixed time on a busy runner; each now waits for what it measures (b062db7). CI run 53: all six jobs green (Chromium and WebKit, three runs each).

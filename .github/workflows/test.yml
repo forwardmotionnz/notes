@@ -11,6 +11,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Weekly, only the CDN check below: cdnjs can change a file with no change here.
+  schedule:
+    - cron: "23 4 * * 1"
   workflow_dispatch:
     inputs:
       repeat:
@@ -27,6 +30,7 @@ concurrency:
 
 jobs:
   plan:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     outputs:
       runs: ${{ steps.plan.outputs.runs }}

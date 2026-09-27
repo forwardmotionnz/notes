@@ -13,8 +13,12 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 ### Added
 
 - Every file loaded from the CDN is pinned to an integrity hash, the editor
-  (CodeMirror) now included: a changed file is refused and the plain editor
-  is used instead. A CI job checks each hash against what cdnjs serves.
+  (CodeMirror) now included, so a changed file is refused rather than run.
+  A refused editor script or stylesheet means the plain editor, with its
+  badge; a refused Markdown mode means no syntax colours; a refused
+  Markdown renderer or sanitiser means Preview says it is unavailable. A CI
+  job checks each hash against what cdnjs serves, weekly and on every
+  change.
 
 - Repository images in preview, including Markdown and Obsidian embeds.
   PNG/JPEG/GIF/WebP up to 1 MB, at most 20 per preview; external and unsupported

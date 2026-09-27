@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-5Ohz/9q9AmXwmJPTzyupzN2bNSMQSWnpm9EbsPS3XJM=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6TBM3ibFQKQySMbq6WrewF/dah5HHux30nIo9263dtY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -1603,7 +1603,10 @@ function ensureEditor() {
 	var host = $("editor-pane");
 	// Both editors show note text as text: CodeMirror builds its lines from
 	// text nodes and a textarea's value is never parsed.
-	if (typeof CodeMirror === "function") {
+	// Its stylesheet too: refused (a changed file), CodeMirror would draw the
+	// note invisibly; the plain editor, with its badge, is safer.
+	var css = document.querySelector('link[href*="/codemirror/"]');
+	if (typeof CodeMirror === "function" && css && css.sheet) {
 		editor = CodeMirror(host, {
 			value: "",
 			mode: "markdown",

@@ -47,5 +47,50 @@ await H.start();
   H.keepIntegrity(false);
 }
 
+/* ===== review: the real editor with a changed stylesheet ===== */
+{
+  // The script matches its hash and runs; the stylesheet does not and is
+  // refused. CodeMirror would draw the note invisibly: the plain editor
+  // is used instead, and says so.
+  H.keepIntegrity(true);
+  const gh = H.fakeGitHub({ files: { 'inbox.md': '# Inbox\n\nvisible\n' } });
+  const ctx = await H.context(gh);
+  await ctx.route('**/codemirror/5.65.16/**', r => {
+    const name = new URL(r.request().url()).pathname.split('/').pop();
+    const real = name.startsWith('codemirror.min.') ? readFileSync(new URL('./fixtures/codemirror5/' + name, import.meta.url)) : '';
+    return r.fulfill({ contentType: name.endsWith('.css') ? 'text/css' : 'application/javascript',
+      headers: { 'access-control-allow-origin': '*' },
+      body: name.endsWith('.css') ? real + '\n.CodeMirror{color:transparent}' : real });
+  });
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await H.clickRow(p, 'inbox.md');
+  t.check('changed stylesheet: the real script ran', await p.evaluate(() => typeof window.CodeMirror === 'function'));
+  t.check('changed stylesheet: the plain editor is used', (await p.$$('.fallback-editor')).length === 1 && (await p.$$('.CodeMirror')).length === 0);
+  t.check('changed stylesheet: and says so', await p.evaluate(() => getComputedStyle(document.getElementById('degraded')).display !== 'none'));
+  t.check('changed stylesheet: the note is readable', (await H.editorValue(p)) === '# Inbox\n\nvisible\n');
+  await ctx.close();
+  H.keepIntegrity(false);
+}
+{
+  // The same real files, unchanged, with every hash kept: CodeMirror runs.
+  H.keepIntegrity(true);
+  const gh = H.fakeGitHub({ files: { 'inbox.md': '# Inbox\n' } });
+  const ctx = await H.context(gh);
+  await ctx.route('**/codemirror/5.65.16/**', r => {
+    const name = new URL(r.request().url()).pathname.split('/').pop();
+    if (!name.startsWith('codemirror.min.')) return r.abort();   // modes: no copy here; refused either way
+    return r.fulfill({ contentType: name.endsWith('.css') ? 'text/css' : 'application/javascript',
+      headers: { 'access-control-allow-origin': '*' }, body: readFileSync(new URL('./fixtures/codemirror5/' + name, import.meta.url)) });
+  });
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await H.clickRow(p, 'inbox.md');
+  t.check('the real files pass their hashes: CodeMirror is the editor',
+    (await p.$$('.CodeMirror')).length === 1 && (await p.$$('.fallback-editor')).length === 0);
+  await ctx.close();
+  H.keepIntegrity(false);
+}
+
 await H.stop();
 t.finish();

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6TBM3ibFQKQySMbq6WrewF/dah5HHux30nIo9263dtY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-myBUKJOR/SszduIJrJvCKNTZju0NzbmHF7g32NxOHf8=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -46,7 +46,7 @@ header{display:flex;align-items:center;gap:8px;padding:8px 10px;padding-top:max(
 #crumb .tag{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--fg-soft);padding-left:6px;}
 #status{font-size:12px;color:var(--fg-soft);white-space:nowrap;}
 #status.err{color:var(--danger);}
-#btn-discard[hidden]{display:none;}
+#btn-discard[hidden],#btn-copy[hidden]{display:none;}
 #btn-rename .ic, #btn-delete .ic{display:none;}
 #degraded, #ephemeral, #readonly{display:none;flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-soft);border:1px solid var(--line);border-radius:999px;padding:1px 7px;cursor:help;}
 body.plain-editor #degraded{display:inline-block;}
@@ -181,6 +181,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		<button class="plain" id="btn-rename" hidden title="Rename or move this note" aria-label="Rename"><span class="ic" aria-hidden="true">&#9998;</span><span class="lbl">Rename</span></button>
 		<button class="plain" id="btn-delete" hidden title="Delete this note (it stays in the repository's history)" aria-label="Delete"><span class="ic" aria-hidden="true">&#128465;&#xFE0E;</span><span class="lbl">Delete</span></button>
 		<button id="btn-discard" hidden title="Throw away your unsaved changes and load the version on GitHub">Discard</button>
+		<button id="btn-copy" hidden title="Save your version as a new note beside it, and load the version on GitHub">Save as copy</button>
 		<button id="btn-save" class="primary" disabled>Save</button>
 		<button id="btn-preview" aria-pressed="false">Preview</button>
 		<button class="plain" id="btn-tasks" hidden>Tasks</button>
@@ -1603,8 +1604,7 @@ function ensureEditor() {
 	var host = $("editor-pane");
 	// Both editors show note text as text: CodeMirror builds its lines from
 	// text nodes and a textarea's value is never parsed.
-	// Its stylesheet too: refused (a changed file), CodeMirror would draw the
-	// note invisibly; the plain editor, with its badge, is safer.
+	// Without its stylesheet (refused as changed) it would draw text invisibly.
 	var css = document.querySelector('link[href*="/codemirror/"]');
 	if (typeof CodeMirror === "function" && css && css.sheet) {
 		editor = CodeMirror(host, {
@@ -1746,8 +1746,9 @@ function dirty() {
 }
 // Discard is only offered where there is something it would rescue you
 // from: a restored draft, or a save GitHub rejected as a conflict.
-function showDiscard(on) {
+function showDiscard(on, copy) {
 	$("btn-discard").hidden = !on;
+	$("btn-copy").hidden = !copy;
 }
 function setCrumb(path, tag) {
 	// Rename and Delete are for a file that exists on GitHub (not a new one yet).
@@ -1813,7 +1814,7 @@ function openFile(path, discarding) {
 		// the file moved on since, saving is a conflict rather than an overwrite.
 		// A file that does not exist yet is always saveable, like a new note.
 		current = draft
-			? { path: path, sha: draft.sha || null, saved: r.sha ? r.text : "\u0000", base: r.base }
+			? { path: path, sha: draft.sha || null, saved: r.sha ? r.text : "\u0000", base: r.base, stale: (draft.sha || null) !== r.sha }
 			: { path: path, sha: r.sha, saved: r.text, base: r.base };
 		editor.setValue(draft ? draft.text : r.text);
 		editorLock();
@@ -1990,20 +1991,24 @@ function saveCurrent(auto) {
 			renderPins();
 		}
 		if (!files.some(function (f) { return f.path === path; })) refreshTree();
-		flash("Saved");
+		flash(doc.merged ? "Merged with the changes made on GitHub, and saved." : "Saved");
+		doc.merged = false;
 	}).catch(function (err) {
 		$("btn-save").disabled = false;
 		if (attempted && (!err.status || err.status >= 500)) doc.unsure = raw;  // may or may not have landed
 		if (!err.writeBlocked && (err.status === 409 || err.status === 422)) {
-			if (current === doc) {
-				current.conflict = true;
-				setCrumb(path, "(conflict, not saved)");
-				showDiscard(true);
-			}
-			flash("Conflict: " + path + " changed on GitHub. Copy your text, then Discard to load their version.", true);
-		} else {
-			fail(err);
+			return mergeTheirs(doc).catch(function () {
+				doc.merged = false;
+				if (current === doc) {
+					current.conflict = true;
+					setCrumb(path, "(conflict, not saved)");
+					showDiscard(true, true);
+				}
+				flash("Conflict: " + path + " changed on GitHub where you edited it. Save yours as a copy beside it, or Discard to load theirs.", true);
+			});
 		}
+		doc.merged = false;
+		fail(err);
 	}).then(function () {
 		saving = false;
 		inflight = null;
@@ -2013,6 +2018,75 @@ function saveCurrent(auto) {
 		if (again && again.doc === current) saveCurrent(again.auto);
 	});
 	inflight = { key: key, done: done };
+}
+/* A save refused as the note changed on GitHub: merge theirs and mine
+   against the known start (not a stale draft's), once; the queue saves it. */
+function mergeTheirs(doc) {
+	if (current !== doc || doc.stale || doc.merged || doc.unsure) return Promise.reject();
+	return readNote(doc.path).then(function (r) {
+		var merged = r.sha && current === doc && merge3(doc.saved, editor.getValue(), r.text);
+		if (typeof merged !== "string") throw 0;
+		doc.sha = r.sha;
+		doc.base = r.base;
+		doc.saved = r.text;
+		doc.merged = true;
+		editor.setValue(merged);
+		syncDraft();
+		saveAgain = { doc: doc, auto: false };
+	});
+}
+// Where each line of `o` is kept in `x`, or -1 (longest common subsequence
+// between the common ends); null if too large to compare.
+function keptLines(o, x) {
+	var m = [], s = 0, e = 0, n = o.length, k = x.length, L = [], i, j;
+	while (s < n && s < k && o[s] === x[s]) { m[s] = s; s++; }
+	while (e < n - s && e < k - s && o[n - 1 - e] === x[k - 1 - e]) { m[n - 1 - e] = k - 1 - e; e++; }
+	var r = n - s - e, c = k - s - e;
+	if (r * c > 4e6) return null;
+	for (i = r; i >= 0; i--) {
+		L[i] = new Uint32Array(c + 1);
+		for (j = c - 1; i < r && j >= 0; j--) L[i][j] = o[s + i] === x[s + j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+	}
+	for (i = 0, j = 0; i < r && j < c;) {
+		if (o[s + i] === x[s + j]) { m[s + i] = s + j; i++; j++; }
+		else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++;
+	}
+	for (i = 0; i < n; i++) if (m[i] === undefined) m[i] = -1;
+	return m;
+}
+// Three-way merge by line: each stretch between lines neither side touched
+// comes from whichever side changed it; changed differently by both: null.
+function merge3(base, mine, theirs) {
+	var o = base.split("\n"), a = mine.split("\n"), b = theirs.split("\n");
+	var ma = keptLines(o, a), mb = keptLines(o, b), out = [], io = 0, ia = 0, ib = 0, i;
+	if (!ma || !mb) return null;
+	function same(x, y) { return x.length === y.length && x.join("\n") === y.join("\n"); }
+	for (i = 0; i <= o.length; i++) {
+		if (i < o.length && (ma[i] < 0 || mb[i] < 0)) continue;
+		var ja = i < o.length ? ma[i] : a.length, jb = i < o.length ? mb[i] : b.length;
+		var co = o.slice(io, i), ca = a.slice(ia, ja), cb = b.slice(ib, jb);
+		if (same(ca, co)) out.push.apply(out, cb);
+		else if (same(cb, co) || same(ca, cb)) out.push.apply(out, ca);
+		else return null;
+		if (i < o.length) out.push(o[i]);
+		io = i + 1; ia = ja + 1; ib = jb + 1;
+	}
+	return out.join("\n");
+}
+// Keep both: mine as a new note beside theirs, which the note then shows.
+function saveCopy() {
+	var doc = current;
+	if (!doc || !doc.conflict || saving) return;
+	var m = doc.path.match(/^(.*?)(\.[^./]*)?$/), n = 1, to;
+	do to = m[1] + " (my copy" + (n > 1 ? " " + n : "") + ")" + (m[2] || "");
+	while (n++, files.some(function (f) { return f.path === to; }));
+	flash("Saving your version as " + to + "...");
+	writeFile(to, rawFor(editor.getValue(), doc.base), null).then(function () {
+		if (current !== doc) return;
+		var said = loadNote = "Your version is saved as " + to + "; " + doc.path.split("/").pop() + " shows theirs.";
+		refreshTree();
+		openFile(doc.path, true).then(function () { flash(said); });
+	}, fail);
 }
 function newFile() {
 	var path = prompt("New note path", suggestPath());
@@ -3073,6 +3147,7 @@ $("readonly").onclick = function () { flash(readOnly, true); };
 $("who-avatar").addEventListener("error", function () { this.style.visibility = "hidden"; });
 $("btn-save").onclick     = saveCurrent;
 $("btn-discard").onclick  = discardDraft;
+$("btn-copy").onclick     = saveCopy;
 $("btn-rename").onclick   = renameCurrent;
 $("btn-delete").onclick   = deleteCurrent;
 $("btn-new").onclick      = newFile;

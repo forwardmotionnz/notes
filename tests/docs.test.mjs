@@ -47,7 +47,8 @@ t.check('MVP entry describes the implemented user features', /autosave/i.test(ch
   /rename/i.test(changes) && /delete/i.test(changes) && /wikilinks/i.test(changes) && /home.screen/i.test(changes));
 t.check('known limitations include network and file limits', /### Known limitations/.test(changes) &&
   /no offline sync/i.test(changes) && /1 MB/.test(changes) && /Git LFS/.test(changes) && /partial file list/i.test(changes));
-t.check('draft recovery guidance names the destructive actions', /copy your latest text before using \*\*Discard\*\*/.test(changes) &&
+// Since N14 a conflict offers Save as copy; Discard must still be named as dropping your text.
+t.check('draft recovery guidance names the destructive actions', /\*\*Discard\*\*[^.]*drops yours/.test(changes) &&
   /Sign out[^.]*removes[\s\S]*drafts/.test(changes));
 t.check('sign-out scope includes each independent session-only tab', /current tab's\s+session.only drafts/.test(changes) &&
   /sign out in each session.only tab separately/i.test(changes));

@@ -200,8 +200,10 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N13 | 26 | done | `tests/integrity.test.mjs` 14/14: six CDN tags, each with a hash and anonymous fetch; the CI check is wired; a changed editor file is refused and the app still opens and saves with the plain editor and its badge; the real editor with a changed stylesheet falls back too; the real files with every hash kept run CodeMirror. CI job `CDN files match their integrity hashes`: all 6 match cdnjs (it printed the four CodeMirror hashes used). keyboard-editor and accessibility now check they test real CodeMirror. Commits 310c908, cbb4954, 16bddb3 |
 | N14 | 27 | done | `tests/conflict.test.mjs` 53/53 (new suite): different lines merged and saved (by Save and by autosave), lines added and removed on both sides, the same change on both sides; the same lines never guessed, Save as copy keeps mine as a new note, never replaces an existing one, survives a failed save and a name taken meanwhile; typing during the fetch kept; CRLF and BOM kept; a restored stale draft never merged; one merge per save; deleted on GitHub (empty or not) never recreated; Undo after a merge cannot drop their lines; the caret stays (CodeMirror and the plain editor); one of several identical lines removed on both sides is not guessed; no typing lost while the copy saves. Screens `tests/screens/n14-{desktop,phone}-{light,dark}-{conflict,copied}.png`. Commit in the log |
 | N15 | 28 | done | `tests/pins-sync.test.mjs` 54/54 (new suite): pinned notes found on a device that never saw them, and only those (not `pinned: false`, not in the body, not in hidden folders); a second visit reads nothing already read; a pin made elsewhere appears after a refresh, reading only that note; pinning writes `pinned: true` (with a frontmatter block if none, beside existing properties, inside `...` frontmatter), unpinning removes only that line, restoring the note exactly; another device sees both; CRLF/BOM kept; unsaved words saved with the pin; a restored draft is never saved by pinning; a `pinned` property used for something else is never overwritten (pinned in this browser, and said); browser pins from before carry over; non-Markdown and read-only repositories pin in this browser with nothing sent; typed by hand counts once saved; rename and delete keep the list right; a scan never undoes a pin made meanwhile; the list shown stays shown when the scan adds pins ahead of it; a scan cut short or refreshed keeps what it read; known pins show at once; unreadable notes are not read again; offline, the scan stops rather than trying every note, and carries on later; at most 500 notes a visit, and says so. Commit in the log |
-| N16 | 29 | todo | Owner's request 2026-09-27, 4 of 5 |
-| N17 | 30 | todo | Owner's request 2026-09-27, 5 of 5 |
+| N18 | 29 | todo | Owner's request 2026-09-27: resize and collapse the file sidebar |
+| N19 | 30 | todo | Owner's request 2026-09-27: a light/dark toggle |
+| N16 | 31 | todo | Owner's request 2026-09-27, 4 of 5 |
+| N17 | 32 | todo | Owner's request 2026-09-27, 5 of 5 |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -440,6 +442,16 @@ The owner asked for all five; N13 and N14 now, the rest later.
 
 ### N15: plan: pins that follow you between devices
 - A note is pinned by a line in the note itself (for example `pinned: true` in its frontmatter), an ordinary property other editors show and keep; the Pinned section lists every such note. No app-specific file in the repository (rule 2). Per-browser pins carry over.
+
+### Owner's requests (2026-09-27, later), in the order agreed
+Asked alongside "sync the pins between devices", which N15 already does (merged in PR #11): the owner's screenshot showed the page from before that deploy, so no new item for it. Order: the two small everyday-layout items first (N18, N19), then N16 and N17.
+
+### N18: plan: resize and collapse the file sidebar
+- Done looks like: on a computer, the file sidebar can be dragged wider or narrower (a handle on its edge, also usable from the keyboard, within sensible limits) and collapsed to give the note the whole width, with a button to bring it back; width and collapsed state are remembered per browser (UI state, like open folders). Phones keep today's slide-over drawer. No overflow at 1280 or 390 px; the editor refreshes its layout after a resize.
+
+### N19: plan: a light/dark toggle
+- Today the app follows the device's setting only (light or dark, by `prefers-color-scheme`); there is no choice in the app.
+- Done looks like: a three-way choice, Auto (the device's setting, the default), Light or Dark, in Settings or the header; remembered per browser; applied before the first paint (no flash of the other theme), including the browser's theme colour; accessibility checks still pass in both themes.
 
 ### N16: plan: add images to a note
 - Paste or drop an image into a note: it is committed as an attachment (the vault's Obsidian attachment folder when set, otherwise beside the note) and linked where the cursor is; size limit and type check; S4 shows it in the preview.

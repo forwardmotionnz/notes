@@ -15,10 +15,10 @@ const VAULT = () => ({
   '.trash/old idea.md': '# Old\n',
   '.gitignore': '.obsidian/workspace.json\n',
   'Daily Notes/2026-09-24.md': '# 2026-09-24\n\n- [ ] ring the panelbeater\n',
-  'Daily Notes/2026-09-25.md': '# 2026-09-25\n\nSee [[Holflo hardware]].\n',
+  'Daily Notes/2026-09-25.md': '# 2026-09-25\n\nSee [[Orchard hardware]].\n',
   'Work/AI Programme/Reunião com a equipa.md': '# Reunião\n\nação, coração.\n',
-  'Holflo/Holflo hardware.md': '# Holflo hardware\n',
-  'Holflo/Board layout.canvas': '{"nodes":[],"edges":[]}',
+  'Orchard/Orchard hardware.md': '# Orchard hardware\n',
+  'Orchard/Board layout.canvas': '{"nodes":[],"edges":[]}',
   'attachments/Pasted image 20260822112523.png': PNG,
   'attachments/datasheet.pdf': '%PDF-1.4\n',
   'attachments/sketch.excalidraw': '{"type":"excalidraw"}',
@@ -46,7 +46,7 @@ async function ready(pins) {
   t.check('.obsidian, .trash and dotfiles hidden',
     !top.some(r => r.startsWith('.')), JSON.stringify(top));
   t.check('vault folders shown',
-    ['Daily Notes', 'Holflo', 'Work', 'attachments'].every(d => top.includes(d)));
+    ['Daily Notes', 'Orchard', 'Work', 'attachments'].every(d => top.includes(d)));
   await p.fill('#filter', 'json');
   await H.settle(p, 80);
   t.check('filter does not surface hidden config', (await H.rows(p)).length === 0);

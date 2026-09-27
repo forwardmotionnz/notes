@@ -461,6 +461,11 @@ Asked alongside "sync the pins between devices", which N15 already does (merged 
 
 ## Needs the owner
 
+- **Community readiness (2026-09-27), three settings only the owner can change:**
+  1. Settings → Code security → **Private vulnerability reporting**: enable it, so the "Report a vulnerability" button that `SECURITY.md` and the issue chooser point to exists.
+  2. Settings → Actions → General → *Approval for running fork pull request workflows from contributors*: keep **Require approval for first-time contributors** (GitHub's default). The tests workflow uses no secrets, so forks get none.
+  3. github.com → Settings → Emails: tick **Keep my email addresses private** and **Block command line pushes that expose my email**, and set git's `user.email` to the GitHub noreply address. Earlier commits keep the address they were made with; removing it would mean rewriting `main`'s history (a force-push), which is not recommended.
+
 Account setup has already been completed. Do not repeat login, deployment,
 secret generation or App visibility changes as part of this release.
 
@@ -658,6 +663,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 - 2026-09-27: The owner raised the size limit for `index.html` from 150 KB to 200 KB (204,800 bytes), now enforced by `tests/size.test.mjs`. Whether the file needs a clean-up is assessed after N15.
+- 2026-09-27: The README split for the community: a short front door (what it is, Try it, privacy, links); the detailed guide in `docs/guide.md`; self-hosting in `docs/self-hosting.md` with `YOUR-USERNAME` placeholders; `CONTRIBUTING.md`, `SECURITY.md`, pull request and feature request templates; this ledger and the release checklist moved to `docs/dev/`. Docs tests follow the moved text, and a new check keeps every relative link (and heading anchor) in the docs working. Test data no longer uses the owner's own project name.
 
 ## Log
 (one line per iteration: date, item, result, commit)

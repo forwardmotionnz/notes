@@ -2,13 +2,12 @@
 
 ## Unreleased — MVP candidate
 
-This entry tracks the MVP and the next features; no version tag is published.
-The broker and its secret are configured, and the GitHub App is public.
-Safari fixes and MVP error recovery have been brought together; the
-automated release checks passed, and the owner reported the real-phone and
-real-GitHub checks completed on 2026-09-27. See
-[MVP progress and exact owner steps](MVP.md).
-Record their results in the [release checklist](RELEASE_CHECKLIST.md).
+This entry tracks the first version and the features since; no version tag
+is published yet. The shared copy's sign-in is configured and its GitHub App
+is public. The automated release checks passed, and the
+owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (the
+[release checklist](docs/dev/RELEASE_CHECKLIST.md); every item's evidence is
+in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
 

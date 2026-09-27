@@ -10,7 +10,7 @@ the user's own GitHub repository. The goal of this loop is an MVP that the
 owner can hand to other people with a link and no setup on their side.
 
 Each run of this command does **one** item, all the way through the gauntlet
-below, then stops. Progress lives in `MVP.md` at the repo root, so any fresh
+below, then stops. Progress lives in `docs/dev/MVP.md`, so any fresh
 session can pick up where the last one left off. If `$ARGUMENTS` names an item
 ID, work on that item; otherwise take the next one by priority.
 
@@ -66,7 +66,7 @@ Already done and tested:
 
 ## What MVP means
 
-The loop is done when every **MUST** below is checked in `MVP.md` with
+The loop is done when every **MUST** below is checked in `docs/dev/MVP.md` with
 evidence, the release gate has passed, and the owner has only the items in
 `## Needs the owner` left. **SHOULD** items are done only after every MUST, and
 only if each fits in a single iteration.
@@ -160,7 +160,7 @@ worker.
 
 ---
 
-## The ledger: `MVP.md`
+## The ledger: `docs/dev/MVP.md`
 
 If it does not exist, create it on the first run from the criteria above:
 
@@ -198,7 +198,7 @@ ledger.
 ## One iteration
 
 ### 0. Orient
-- Read `MVP.md`, `git log --oneline -15`, and `git status`. Increment the
+- Read `docs/dev/MVP.md`, `git log --oneline -15`, and `git status`. Increment the
   iteration counter.
 - If the counter passes 30, stop: write a status report in the ledger and end.
 - Run `npm test`. If it is red and the cause is not an item in progress, fixing
@@ -235,7 +235,7 @@ work, with this prompt, filling in the brackets:
 
 > You are reviewing a change to a notes app that stores people's private notes
 > in their GitHub repositories and holds their GitHub tokens in the browser.
-> Item: [ID and criterion]. See the change with `git diff HEAD -- . ':!MVP.md'`
+> Item: [ID and criterion]. See the change with `git diff HEAD -- . ':!docs/dev/MVP.md'`
 > and `git status --short` (new files), and read the changed files in full. Find ways this change can lose or
 > corrupt someone's notes, leak or misuse their token, sign them out wrongly,
 > break on iOS Safari or a slow phone network, or confuse a first-time user.
@@ -256,8 +256,8 @@ list the paths in the ledger.
 third-party requests, `index.html` under 200 KB (raised from 150 KB by the owner, 2026-09-27; `tests/size.test.mjs`), and no text in the app that
 contradicts the README.
 
-**G-6 Docs.** If behaviour a user would notice changed, README, PRIVACY or
-CHANGELOG say so.
+**G-6 Docs.** If behaviour a user would notice changed, the README or
+`docs/guide.md`, PRIVACY or CHANGELOG say so.
 
 ### 5. Commit and record
 - One commit for the item, message `ID: what changed and why`, with the
@@ -284,7 +284,7 @@ When every MUST is `done`, the next run is the release gate instead of an item:
 3. Walk through the first-run journey in the simulated GitHub as a brand new
    user on a phone viewport, screenshotting each step. Would someone who has
    never used GitHub Apps get through it? Fix what trips them.
-4. Write `RELEASE_CHECKLIST.md`: the smoke test the owner runs on real GitHub
+4. Write `docs/dev/RELEASE_CHECKLIST.md`: the smoke test the owner runs on real GitHub
    before sharing. At minimum: a second GitHub account signing in from a phone;
    an empty repository; an organisation repository; an Obsidian vault with
    attachments; session-only mode on a second browser; revoking the app on

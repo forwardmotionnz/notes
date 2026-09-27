@@ -73,7 +73,7 @@ t.check('and that each tab, a duplicated one too, has its own copy', /duplicated
 t.check('it says an automatic sign-out keeps unsaved changes, and Sign out removes them',
   /signs you out but\s+keeps your unsaved changes/i.test(doc));
 // The README must not promise more than the note either.
-const readme = read('README.md');
+const readme = read('README.md') + read('docs/guide.md');   // the guide holds the detail since the README split
 t.check('the README does not promise "nothing is written to disk" for Forget me',
   !/nothing is written to disk/i.test(readme) && /reopen its tabs/i.test(readme));
 t.check('it says the sign-in reaches repositories others installed the app on that they can use',

@@ -20,9 +20,20 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // `pageEdit` lets a test serve the page edited as a fork would edit it.
 let pageEdit = html => html;
 export const setPageEdit = fn => { pageEdit = fn || (html => html); };
-const PAGE = () => pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
-  /(<meta http-equiv="Content-Security-Policy" content=")connect-src [^"]*(">)/,
-  '$1connect-src https://api.github.com https://broker.test$2'));
+// The editor's files are served as a stand-in (CM_STUB), which cannot match
+// the hashes index.html pins them to (N13): the browser would refuse it and
+// every suite would get the plain editor. So the page is served without
+// those hashes, and nothing else changed; tests/integrity.test.mjs serves it
+// with them (keepIntegrity) and checks the stand-in is refused. marked and
+// DOMPurify are served as the real files, so their hashes always stay.
+let integrity = false;
+export const keepIntegrity = on => { integrity = !!on; };
+const PAGE = () => {
+  const html = pageEdit(readFileSync(ROOT + 'index.html', 'utf-8').replace(
+    /(<meta http-equiv="Content-Security-Policy" content=")connect-src [^"]*(">)/,
+    '$1connect-src https://api.github.com https://broker.test$2'));
+  return integrity ? html : html.replace(/(<(?:script|link)\b[^>]*\/codemirror\/[^>]*?) integrity="[^"]*"/g, '$1');
+};
 
 // Which engine: NOTES_TEST_ENGINE=chromium (the default) or webkit, which is
 // what Safari and every browser on iOS use. tests/run.mjs runs the suite in
@@ -262,9 +273,11 @@ export async function context(gh, opts = {}) {
     const url=r.request().url();
     const fixture=url.includes('/marked/')?'marked-18.0.14.min.js':url.includes('/dompurify/')?'dompurify-3.4.16.min.js':null;
     if(fixture)return r.fulfill({contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:readFileSync(ROOT+'tests/fixtures/'+fixture)});
+    // cdnjs allows any origin, which a fetch with crossorigin="anonymous" needs.
+    const headers = { 'access-control-allow-origin': '*' };
     return r.request().url().endsWith('.css')
-      ? r.fulfill({ contentType: 'text/css', body: '' })
-      : r.fulfill({ contentType: 'application/javascript', body: CM_STUB });
+      ? r.fulfill({ contentType: 'text/css', headers, body: '' })
+      : r.fulfill({ contentType: 'application/javascript', headers, body: CM_STUB });
   });
 
   // github.com: the authorize page. Consent is instant unless told to deny.

@@ -456,7 +456,7 @@ secret generation or App visibility changes as part of this release.
 - **GitHub App visibility: complete.** The owner confirmed on 2026-09-27 that forwardmotion-notes had already been made public the previous day. Client ID, callback and authorisation settings were also checked during the walkthrough.
 - **Merge authorised.** On 2026-09-27 the owner explicitly asked to update these stale instructions, merge mvp into main and continue. Integrate the newer main fixes and validate the combined app, then use the repository's pull-request flow. Do not bypass branch protections.
 - **Real-device and real-GitHub smoke tests remain.** Follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): second account on a phone, empty repository, organisation repository, Obsidian attachments, session-only mode, revocation and two tabs overnight. These checks need the owner's accounts and physical devices; automated simulations do not establish them.
-- **Optional hardening, not an account-setup blocker:** CodeMirror Subresource Integrity remains a separate improvement. No broker deployment is needed when only the static app changes.
+- **CodeMirror Subresource Integrity: done in N13** (2026-09-27). If a CodeMirror version is ever changed, the CI job `CDN files match their integrity hashes` prints the new hashes to copy in.
 
 ### C1: gauntlet record
 - G-1: full suite green three runs in a row, Chromium (WebKit arrives with F2).

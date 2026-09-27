@@ -106,7 +106,7 @@ All of this stays on your device, in the browser's storage for this site:
 | Name | What it holds | Removed when |
 |---|---|---|
 | `notes.config.v2` | your sign-in (the token, when it expires, and the refresh token that renews it), your GitHub username and picture link, the repository and branch you chose, your pinned files | you sign out, or GitHub stops accepting the sign-in |
-| `notes.ui.v1` | which folders are open, the note you last had open, the pinned list you last looked at | you sign out |
+| `notes.ui.v1` | which folders are open, the note you last had open, the pinned list you last looked at, and which versions of your notes are pinned (by their GitHub version id, so each is read only once to find pins) | you sign out |
 | `notes.draft.v1:` followed by the repository, branch and file | the words you have typed but not yet saved in that file, which version they were based on, and when | the change is saved, you press Discard, or you sign out |
 | `notes.signin` | for a sign-in in progress: a random value that ties GitHub's answer to this sign-in, the proof value sent to the broker, and whether to remember you | you come back from GitHub; if you never do, when the tab closes |
 

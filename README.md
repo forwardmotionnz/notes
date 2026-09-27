@@ -218,9 +218,16 @@ invalid settings show an explanation and leave the current note alone.
 - Pin or unpin the open note using the star beside its name. Pinned files
   appear at the top of Files and open as a checklist in the main area.
   **Edit note** opens the Markdown source; **Tasks** returns to the checklist
-  after saving any edits. Pins stay in this browser's settings, not in the
-  repository, and do not sync between devices. The old side panel, phone
-  sheet and Settings pins field have been removed.
+  after saving any edits. A pin is saved in the note itself, as the property
+  `pinned: true` at its top (Obsidian shows it as a property; other editors
+  keep it), so it shows on every device; pinning saves the note, unsaved
+  edits included, and unpinning removes only that line. Each browser reads
+  each note once to find pins, up to 500 notes per visit, and after that
+  only notes that changed. Files that cannot hold a property (not Markdown,
+  or in a read-only repository), and pins made before this change, stay
+  pinned in this browser only; unpinning one and pinning it again moves it
+  into the note. The old side panel, phone sheet and Settings pins field
+  have been removed.
 - Pinned files have a live task list with a one-line capture box. Ticks and
   captures go to GitHub one at a time; clicks made while one is on its way
   share the next commit. × removes a task (always shown on a phone, on

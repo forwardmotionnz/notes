@@ -46,7 +46,8 @@ await ctx.close();
 {
  const files=Object.fromEntries(Array.from({length:305},(_,i)=>['n'+i+'.md','needle']));
  const gh=H.fakeGitHub({files}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(10000);
- await p.waitForFunction(()=>treeState==='ok'&&files.length===305);await p.fill('#filter','needle');
+ // Since N15 each note is also read once to find pins: counted here, that would not be search.
+ await p.waitForFunction(()=>treeState==='ok'&&files.length===305&&!pinScanning);await p.fill('#filter','needle');
  let active=0,max=0,reads=0;
  await p.route('**/contents/n*.md?*',async r=>{reads++;active++;max=Math.max(max,active);await new Promise(r=>setTimeout(r,10));await r.fallback();active--;});
  await p.click('#btn-search');await p.waitForFunction(()=>!searchRunning);

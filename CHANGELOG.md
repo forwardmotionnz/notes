@@ -12,6 +12,11 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
+- Pins follow you between devices: pinning a note adds `pinned: true` to
+  its properties, and each device finds pinned notes by reading each note
+  once (up to 500 per visit, then only notes that changed). Pins from before
+  stay in this browser until moved.
+
 - Conflicts: a note changed on GitHub while you edited it is merged with
   your version when you changed different lines, and saved. Where you both
   changed the same lines, **Save as copy** keeps yours as a new note beside

@@ -39,7 +39,8 @@ const directive = name => dir(meta, name);
   // and this tells you the hash to put in the policy.
   const inline = [...SRC.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   const hashes = inline.map(s => "'sha256-" + createHash('sha256').update(s, 'utf-8').digest('base64') + "'");
-  t.check("the app script's hash is in script-src", hashes.length === 1 && directive('script-src').includes(hashes[0]),
+  // Two since N19: the app, and the theme script in <head> that runs before the first paint.
+  t.check("each inline script's hash is in script-src", hashes.length === 2 && hashes.every(h => directive('script-src').includes(h)),
     'expected ' + hashes.join(' '));
   t.check('no inline event handlers (the policy would block them)', !/\son[a-z]+="/.test(SRC.replace(/<script>[\s\S]*?<\/script>/g, '')));
 }

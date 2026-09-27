@@ -63,7 +63,14 @@ invalid settings show an explanation and leave the current note alone.
   hover on a computer) and **Clear done** removes every ticked one, each
   in one commit, with a few seconds to press **Undo**
 - Filter across every path in the repository
-- Light and dark, and a layout that works on a phone
+- The file list: on a computer, ☰ hides it to give the note the whole
+  width, and dragging its right edge makes it wider or narrower (the arrow
+  keys work on the edge too; double-click puts it back to the usual width).
+  Both are remembered in this browser. On a phone, ☰ opens it over the note.
+- Light and dark: **Settings → Theme** is *Same as this device* unless you
+  choose Light or Dark, which this browser then remembers (signing out keeps
+  it)
+- A layout that works on a phone
 
 Each save is one commit. Notes save themselves two seconds after you stop
 typing, and straight away when you switch to another app or tab; **Save** and

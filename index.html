@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-SWU7Dn2kV31ACISJgpqu3oupoozhh1U4kt2XukCoGSY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-pdlhg13BnRUCf3tnBv8w5DEnQuQn0gyLkFhkGyGpbW0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -21,9 +21,10 @@ connect-src below must name your broker. Update the inline hash after edits. -->
 Provider calls stay in PROVIDER/AUTH. MIT licensed; see LICENSE. -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" integrity="sha384-zaeBlB/vwYsDRSlFajnDd7OydJ0cWk+c2OWybl3eSUf6hW2EbhlCsQPqKr3gkznT" crossorigin="anonymous">
 <style>
-:root{--bg: #ffffff;--bg-soft: #f6f7f8;--bg-sunk: #eceef0;--fg: #1a1d21;--fg-soft: #6b7280;--line: #dfe3e8;--accent: #2f6f4f;--accent-soft: #e6f0ea;--danger: #b3261e;--radius: 6px;--mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;--sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;}
-@media (prefers-color-scheme:dark){:root{--bg: #16181c;--bg-soft: #1d2025;--bg-sunk: #101215;--fg: #e6e8ea;--fg-soft: #9aa1ab;--line: #2c3037;--accent: #7fc8a0;--accent-soft: #1f2d26;--danger: #f2837c;}
+:root{color-scheme:light;--bg: #ffffff;--bg-soft: #f6f7f8;--bg-sunk: #eceef0;--fg: #1a1d21;--fg-soft: #6b7280;--line: #dfe3e8;--accent: #2f6f4f;--accent-soft: #e6f0ea;--danger: #b3261e;--radius: 6px;--mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;--sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg: #16181c;--bg-soft: #1d2025;--bg-sunk: #101215;--fg: #e6e8ea;--fg-soft: #9aa1ab;--line: #2c3037;--accent: #7fc8a0;--accent-soft: #1f2d26;--danger: #f2837c;color-scheme:dark;}
 }
+:root[data-theme="dark"]{--bg: #16181c;--bg-soft: #1d2025;--bg-sunk: #101215;--fg: #e6e8ea;--fg-soft: #9aa1ab;--line: #2c3037;--accent: #7fc8a0;--accent-soft: #1f2d26;--danger: #f2837c;color-scheme:dark;}
 *{box-sizing:border-box;}
 html, body{height:100%;margin:0;}
 body{font-family:var(--sans);background:var(--bg);color:var(--fg);font-size:15px;line-height:1.5;overflow:hidden;}
@@ -54,7 +55,13 @@ body.read-only #readonly{display:inline-block;color:var(--danger);border-color:v
 body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-rename, body.read-only #btn-delete{display:none;}
 body.session-only #ephemeral{display:inline-block;color:var(--accent);border-color:var(--accent);}
 main{flex:1;display:flex;min-height:0;}
-#sidebar{width:260px;flex:none;border-right:1px solid var(--line);background:var(--bg-soft);display:flex;flex-direction:column;min-height:0;}
+#sidebar{width:clamp(180px, var(--side-w, 260px), min(600px, 60vw));flex:none;border-right:1px solid var(--line);background:var(--bg-soft);display:flex;flex-direction:column;min-height:0;}
+#sidebar-resize{flex:none;width:5px;cursor:col-resize;touch-action:none;}
+@media (pointer:coarse){#sidebar-resize{width:12px;}}
+#sidebar-resize:hover, #sidebar-resize:focus-visible{background:var(--accent);outline:none;}
+body.side-hidden #sidebar, body.side-hidden #sidebar-resize{display:none;}
+.side-note{display:none;}
+body.side-hidden .side-note{display:inline;}
 #sidebar-tools{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--line);}
 #filter{font-size:13px;padding:5px 8px;}
 #tree{flex:1;overflow:auto;padding:6px 0 40px;-webkit-overflow-scrolling:touch;}
@@ -145,6 +152,8 @@ select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1
 #editor-pane .CodeMirror, .fallback-editor{font-size:16px;}
 #sidebar{position:absolute;z-index:20;top:0;bottom:0;left:0;width:min(80vw, 300px);transform:translateX(-102%);transition:transform .18s ease;box-shadow:0 0 40px rgba(0,0,0,.25);}
 body.tree-open #sidebar{transform:none;}
+#sidebar-resize{display:none;}
+body.side-hidden #sidebar{display:flex;}
 .task .rm{opacity:1;padding:6px 12px;margin:-6px -4px -6px 0;}
 #scrim{position:absolute;inset:0;z-index:15;background:rgba(0,0,0,.35);display:none;}
 body.tree-open #scrim{display:block;}
@@ -168,11 +177,12 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #search-tools{padding:4px 8px;}
 #search-status{display:block;font-size:12px;color:var(--fg-soft);padding-top:4px;}
 </style>
+<script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
 <body>
 <div id="shell">
 	<header>
-		<button class="plain only-narrow" id="btn-tree" title="Files">&#9776;</button>
+		<button class="plain" id="btn-tree" title="Show or hide the file list" aria-label="Files" aria-controls="sidebar" aria-expanded="true">&#9776;</button>
 		<div id="crumb">no file open</div>
 		<span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
 		<span id="readonly" title="">read-only</span>
@@ -203,8 +213,9 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 			</section>
 			<div id="tree"></div>
 		</aside>
+		<div id="sidebar-resize" role="separator" aria-orientation="vertical" aria-controls="sidebar" aria-label="Resize the file list" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Drag to resize; double-click to reset"></div>
 		<section id="editor-pane">
-			<div id="placeholder">Open a file, or press + to create one.</div>
+			<div id="placeholder">Open a file, or press + to create one.<span class="side-note"> ☰ shows the file list.</span></div>
 		</section>
 		<article id="preview" hidden tabindex="0" aria-label="Note preview"></article>
 		<aside id="pins">
@@ -290,6 +301,15 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 				<input type="checkbox" id="f-session">
 				<span>Forget me when I close the browser<em>For a work or shared computer. Kept for this browser session only; sign out before you leave.</em></span>
 			</label>
+			<!-- In the form, so first run shows only its two steps (B2). -->
+			<label><span>Theme</span>
+				<select id="f-theme" aria-describedby="theme-hint">
+					<option value="auto">Same as this device</option>
+					<option value="light">Light</option>
+					<option value="dark">Dark</option>
+				</select>
+			</label>
+			<p class="hint" id="theme-hint">Changes at once, in this browser only.</p>
 			</div>
 		</div>
 		<div class="dlg-foot">
@@ -2554,6 +2574,11 @@ function taskView(show) {
 	 or a read-only repository) are pinned in this browser, as before N15,
 	 and so are pins made before it. */
 var pinFound = pathMap(), pinSeen = pathMap(), pinScanning = false, pinAgain = false;   // pinned per scan / per text seen here
+// A page closing starts no more reads (they would only be cut off); one
+// restored from the back/forward cache carries on.
+var pinLeaving = false;
+addEventListener("pagehide", function () { pinLeaving = true; });
+addEventListener("pageshow", function (e) { if (e.persisted) { pinLeaving = false; if (files.length) scanPins(); } });
 function pins() {
 	var out = cfg.pins.slice();
 	Object.keys(pinFound).sort().forEach(function (p) { if (pinFound[p] && out.indexOf(p) === -1) out.push(p); });
@@ -2604,7 +2629,7 @@ async function scanPins() {
 	todo = todo.slice(0, 500);
 	function found(f) { if (!(f.path in pinSeen)) pinFound[f.path] = !!known[f.sha]; }
 	setPins(function () { notes.forEach(function (f) { if (f.sha in known) found(f); }); });
-	function live() { return !pinAgain && epoch === pinEpoch && signedIn(); }
+	function live() { return !pinAgain && !pinLeaving && epoch === pinEpoch && signedIn(); }
 	async function worker() {
 		while (live() && next < todo.length) {
 			var f = todo[next++];
@@ -3300,12 +3325,87 @@ $("btn-source").onclick = async function () {
 	taskView(false);
 	editor.focus();
 };
+/* The file list. On a computer: drag its edge (or use the arrow keys on
+	 it) to resize, double-click to reset, and ☰ to hide it; remembered in
+	 this browser. Phones keep the slide-over drawer whatever was chosen. */
+function wide() { return !matchMedia("(max-width:820px)").matches; }
+function sideLayout(refresh) {
+	document.documentElement.style.setProperty("--side-w", (ui.sideWidth || 260) + "px");
+	document.body.classList.toggle("side-hidden", !!ui.sideHidden);
+	$("btn-tree").setAttribute("aria-expanded", String(wide() ? !ui.sideHidden : document.body.classList.contains("tree-open")));
+	$("sidebar-resize").setAttribute("aria-valuenow", String(Math.round($("sidebar").getBoundingClientRect().width)));
+	if (refresh !== false && editor) editor.refresh();
+}
+function sideWidth(w) {
+	ui.sideWidth = Math.round(w);                 // the stylesheet keeps it within 180-600 px, 60% of the window
+	persist(UI_KEY, ui);
+	sideLayout();
+}
 $("btn-tree").onclick = function () {
-	document.body.classList.toggle("tree-open");
+	if (wide()) { ui.sideHidden = !ui.sideHidden; persist(UI_KEY, ui); }
+	else document.body.classList.toggle("tree-open");
+	sideLayout();
 };
 $("scrim").onclick = function () {
 	document.body.classList.remove("tree-open");
+	sideLayout(false);
 };
+(function () {
+	var handle = $("sidebar-resize");
+	handle.addEventListener("pointerdown", function (e) {
+		if (e.button !== 0) return;
+		e.preventDefault();
+		handle.setPointerCapture(e.pointerId);
+		var x = e.clientX, start = $("sidebar").getBoundingClientRect().width, w = start;
+		function move(ev) {
+			w = start + ev.clientX - x;                  // from where it was grabbed: no jump
+			document.documentElement.style.setProperty("--side-w", w + "px");   // no layout work while dragging
+		}
+		function up() {
+			handle.removeEventListener("pointermove", move);
+			handle.removeEventListener("pointerup", up);
+			handle.removeEventListener("pointercancel", up);
+			sideWidth(w);
+		}
+		handle.addEventListener("pointermove", move);
+		handle.addEventListener("pointerup", up);
+		handle.addEventListener("pointercancel", up);
+	});
+	handle.addEventListener("keydown", function (e) {
+		var w = $("sidebar").getBoundingClientRect().width;
+		var to = { ArrowLeft: w - 20, ArrowRight: w + 20, Home: 180, End: 600 }[e.key];
+		if (to === undefined) return;
+		e.preventDefault();
+		sideWidth(to);
+	});
+	handle.addEventListener("dblclick", function () {
+		delete ui.sideWidth;
+		persist(UI_KEY, ui);
+		sideLayout();
+	});
+	window.addEventListener("resize", function () { sideLayout(false); });
+	// Many places close the phone drawer; the button follows whichever did.
+	new MutationObserver(function () { sideLayout(false); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+	sideLayout(false);
+})();
+/* Theme: Auto follows the device; Light or Dark is remembered in this
+	 browser (not with the sign-in: signing out keeps it), and applied by the
+	 small script in <head> before anything is drawn. */
+function applyTheme(t) {
+	if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+	else document.documentElement.removeAttribute("data-theme");
+	var bar = { light: "#2f6f4f", dark: "#16181c" };
+	document.querySelectorAll('meta[name="theme-color"]').forEach(function (m, i) {
+		m.content = bar[t] || (i ? bar.dark : bar.light);
+	});
+	$("f-theme").value = bar[t] ? t : "auto";
+}
+$("f-theme").onchange = function () {
+	var t = this.value;
+	try { if (t === "auto") localStorage.removeItem("notes.theme"); else localStorage.setItem("notes.theme", t); } catch (e) {}
+	applyTheme(t);
+};
+try { applyTheme(localStorage.getItem("notes.theme")); } catch (e) { applyTheme("auto"); }
 document.addEventListener("keydown", function (e) {
 	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
 		e.preventDefault();

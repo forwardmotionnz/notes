@@ -8,8 +8,9 @@ on trusting whoever runs the copy you are using.
 ## The short version
 
 Preview runs in your browser using pinned Marked and DOMPurify scripts from
-cdnjs.cloudflare.com, alongside the existing editor library. Script integrity
-hashes verify the preview downloads. Note text is not sent to the CDN.
+cdnjs.cloudflare.com, alongside the editor library. Every file from the CDN,
+editor included, is pinned to an integrity hash, so a changed file is
+refused. Note text is not sent to the CDN.
 Content search reads files directly from GitHub into browser memory and
 includes this repository's local drafts. It creates no persistent search index.
 Preview images are read through the same GitHub API with the current sign-in
@@ -71,8 +72,11 @@ handles the requests that reach it.
 
 The editor, CodeMirror, is loaded from `cdnjs.cloudflare.com`, a public
 library server. Cloudflare sees that your browser fetched it, as for any
-website using it. That code then runs inside the page, like the app's own,
-so you are also trusting what cdnjs serves. If it does not load, the app
+website using it. That code then runs inside the page, like the app's own.
+Each of these files is pinned to the hash of one exact version: if cdnjs
+ever served something different, your browser would refuse to run it. What
+you trust is that those versions of CodeMirror, Marked and DOMPurify are
+what they claim to be. If the editor does not load, or is refused, the app
 still works with a plain text box. The page's security policy lets it send
 data only to GitHub and the broker.
 

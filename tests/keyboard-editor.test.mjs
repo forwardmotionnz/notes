@@ -15,6 +15,7 @@ for (const fallback of [false, true]) {
     if (!route.request().url().includes('/codemirror/')) return route.fallback();
     const name = new URL(route.request().url()).pathname.split('/').pop();
     return route.fulfill({ contentType: name.endsWith('.css') ? 'text/css' : 'application/javascript',
+      headers: { 'access-control-allow-origin': '*' },   // as cdnjs sends: the page fetches with crossorigin
       body: name.startsWith('codemirror.min.') ? readFileSync(new URL(`./fixtures/codemirror5/${name}`, import.meta.url)) : '' });
   });
   await ctx.addInitScript(() => {
@@ -32,6 +33,10 @@ for (const fallback of [false, true]) {
   await H.signIn(p);
   await H.clickRow(p, 'long.md');
   await p.waitForFunction(() => current?.path === 'long.md' && editor);
+  // Otherwise this branch would quietly test the plain editor twice.
+  t.check(`${label}: the editor under test is the one named`, fallback
+    ? (await p.$$('.fallback-editor')).length === 1
+    : (await p.$$('.CodeMirror')).length === 1 && (await p.$$('.fallback-editor')).length === 0);
   await p.evaluate(() => {
     editor.focus();
     if (editor.setCursor) editor.setCursor({ line: 89, ch: 10000 });

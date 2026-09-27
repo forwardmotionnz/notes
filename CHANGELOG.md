@@ -12,6 +12,19 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
+- Conflicts: a note changed on GitHub while you edited it is merged with
+  your version when you changed different lines, and saved. Where you both
+  changed the same lines, **Save as copy** keeps yours as a new note beside
+  theirs, instead of copying the text out by hand before **Discard**.
+
+- Every file loaded from the CDN is pinned to an integrity hash, the editor
+  (CodeMirror) now included, so a changed file is refused rather than run.
+  A refused editor script or stylesheet means the plain editor, with its
+  badge; a refused Markdown mode means no syntax colours; a refused
+  Markdown renderer or sanitiser means Preview says it is unavailable. A CI
+  job checks each hash against what cdnjs serves, weekly and on every
+  change.
+
 - Repository images in preview, including Markdown and Obsidian embeds.
   PNG/JPEG/GIF/WebP up to 1 MB, at most 20 per preview; external and unsupported
   images show notices. Attachment filenames now meet contrast requirements.
@@ -72,10 +85,12 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 ### Known limitations
 
 - A connection is needed to load and commit notes; there is no offline sync.
-  A failed save keeps a browser draft. Conflicts require manual recovery:
-  copy your latest text before using **Discard**, which loads the remote
-  version. After an interrupted save and a reload or repository switch, a
-  conflict may be with your own earlier save.
+  A failed save keeps a browser draft. A note changed on GitHub and here in
+  the same lines (or a restored draft based on an older version) is a
+  conflict: **Save as copy** keeps yours as a new note beside theirs, while
+  **Discard** loads the remote version and drops yours; there is no
+  line-by-line merge tool. After an interrupted save and a reload or
+  repository switch, a conflict may be with your own earlier save.
 - **Sign out** removes the shared remembered drafts and the current tab's
   session-only drafts. Sign out in each session-only tab separately, including
   duplicated tabs. Save first. Session-only drafts can be lost when the browser

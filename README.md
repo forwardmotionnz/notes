@@ -84,8 +84,15 @@ owner's help before a write can succeed.
 
 An interrupted save keeps your draft. If you reload or change repositories
 before its outcome is known, retrying may report a conflict with your own
-earlier save. Copy the latest text before using **Discard**, then paste it
-back and save. Notes does not silently replace a version it cannot verify.
+earlier save: **Save as copy** keeps your text as a new note beside it.
+Notes does not silently replace a version it cannot verify.
+
+If a note changed on GitHub while you were editing it (another device, a
+colleague), saving merges the two when you changed different lines, and
+says so. Where you both changed the same lines nothing is guessed: the note
+is marked as a conflict, and **Save as copy** saves your version as
+"name (my copy).md" beside it while the note shows theirs, or **Discard**
+loads theirs and drops yours. No conflict markers are written into notes.
 
 If a task save fails, every queued capture returns to the Add a task box,
 alongside any newer typing. After the wait shown for a rate limit, refresh
@@ -240,8 +247,9 @@ reload, a closed tab or a phone closing the app in the background loses
 nothing. Open the file again and the draft is back, marked *unsaved draft*;
 saving commits it and removes it, **Discard** throws it away and loads the
 version on GitHub. A draft remembers which version it started from, so if the
-file changed on GitHub in the meantime, saving reports a conflict instead of
-overwriting. Signing out deletes every draft in that browser.
+file changed on GitHub in the meantime, saving never overwrites it: it is
+merged when the changes are on different lines, or reported as a conflict
+(a draft restored after a reload is never merged, only kept both ways). Signing out deletes every draft in that browser.
 
 ## What it deliberately does not do
 

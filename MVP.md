@@ -197,6 +197,11 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | S2 | 23 | done | `ec8d7b5`; content-search 13/13 each engine: drafts, incomplete results, retained matches, expired sign-in, stale repo/query responses, bounded reads. Independent re-review clear; final CI/merge status in PR #8. |
 | S3 | 24 | done | `85a2893` plus attachment contrast fix with S4. axe accessibility 29/29 both engines; zero serious/critical across six views, both widths/themes and plain-editor fallback. Injected audit probe detects violations. |
 | S4 | 25 | done | Repository Markdown and Obsidian image embeds; preview-images 15/15 both engines, screenshots and mutation evidence below. External/unsupported images visibly refused; bounded reads and stale-result guards. |
+| N13 | 26 | done | `tests/integrity.test.mjs` 14/14: six CDN tags, each with a hash and anonymous fetch; the CI check is wired; a changed editor file is refused and the app still opens and saves with the plain editor and its badge; the real editor with a changed stylesheet falls back too; the real files with every hash kept run CodeMirror. CI job `CDN files match their integrity hashes`: all 6 match cdnjs (it printed the four CodeMirror hashes used). keyboard-editor and accessibility now check they test real CodeMirror. Commits 310c908, cbb4954, 16bddb3 |
+| N14 | 27 | done | `tests/conflict.test.mjs` 53/53 (new suite): different lines merged and saved (by Save and by autosave), lines added and removed on both sides, the same change on both sides; the same lines never guessed, Save as copy keeps mine as a new note, never replaces an existing one, survives a failed save and a name taken meanwhile; typing during the fetch kept; CRLF and BOM kept; a restored stale draft never merged; one merge per save; deleted on GitHub (empty or not) never recreated; Undo after a merge cannot drop their lines; the caret stays (CodeMirror and the plain editor); one of several identical lines removed on both sides is not guessed; no typing lost while the copy saves. Screens `tests/screens/n14-{desktop,phone}-{light,dark}-{conflict,copied}.png`. Commit in the log |
+| N15 | 28 | todo | Owner's request 2026-09-27, 3 of 5 |
+| N16 | 29 | todo | Owner's request 2026-09-27, 4 of 5 |
+| N17 | 30 | todo | Owner's request 2026-09-27, 5 of 5 |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -422,6 +427,26 @@ The app is 141,592 bytes with no new runtime dependency or host.
 - Six misleading wording variants independently failed their checks: release gate, owner setup, copy before Discard, sign-out draft removal, independent session tabs and separate phone storage (`tests/h3-mutations.log`, `tests/screens/h3-mutation-*.log`). No runtime safeguard changed.
 - Viewed `tests/screens/h3-{desktop,phone}-{light,dark}.png`: readable app, reachable controls and no overflow. No app code, dependency, build step or request changed; index.html remains 127,373 bytes. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h3-gauntlet/run-{1,2,3}.json`. WebKit F2 and the owner's real-phone/real-GitHub tests remain outstanding; the changelog says so.
 
+### After the MVP: the owner's requests (2026-09-27), in the order agreed
+The owner asked for all five; N13 and N14 now, the rest later.
+
+### N13: plan: pin every CDN file to its hash (Subresource Integrity)
+- Why: the editor (CodeMirror: one stylesheet, three scripts), the Markdown renderer and its sanitiser run inside the page, with the person's GitHub sign-in in reach. marked and DOMPurify are pinned already; CodeMirror is not.
+- Done looks like: every `cdnjs` tag in `index.html` carries `integrity` and `crossorigin="anonymous"`; a changed file is refused by the browser and the app falls back to the plain editor with its visible badge; a check run where cdnjs can be reached (CI) proves each hash matches the bytes cdnjs serves, and fails the build the day they differ.
+
+### N14: plan: conflict recovery without copy and Discard
+- Why: today a conflict means "copy your text, then Discard to load theirs": the roughest moment in the app.
+- Done looks like: when GitHub refuses a save because the file changed, the app fetches their version and merges it with yours against the version you started from (three-way, by line). Changes to different lines are combined and saved in one commit, and the person is told. Changes to the same lines are never guessed at: the person chooses to keep theirs as the file and save mine as a new note beside it ("… (my copy).md"), or keep editing. Nothing either side wrote is lost in any path; no conflict markers are written into a note.
+
+### N15: plan: pins that follow you between devices
+- A note is pinned by a line in the note itself (for example `pinned: true` in its frontmatter), an ordinary property other editors show and keep; the Pinned section lists every such note. No app-specific file in the repository (rule 2). Per-browser pins carry over.
+
+### N16: plan: add images to a note
+- Paste or drop an image into a note: it is committed as an attachment (the vault's Obsidian attachment folder when set, otherwise beside the note) and linked where the cursor is; size limit and type check; S4 shows it in the preview.
+
+### N17: plan: backlinks
+- A "Linked from" list under the open note: notes whose wikilinks or Markdown links resolve to it, found with the same bounded reads as S2's search, with its limits said.
+
 ## Needs the owner
 
 Account setup has already been completed. Do not repeat login, deployment,
@@ -431,7 +456,7 @@ secret generation or App visibility changes as part of this release.
 - **GitHub App visibility: complete.** The owner confirmed on 2026-09-27 that forwardmotion-notes had already been made public the previous day. Client ID, callback and authorisation settings were also checked during the walkthrough.
 - **Merge authorised.** On 2026-09-27 the owner explicitly asked to update these stale instructions, merge mvp into main and continue. Integrate the newer main fixes and validate the combined app, then use the repository's pull-request flow. Do not bypass branch protections.
 - **Real-device and real-GitHub smoke tests remain.** Follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): second account on a phone, empty repository, organisation repository, Obsidian attachments, session-only mode, revocation and two tabs overnight. These checks need the owner's accounts and physical devices; automated simulations do not establish them.
-- **Optional hardening, not an account-setup blocker:** CodeMirror Subresource Integrity remains a separate improvement. No broker deployment is needed when only the static app changes.
+- **CodeMirror Subresource Integrity: done in N13** (2026-09-27). If a CodeMirror version is ever changed, the CI job `CDN files match their integrity hashes` prints the new hashes to copy in.
 
 ### C1: gauntlet record
 - G-1: full suite green three runs in a row, Chromium (WebKit arrives with F2).
@@ -568,6 +593,20 @@ secret generation or App visibility changes as part of this release.
 - Rule 6: `PRIVACY.html` relies on GitHub Pages publishing `PRIVACY.md` there (jekyll-optional-front-matter is on by default and cannot be turned off; docs URL in the test). The repository has no `.nojekyll` or `_config.yml` to stop it. The README says what to do on another host.
 - G-3 findings, all taken: (1) The README still promised "Nothing is written to disk" for Forget me, against PRIVACY.md (browsers that reopen tabs bring the session back): the README is corrected and the privacy test now holds the README to it too. The checkbox text in the app said the same and was already changed in this item. (2) "Only the repositories you choose" is not true when an organisation installs the app for its members: now "only in repositories the app is installed on, which you choose"; test. (3) "Your notes stay in your repository" hid the one thing that changes the risk on someone else's copy: the third sentence now says whoever runs this copy's GitHub App can reach them too, as PRIVACY.md does; test. (4) The README pointed to the wrong place for the link: it now names `id="about"`.
 - G-4: `tests/screens/a2-{desktop,phone,small}-{light,dark}.png`: fits at 320 px with Sign in in view and focused; the link is visible in both themes. G-5: markup and one CSS rule, outside the hashed script; no request added. G-6: README says where the privacy note is published, and the Forget me paragraph matches PRIVACY.md.
+### N13: gauntlet record
+- cdnjs cannot be reached from the development machine, so the hashes came from a CI job that fetches each CDN file named in `index.html` and compares it with its `integrity` (`tests/cdn-integrity.mjs`); it printed the four CodeMirror hashes, and confirmed the two marked/DOMPurify hashes Codex had pinned. It stays, as a check that goes red the day cdnjs serves anything else, on every change and weekly on its own (schedule), without running the suites.
+- Tests: the suite serves a stand-in for CodeMirror, which cannot match a real hash, so the test server leaves out the CodeMirror hashes only (documented in the harness); `tests/integrity.test.mjs` keeps them and shows the stand-in refused while notes still open and save.
+- G-2: the hash removed from the editor script: the static check and the three browser checks fail. The stylesheet check removed: three checks fail.
+- G-3 findings, all taken: (1) a changed stylesheet with a passing script left CodeMirror drawing the note invisibly, with no badge: the editor now needs its stylesheet too; tests with the real files. (2) keyboard-editor and accessibility never checked they were testing real CodeMirror: they do now. (3) the changelog over-promised what each refusal means: corrected. (4) "red the day cdnjs changes" needed a schedule: added.
+- G-4: no visible change. G-5: no new dependency; the hashes add 0.5 KB. G-6: PRIVACY and CHANGELOG.
+
+### N14: gauntlet record
+- A save refused because the note changed on GitHub reads their version and merges by line (three-way, against the version the edit started from), then saves; different lines are combined and the person is told. The same lines changed differently are never guessed: conflict, and **Save as copy** saves mine as "name (my copy).md" beside it and loads theirs. The merge runs only when the starting version is known: a draft restored over an older version is never merged (the app knows only its sha; merging against GitHub's text instead would silently undo their change: found while building, test added).
+- G-2: 13 safeguards removed one at a time, each caught: stale drafts merged (2 checks); no once-per-save guard (2, 251 commits); a deleted empty note recreated (1); overlap guessed (crash); identical change treated as a conflict (1); merged text not saved (11); copy name not checked (1); the copy leaving mine in the note (2); undo history kept (1); caret not kept (1, and 1 in the plain editor); repeated-line runs guessed (2); editor not locked during the copy (1); list not reloaded after a name taken (1). Merge function also checked alone: hand cases, symmetry, 3,000 random edits (a line changed by one side only always survives), a 20,000-line note in 26 ms.
+- G-3 findings, all taken: (1) typing while Save as copy uploads was lost: the editor is locked meanwhile. (2) Undo right after a merge brought back the pre-merge text, which the next save would commit over their lines: history cleared. (3) the caret jumped: it moves with its text. (4) both sides removing one of several identical lines could lose two: such runs are a conflict. (5) after switching notes the message offered a button not shown: reworded; a copy name taken since the list loaded showed GitHub's raw error and stuck: the list reloads and it says so.
+- Test changed, not weakened: docs.test.mjs required the changelog to say "copy your latest text before using Discard", advice N14 makes obsolete; it now requires Discard still to be named as dropping your text.
+- Caught by the full suite before commit: giving the plain editor a `setCursor` that takes a number broke `keyboard-editor`, which (like other code) recognises CodeMirror by that method; the plain editor's caret is set directly instead.
+- G-4: screens above; the conflict header wraps to two rows on a phone, legible, no overflow. G-5: `index.html` 153,504 bytes, under 150 KB, after shortening my own earlier comments. G-6: README, CHANGELOG.
 
 ## Decisions
 - 2026-09-27: Latest owner instruction explicitly authorises merging mvp into main after reconciliation. This supersedes the earlier no-main-merge boundary. Public App setup is confirmed complete; no account setup is outstanding. Preserve both branches' tests, task controls, Safari token race handling, real-editor keyboard checks and G3 failure recovery. Integration takes place in an isolated checkout so the existing package-lock.json change remains untouched.
@@ -750,3 +789,6 @@ CI check follows focused development; no repeated owner setup or release smoke.
   audit failures were not suppressed. Owner package-lock.json remains untouched.
 
 Final CI caught two unchanged manifest assertions requiring spaces after CSS colour variables. Restored that formatting; all assertions retained. Focused manifest and axe checks pass in both engines. The app remains under 150 KB.
+
+- 2026-09-27 · N13 · done · 310c908, cbb4954, 16bddb3 (pin every CDN file to its hash; CI checks them against cdnjs, weekly too)
+- 2026-09-27 · N14 · done · f4921b0 and its review fixes (merge a note changed on GitHub; Save as copy when it cannot be merged)

@@ -11,6 +11,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Weekly, only the CDN check below: cdnjs can change a file with no change here.
+  schedule:
+    - cron: "23 4 * * 1"
   workflow_dispatch:
     inputs:
       repeat:
@@ -27,6 +30,7 @@ concurrency:
 
 jobs:
   plan:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     outputs:
       runs: ${{ steps.plan.outputs.runs }}
@@ -60,3 +64,16 @@ jobs:
       # still runs every assertion, including its own concurrent-tab races.
       - name: Suite in ${{ matrix.engine }}
         run: node tests/run.mjs ${{ matrix.engine }} --jobs 2
+
+  # The suite never reaches the CDN (it serves its own copies), so whether
+  # each integrity hash in index.html matches what cdnjs really serves is
+  # checked here, where the network is open. Red the day cdnjs changes a file.
+  cdn:
+    name: CDN files match their integrity hashes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tests/cdn-integrity.mjs

@@ -20,11 +20,14 @@ for (const width of [1280,390]) {
  await p.click('#btn-pin');
  t.check(`${width}: unpin removes only the local pin`,await p.locator('#pin-tabs button').count()===0 && gh.files['todo.md'].includes('[x] One'));
  await p.click('#btn-pin');
- t.check(`${width}: pin toggle is pressed and persisted`,await p.getAttribute('#btn-pin','aria-pressed')==='true' && await p.evaluate(()=>JSON.parse(localStorage.getItem('notes.config.v2')).pins.includes('todo.md')));
- t.check(`${width}: pin location is explained`,/this browser/i.test(await p.textContent('#pin-help')));
+ // Since N15 a Markdown note is pinned by a property in the note itself (the
+ // owner's request), no longer only in this browser's settings.
+ await p.waitForFunction(()=>!saving);
+ t.check(`${width}: pin toggle is pressed and persisted`,await p.getAttribute('#btn-pin','aria-pressed')==='true' && /^---\npinned: true\n---\n/.test(gh.files['todo.md']));
+ t.check(`${width}: pin location is explained`,/every device/i.test(await p.textContent('#pin-help')));
  const commits=gh.commits.length;
  await p.reload();await p.waitForFunction(()=>current?.path==='todo.md');
- t.check(`${width}: pin survives reload without repository writes`,await p.locator('#pin-tabs button').count()===1 && gh.commits.length===commits);
+ t.check(`${width}: pin survives reload without further repository writes`,await p.locator('#pin-tabs button').count()===1 && gh.commits.length===commits);
  await ctx.close();
 }
 {

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-o8Y93+Yjkp8OHMGYPqFFj4+J5o4lF7FZLKT1iBZvM5g=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-SWU7Dn2kV31ACISJgpqu3oupoozhh1U4kt2XukCoGSY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -199,7 +199,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 			<section id="pinned-files" aria-label="Pinned files">
 				<div class="task-head">Pinned</div>
 				<div id="pin-tabs"></div>
-				<p id="pin-help">Pins stay in this browser. They do not sync between devices.</p>
+				<p id="pin-help">Pinned notes say so in their properties, so they show on every device.</p>
 			</section>
 			<div id="tree"></div>
 		</aside>
@@ -1005,7 +1005,7 @@ function listTree() {
 		repoEmpty = !!data.empty;
 		if (data.truncated) flash("Repository is large; the file list is partial.", true);
 		var list = (data.tree || []).map(function (n) {
-			return { path: n.path, type: n.type, size: n.size, mode: n.mode };
+			return { path: n.path, type: n.type, size: n.size, mode: n.mode, sha: n.sha };
 		});
 		list.movedTo = data.movedTo;
 		list.truncated = !!data.truncated;
@@ -1346,6 +1346,7 @@ function refreshTree() {
 			return;
 		}
 		files = list;
+		scanPins();
 		treeState = "ok";
 		renderTree();
 		if (activePin() && !pinCache[activePin()]) renderPins();
@@ -1766,9 +1767,9 @@ function setCrumb(path, tag) {
 	var pin = document.createElement("button");
 	pin.id = "btn-pin";
 	pin.className = "plain";
-	var pinned = cfg.pins.indexOf(path) !== -1;
+	var pinned = isPinned(path), here = pinned ? cfg.pins.indexOf(path) !== -1 : !inNote(path);
 	pin.textContent = pinned ? "\u2605" : "\u2606";
-	pin.title = pinned ? "Unpin from this browser" : "Pin in this browser";
+	pin.title = (pinned ? "Unpin" : "Pin") + (here ? " (this browser only)" : " (saved in the note)");
 	pin.setAttribute("aria-label", pin.title);
 	pin.setAttribute("aria-pressed", String(pinned));
 	pin.onclick = togglePin;
@@ -1825,8 +1826,9 @@ function openFile(path, discarding) {
 		showDiscard(!!draft);
 		ui.last = path;
 		persist(UI_KEY, ui);
-		if (cfg.pins.indexOf(path) !== -1 && !draft) {
-			ui.pin = cfg.pins.indexOf(path);
+		notePinned(path, r.text);
+		if (isPinned(path) && !draft) {
+			ui.pin = pins().indexOf(path);
 			persist(UI_KEY, ui);
 			if (!pinBusy[path]) pinCache[path] = r;
 			renderPinTabs();
@@ -1986,7 +1988,8 @@ function saveCurrent(auto) {
 				}
 			} catch (e) {}
 		}
-		if (cfg.pins.indexOf(path) !== -1) {
+		notePinned(path, text);
+		if (isPinned(path)) {
 			delete pinCache[path];
 			renderPins();
 		}
@@ -2029,18 +2032,22 @@ function mergeTheirs(doc) {
 		doc.base = r.base;
 		doc.saved = r.text;
 		doc.merged = true;
-		// The caret moves with its text; Undo must not restore the pre-merge
-		// text (the next save would drop their lines).
-		var old = editor.getValue(), at = editor.caret ? editor.caret() : editor.indexFromPos(editor.getCursor()), p = 0, s = 0;
-		while (p < old.length && old[p] === merged[p]) p++;
-		while (s < old.length - p && s < merged.length - p && old[old.length - 1 - s] === merged[merged.length - 1 - s]) s++;
-		editor.setValue(merged);
-		editor.clearHistory();
-		at = at <= p ? at : at >= old.length - s ? at + merged.length - old.length : merged.length - s;
-		if (editor.caret) editor.getWrapperElement().setSelectionRange(at, at); else editor.setCursor(editor.posFromIndex(at));
-		syncDraft();
+		replaceText(merged);
 		saveAgain = { doc: doc, auto: false };
 	});
+}
+// The open note's text replaced by the app (a merge, a pin): the caret moves
+// with its text, and Undo cannot restore the text before (a save would then
+// undo the change behind the person's back).
+function replaceText(text) {
+	var old = editor.getValue(), at = editor.caret ? editor.caret() : editor.indexFromPos(editor.getCursor()), p = 0, s = 0;
+	while (p < old.length && old[p] === text[p]) p++;
+	while (s < old.length - p && s < text.length - p && old[old.length - 1 - s] === text[text.length - 1 - s]) s++;
+	editor.setValue(text);
+	editor.clearHistory();
+	at = at <= p ? at : at >= old.length - s ? at + text.length - old.length : text.length - s;
+	if (editor.caret) editor.getWrapperElement().setSelectionRange(at, at); else editor.setCursor(editor.posFromIndex(at));
+	syncDraft();
 }
 // Where each line of `o` is in `x` (LCS), or -1; null if too large.
 function keptLines(o, x) {
@@ -2291,6 +2298,7 @@ function followMove(from, to) {
 		setCrumb(to, dirty() ? "(unsaved)" : "");
 	}
 	cfg.pins = cfg.pins.map(function (p) { return p === from ? to : p; });
+	[pinFound, pinSeen].forEach(function (m) { if (from in m) { m[to] = m[from]; delete m[from]; } });
 	if (pinUndo && pinUndo.path === from) pinUndo.path = to;
 	if (pinCache[from]) { pinCache[to] = pinCache[from]; delete pinCache[from]; }
 	if (ui.last === from) ui.last = to;
@@ -2330,9 +2338,10 @@ function deleteCurrent() {
 		return deleteFile(path, doc.sha);  // the sha after any save in flight
 	}).then(function () {
 		if (epoch !== pinEpoch || !signedIn()) return;
-		var pinned = cfg.pins.indexOf(path) !== -1;
+		var pinned = isPinned(path);
 		followDelete(path, false);
 		if (pinned) {
+			delete pinFound[path]; delete pinSeen[path];
 			cfg.pins = cfg.pins.filter(function (p) { return p !== path; });
 			saveCfg();
 			renderPinTabs();
@@ -2406,7 +2415,7 @@ function suggestPath() {
 function renderPinTabs() {
 	var host = $("pin-tabs");
 	host.textContent = "";
-	cfg.pins.forEach(function (path, i) {
+	pins().forEach(function (path, i) {
 		var b = document.createElement("button");
 		b.textContent = path.split("/").pop();
 		if (i === ui.pin) b.className = "active";
@@ -2535,15 +2544,111 @@ $("btn-preview").onclick = function () {
 function taskView(show) {
 	previewView(false);
 	document.body.classList.toggle("task-view", show);
-	$("btn-tasks").hidden = show || !current || cfg.pins.indexOf(current.path) === -1;
+	$("btn-tasks").hidden = show || !current || !isPinned(current.path);
 	if (!show && editor) editor.refresh();
+}
+/* A pin is `pinned: true` in the note's frontmatter (an Obsidian property),
+	 so it travels with the note to every device and editor. Each browser
+	 reads each note version (blob sha) once to find them, remembering the
+	 answers in `ui.pinShas`. Files that cannot hold a property (not Markdown,
+	 or a read-only repository) are pinned in this browser, as before N15,
+	 and so are pins made before it. */
+var pinFound = pathMap(), pinSeen = pathMap(), pinScanning = false, pinAgain = false;   // pinned per scan / per text seen here
+function pins() {
+	var out = cfg.pins.slice();
+	Object.keys(pinFound).sort().forEach(function (p) { if (pinFound[p] && out.indexOf(p) === -1) out.push(p); });
+	return out;
+}
+function isPinned(path) { return pins().indexOf(path) !== -1; }
+function inNote(path) { return /\.(md|markdown)$/i.test(path) && !readOnly; }
+// Frontmatter: YAML between a first line "---" and a line "---" or "...".
+function frontOf(text) { return text.match(/^---\n([\s\S]*?\n)?(---|\.\.\.)(?:\n|$)/); }
+function pinnedText(text) {
+	var m = frontOf(text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n"));
+	return !!m && /^pinned:[ \t]*(true|yes)[ \t]*$/im.test(m[1] || "");
+}
+// The text with the pin set or cleared, or null when the note already uses
+// "pinned" for something else (a list, a date): never overwritten.
+function withPin(text, on) {
+	var m = frontOf(text), rest = m ? (m[1] || "").replace(/^pinned:[ \t]*(true|false|yes|no)[ \t]*\n/gim, "") : "";
+	if (/^pinned:/im.test(rest)) return null;
+	var after = m ? text.slice(m[0].length) : text, end = m ? m[2] : "---";
+	if (on) return "---\n" + rest + "pinned: true\n" + end + "\n" + after;
+	return rest ? "---\n" + rest + end + "\n" + after : after;
+}
+// Pinned notes found change the list: the one shown stays the one shown.
+function setPins(fn) {
+	var shown = activePin();
+	fn();
+	ui.pin = Math.max(0, pins().indexOf(shown));
+	renderPinTabs();
+	if (activePin() !== shown) renderPins();
+}
+// What this tab saw in a note's own text is newer than any scan.
+function notePinned(path, text) {
+	setPins(function () { pinSeen[path] = pinFound[path] = pinnedText(text); });
+}
+/* One scan at a time: a new file list meanwhile means another pass after
+	 it, which skips what is known. Answers are kept as each note is read (a
+	 page closed mid-scan carries on where it stopped next time) and pruned to
+	 the notes present once a scan has seen them all. Known pins show at once. */
+async function scanPins() {
+	if (pinScanning) { pinAgain = true; return; }
+	pinScanning = true;
+	pinAgain = false;
+	var epoch = pinEpoch, known = ui.pinShas = ui.pinShas || {}, next = 0;
+	var notes = files.filter(function (f) {
+		return f.type === "blob" && f.sha && /\.(md|markdown)$/i.test(f.path) && !isHidden(f.path) && f.size <= MAX_BYTES;
+	});
+	var todo = notes.filter(function (f) { return !(f.sha in known); }), left = Math.max(0, todo.length - 500);
+	todo = todo.slice(0, 500);
+	function found(f) { if (!(f.path in pinSeen)) pinFound[f.path] = !!known[f.sha]; }
+	setPins(function () { notes.forEach(function (f) { if (f.sha in known) found(f); }); });
+	function live() { return !pinAgain && epoch === pinEpoch && signedIn(); }
+	async function worker() {
+		while (live() && next < todo.length) {
+			var f = todo[next++];
+			try {
+				var r = await readFile(f.path);
+				if (r.sha) known[r.sha] = pinnedText(r.text) ? 1 : 0;
+				if (live() && r.sha === f.sha) setPins(function () { found(f); });
+			} catch (e) {
+				if (!e.refused) return;                // offline, or the page closing: stop, carry on next time
+				known[f.sha] = 0;                      // not text it can open: not pinned
+			}
+			persist(UI_KEY, ui);                     // a page closed mid-scan keeps it too
+		}
+	}
+	await Promise.all([worker(), worker(), worker(), worker()]);
+	pinScanning = false;
+	if (pinAgain) return scanPins();
+	if (!live()) return;
+	if (!left) {
+		var keep = {};
+		notes.forEach(function (f) { if (f.sha in known) keep[f.sha] = known[f.sha]; });
+		ui.pinShas = keep;
+	}
+	persist(UI_KEY, ui);
+	$("pin-help").textContent = "Pinned notes say so in their properties, so they show on every device." +
+		(left ? " Looked in " + (notes.length - left) + " of " + notes.length + " notes so far." : "");
+	if (current) setCrumb(current.path, $("crumb").querySelector(".tag") ? $("crumb").querySelector(".tag").textContent : "");
 }
 function togglePin() {
 	if (!current || !signedIn()) return;
-	var path = current.path, at = cfg.pins.indexOf(path);
-	if (at === -1) cfg.pins.push(path);
-	else { cfg.pins.splice(at, 1); hideUndo(); }
-	ui.pin = Math.max(0, cfg.pins.indexOf(path));
+	var path = current.path, text = editor.getValue(), at = cfg.pins.indexOf(path);
+	// A restored draft is saved only when the person chooses to.
+	if (inNote(path) && dirty() && !current.touched && !current.template) { flash("Save or Discard your restored changes first, then pin.", true); return; }
+	var on = !(at !== -1 || (inNote(path) ? pinnedText(text) : isPinned(path))), next = inNote(path) && withPin(text, on);
+	if (at !== -1) cfg.pins.splice(at, 1);
+	if (next == null && inNote(path)) flash("This note uses a \u201cpinned\u201d property already, so it is pinned in this browser only.");
+	if (!next) { if (on) cfg.pins.push(path); }
+	else if (next !== text) {
+		replaceText(next);
+		notePinned(path, next);
+		saveCurrent();
+	}
+	if (!on) hideUndo();
+	ui.pin = Math.max(0, pins().indexOf(path));
 	saveCfg();
 	persist(UI_KEY, ui);
 	setCrumb(path, dirty() ? "(unsaved)" : "");
@@ -2553,7 +2658,7 @@ function togglePin() {
 	else taskView(document.body.classList.contains("task-view"));
 }
 async function showTasks() {
-	if (!current || cfg.pins.indexOf(current.path) === -1) return;
+	if (!current || !isPinned(current.path)) return;
 	var doc = current, epoch = pinEpoch;
 	if (dirty()) {
 		saveCurrent();
@@ -2561,14 +2666,15 @@ async function showTasks() {
 		if (current !== doc || epoch !== pinEpoch) return;
 		if (dirty()) { flash("Save or resolve this note's changes before opening Tasks.", true); return; }
 	}
-	ui.pin = cfg.pins.indexOf(doc.path);
+	ui.pin = pins().indexOf(doc.path);
 	if (!pinBusy[doc.path]) pinCache[doc.path] = {text: editor.getValue(), sha: doc.sha, base: doc.base};
 	renderPinTabs();
 	renderPins();
 	taskView(true);
 }
 function activePin() {
-	return cfg.pins[ui.pin] || cfg.pins[0] || null;
+	var all = pins();
+	return all[ui.pin] || all[0] || null;
 }
 function emptyNote(text) {
 	var e = document.createElement("div");
@@ -3033,7 +3139,7 @@ function showPointed(changedRepo) {
 	var keep = pathMap();
 	if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
 	pinCache = keep;
-	if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinActive = pathMap(); hideUndo(); }
+	if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinActive = pathMap(); pinFound = pathMap(); pinSeen = pathMap(); hideUndo(); }
 	ui.pin = 0;
 	if (changedRepo) {
 		files = [];                  // the old repository's list is not this one's

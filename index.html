@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-uZQqWX1JuAeH3DxXxRg46UP/Urf7oyMetrw1pb3HK+c=' 'sha256-LLcAdAQE4xzL7DUgqwa1TNG8F5RxoVBzudcYTV1yr6Y=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-pdlhg13BnRUCf3tnBv8w5DEnQuQn0gyLkFhkGyGpbW0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -56,9 +56,12 @@ body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-rename, b
 body.session-only #ephemeral{display:inline-block;color:var(--accent);border-color:var(--accent);}
 main{flex:1;display:flex;min-height:0;}
 #sidebar{width:clamp(180px, var(--side-w, 260px), min(600px, 60vw));flex:none;border-right:1px solid var(--line);background:var(--bg-soft);display:flex;flex-direction:column;min-height:0;}
-#sidebar-resize{flex:none;width:7px;margin:0 -4px 0 -3px;z-index:5;cursor:col-resize;touch-action:none;}
+#sidebar-resize{flex:none;width:5px;cursor:col-resize;touch-action:none;}
+@media (pointer:coarse){#sidebar-resize{width:12px;}}
 #sidebar-resize:hover, #sidebar-resize:focus-visible{background:var(--accent);outline:none;}
 body.side-hidden #sidebar, body.side-hidden #sidebar-resize{display:none;}
+.side-note{display:none;}
+body.side-hidden .side-note{display:inline;}
 #sidebar-tools{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--line);}
 #filter{font-size:13px;padding:5px 8px;}
 #tree{flex:1;overflow:auto;padding:6px 0 40px;-webkit-overflow-scrolling:touch;}
@@ -174,12 +177,12 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #search-tools{padding:4px 8px;}
 #search-status{display:block;font-size:12px;color:var(--fg-soft);padding-top:4px;}
 </style>
-<script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
 <body>
 <div id="shell">
 	<header>
-		<button class="plain" id="btn-tree" title="Show or hide files" aria-controls="sidebar" aria-expanded="true">&#9776;</button>
+		<button class="plain" id="btn-tree" title="Show or hide the file list" aria-label="Files" aria-controls="sidebar" aria-expanded="true">&#9776;</button>
 		<div id="crumb">no file open</div>
 		<span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
 		<span id="readonly" title="">read-only</span>
@@ -212,7 +215,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		</aside>
 		<div id="sidebar-resize" role="separator" aria-orientation="vertical" aria-controls="sidebar" aria-label="Resize the file list" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Drag to resize; double-click to reset"></div>
 		<section id="editor-pane">
-			<div id="placeholder">Open a file, or press + to create one.</div>
+			<div id="placeholder">Open a file, or press + to create one.<span class="side-note"> ☰ shows the file list.</span></div>
 		</section>
 		<article id="preview" hidden tabindex="0" aria-label="Note preview"></article>
 		<aside id="pins">
@@ -294,17 +297,19 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 				<a id="f-install" target="_blank" rel="noopener">Choose repositories</a>
 				(on GitHub, in a new tab; this list updates when you come back here)
 			</p>
+			<label class="check">
+				<input type="checkbox" id="f-session">
+				<span>Forget me when I close the browser<em>For a work or shared computer. Kept for this browser session only; sign out before you leave.</em></span>
+			</label>
+			<!-- In the form, so first run shows only its two steps (B2). -->
 			<label><span>Theme</span>
-				<select id="f-theme">
+				<select id="f-theme" aria-describedby="theme-hint">
 					<option value="auto">Same as this device</option>
 					<option value="light">Light</option>
 					<option value="dark">Dark</option>
 				</select>
 			</label>
-			<label class="check">
-				<input type="checkbox" id="f-session">
-				<span>Forget me when I close the browser<em>For a work or shared computer. Kept for this browser session only; sign out before you leave.</em></span>
-			</label>
+			<p class="hint" id="theme-hint">Changes at once, in this browser only.</p>
 			</div>
 		</div>
 		<div class="dlg-foot">
@@ -2569,6 +2574,11 @@ function taskView(show) {
 	 or a read-only repository) are pinned in this browser, as before N15,
 	 and so are pins made before it. */
 var pinFound = pathMap(), pinSeen = pathMap(), pinScanning = false, pinAgain = false;   // pinned per scan / per text seen here
+// A page closing starts no more reads (they would only be cut off); one
+// restored from the back/forward cache carries on.
+var pinLeaving = false;
+addEventListener("pagehide", function () { pinLeaving = true; });
+addEventListener("pageshow", function (e) { if (e.persisted) { pinLeaving = false; if (files.length) scanPins(); } });
 function pins() {
 	var out = cfg.pins.slice();
 	Object.keys(pinFound).sort().forEach(function (p) { if (pinFound[p] && out.indexOf(p) === -1) out.push(p); });
@@ -2619,7 +2629,7 @@ async function scanPins() {
 	todo = todo.slice(0, 500);
 	function found(f) { if (!(f.path in pinSeen)) pinFound[f.path] = !!known[f.sha]; }
 	setPins(function () { notes.forEach(function (f) { if (f.sha in known) found(f); }); });
-	function live() { return !pinAgain && epoch === pinEpoch && signedIn(); }
+	function live() { return !pinAgain && !pinLeaving && epoch === pinEpoch && signedIn(); }
 	async function worker() {
 		while (live() && next < todo.length) {
 			var f = todo[next++];
@@ -3346,9 +3356,9 @@ $("scrim").onclick = function () {
 		if (e.button !== 0) return;
 		e.preventDefault();
 		handle.setPointerCapture(e.pointerId);
-		var left = $("sidebar").getBoundingClientRect().left, w = ui.sideWidth || 260;
+		var x = e.clientX, start = $("sidebar").getBoundingClientRect().width, w = start;
 		function move(ev) {
-			w = ev.clientX - left;
+			w = start + ev.clientX - x;                  // from where it was grabbed: no jump
 			document.documentElement.style.setProperty("--side-w", w + "px");   // no layout work while dragging
 		}
 		function up() {
@@ -3374,6 +3384,8 @@ $("scrim").onclick = function () {
 		sideLayout();
 	});
 	window.addEventListener("resize", function () { sideLayout(false); });
+	// Many places close the phone drawer; the button follows whichever did.
+	new MutationObserver(function () { sideLayout(false); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 	sideLayout(false);
 })();
 /* Theme: Auto follows the device; Light or Dark is remembered in this

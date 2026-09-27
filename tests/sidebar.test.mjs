@@ -50,6 +50,23 @@ async function drag(p, dx) {
   await ctx.close();
 }
 
+/* ===== review: hidden, with no note open, the way back is said ===== */
+{
+  const gh = H.fakeGitHub({ files: FILES });
+  const ctx = await H.context(gh, { viewport: { width: 1280, height: 800 } });
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await p.click('#btn-tree');
+  await H.settle(p, 200);
+  t.check('hidden, nothing open: the hint says ☰ shows the list', /☰ shows the file list/.test(await p.textContent('#placeholder')) &&
+    await p.evaluate(() => getComputedStyle(document.querySelector('.side-note')).display !== 'none'));
+  t.check('the Files button has a name', (await p.getAttribute('#btn-tree', 'aria-label')) === 'Files');
+  await p.click('#btn-tree');
+  await H.settle(p, 200);
+  t.check('shown again: the hint is as before', await p.evaluate(() => getComputedStyle(document.querySelector('.side-note')).display === 'none'));
+  await ctx.close();
+}
+
 /* ===== resize ===== */
 {
   const { ctx, p } = await ready();
@@ -58,7 +75,13 @@ async function drag(p, dx) {
   const refreshes = await p.evaluate(() => window.cmRefreshes || 0);
   await drag(p, 140);
   t.check('resize: dragging widens it', Math.abs((await sideWidth(p)) - 400) <= 2, String(await sideWidth(p)));
-  t.check('resize: the note follows', Math.abs((await paneLeft(p)) - 400) <= 4, String(await paneLeft(p)));
+  // The handle is its own thin column (review: it used to lie over the note's left edge).
+  const handleW = await p.evaluate(() => Math.round(document.getElementById('sidebar-resize').getBoundingClientRect().width));
+  t.check('resize: the note follows', Math.abs((await paneLeft(p)) - 400 - handleW) <= 2, `${await paneLeft(p)} with a ${handleW}px handle`);
+  t.check('review: the handle does not cover the note', await p.evaluate(() => {
+    const r = document.getElementById('editor-pane').getBoundingClientRect();
+    return [0, 1, 2, 3].every(dx => !document.elementFromPoint(r.left + dx, r.top + 40).closest('#sidebar-resize'));
+  }));
   t.check('resize: the editor lays itself out again', (await p.evaluate(() => window.cmRefreshes || 0)) > refreshes);
   t.check('resize: the handle reports its value', (await p.getAttribute('#sidebar-resize', 'aria-valuenow')) === String(await sideWidth(p)));
   await p.reload();
@@ -109,6 +132,11 @@ async function drag(p, dx) {
   await H.still(p);
   t.check('phone: Files opens the drawer as before', await p.evaluate(() => document.body.classList.contains('tree-open')) && await sideShown(p));
   t.check('phone: the drawer keeps its own width', (await sideWidth(p)) <= 300, String(await sideWidth(p)));
+  t.check('phone: the button says the drawer is open', (await p.getAttribute('#btn-tree', 'aria-expanded')) === 'true');
+  await H.clickRow(p, 'inbox.md');
+  await H.settle(p, 400);
+  t.check('review: a file tapped closes the drawer, and the button says so', !(await p.evaluate(() => document.body.classList.contains('tree-open'))) &&
+    (await p.getAttribute('#btn-tree', 'aria-expanded')) === 'false', await p.getAttribute('#btn-tree', 'aria-expanded'));
   t.check('phone: no overflow', !(await overflow(p)));
   await ctx.close();
 }

@@ -29,6 +29,8 @@ async function choose(p, value) {
   await p.click('#btn-settings');
   await p.waitForSelector('#f-theme');
   t.check('auto is the default', (await p.inputValue('#f-theme')) === 'auto');
+  // It stays in the account form: first run shows only its two steps (B2).
+  t.check('review: says it applies at once, with no Save needed', /at once/.test(await p.textContent('#theme-hint')));
   await ctx.close();
 }
 
@@ -57,6 +59,7 @@ async function choose(p, value) {
   await nav;
   await p.waitForSelector('body');
   t.check('remembered: dark before the app has started', (await bg(p)) === DARK, await bg(p));
+  t.check('review: the browser bar colour too', (await metas(p)).every(c => c === '#16181c'), JSON.stringify(await metas(p)));
   release();
   await H.settle(p, 1500);
   await ctx.unroute('**/codemirror/5.65.16/codemirror.min.js');

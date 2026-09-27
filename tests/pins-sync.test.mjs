@@ -193,6 +193,118 @@ async function device(gh, opts = {}) {
   await ctx.close();
 }
 
+/* ===== review: what pinning must never do to a note ===== */
+{
+  const gh = H.fakeGitHub({ files: {
+    'draft.md': 'server text\n', 'dots.md': '---\ntitle: X\n...\nbody\n', 'list.md': '---\npinned:\n  - x\ntitle: y\n---\nbody\n', 'other.md': 'x\n',
+  } });
+  const { ctx, p } = await device(gh);
+  // A restored draft is never saved by pinning.
+  await H.clickRow(p, 'draft.md');
+  const key = await p.evaluate(() => draftKey('draft.md')), sha = await p.evaluate(() => current.sha);
+  await H.clickRow(p, 'other.md');
+  await p.evaluate(([k, sha]) => localStorage.setItem(k, JSON.stringify({ text: 'old draft I meant to discard\n', sha, at: Date.now() })), [key, sha]);
+  await H.clickRow(p, 'draft.md');
+  await p.click('#btn-pin');
+  await H.settle(p, 2000);
+  t.check('restored draft: not saved by pinning', gh.files['draft.md'] === 'server text\n' && gh.commits.length === 0, JSON.stringify(gh.files['draft.md']));
+  t.check('restored draft: says what to do', /save or discard/i.test(await p.textContent('#status')), await p.textContent('#status'));
+  // Frontmatter ending in "..." is frontmatter.
+  await H.clickRow(p, 'dots.md');
+  await p.click('#btn-pin');
+  await H.settle(p, 3000);
+  t.check('"..." frontmatter: the pin goes inside it', gh.files['dots.md'] === '---\ntitle: X\npinned: true\n...\nbody\n', JSON.stringify(gh.files['dots.md']));
+  t.check('"..." frontmatter: seen as pinned', (await pinTabs(p)).includes('dots.md'));
+  // A "pinned" property used for something else is never overwritten.
+  await H.clickRow(p, 'list.md');
+  await p.click('#btn-pin');
+  await H.settle(p, 2000);
+  t.check('"pinned" used already: the note untouched', gh.files['list.md'] === '---\npinned:\n  - x\ntitle: y\n---\nbody\n', JSON.stringify(gh.files['list.md']));
+  t.check('"pinned" used already: pinned in this browser, and says so', (await pinTabs(p)).includes('list.md') && /this browser only/.test(await p.textContent('#status')),
+    await p.textContent('#status'));
+  await ctx.close();
+}
+
+/* ===== review: the list shown stays the one shown ===== */
+{
+  const files = {};
+  for (let i = 0; i < 30; i++) files[`s/${i}.md`] = `# ${i}\n`;
+  const gh = H.fakeGitHub({ files: { 'z.md': '---\npinned: true\n---\n- [ ] zebra\n', ...files, 'a.md': '---\npinned: true\n---\n- [ ] apple\n' } });
+  const ctx = await H.context(gh);
+  await ctx.route('https://api.github.com/repos/**/contents/s/**', async r => { await new Promise(res => setTimeout(res, 100)); return r.fallback(); });
+  // a.md is found only after z.md is on screen, and sorts ahead of it.
+  await ctx.route('https://api.github.com/repos/**/contents/a.md*', async r => { await new Promise(res => setTimeout(res, 2500)); return r.fallback(); });
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await H.clickRow(p, 'z.md');
+  t.check('scan adds a pin ahead: setup, not found yet', !(await pinTabs(p)).includes('a.md'));
+  await p.evaluate(() => showTasks());
+  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  await H.settle(p, 500);
+  t.check('scan adds a pin ahead: still showing the same list', await p.evaluate(() => activePin()) === 'z.md', await p.evaluate(() => activePin()));
+  t.check('scan adds a pin ahead: its tab still the one marked', (await p.textContent('#pin-tabs button.active')) === 'z.md');
+  await p.fill('#pin-input', 'zucchini');
+  await p.press('#pin-input', 'Enter');
+  await H.settle(p, 3000);
+  t.check('scan adds a pin ahead: a new task goes where it is shown', gh.files['z.md'].includes('zucchini') && !gh.files['a.md'].includes('zucchini'));
+  await ctx.close();
+}
+
+/* ===== review: a scan keeps what it read ===== */
+{
+  const files = {};
+  for (let i = 0; i < 60; i++) files[`s/${i}.md`] = `# ${i}\n`;
+  const gh = H.fakeGitHub({ files: { 'pinned.md': '---\npinned: true\n---\n', ...files, 'bad.md': 'caf\xe9\n' }, raw: { 'bad.md': true } });
+  const ctx = await H.context(gh);
+  const reads = [];
+  ctx.on('request', r => { if (r.method() === 'GET' && r.url().includes('/contents/')) reads.push(decodeURIComponent(r.url().split('/contents/')[1].split('?')[0])); });
+  let slow = 400;                                       // 60 notes, 4 at a time: about 6 s
+  await ctx.route('https://api.github.com/repos/**/contents/s/**', async r => { await new Promise(res => setTimeout(res, slow)); return r.fallback(); });
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await p.waitForTimeout(1500);                         // part of the way through
+  for (let i = 0; i < 3; i++) { await p.click('#btn-refresh'); await p.waitForTimeout(300); }
+  t.check('cut short: setup, still scanning', await p.evaluate(() => pinScanning));
+  await p.reload();                                     // the page closed mid-scan
+  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  const counted = reads.filter(r => r.startsWith('s/'));
+  // Refreshing loses nothing; the page closing loses at most the four reads then in flight.
+  t.check('cut short and refreshed: each note read once, bar those in flight at the close', new Set(counted).size === 60 && counted.length <= 64, `${counted.length} reads`);
+  slow = 2000;
+  const mark = reads.length;
+  await p.reload();
+  await p.waitForSelector('#pin-tabs button');
+  t.check('known pins show at once', (await pinTabs(p)).includes('pinned.md'));
+  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  t.check('a note that cannot be opened is not read again', !reads.slice(mark).includes('bad.md'), JSON.stringify(reads.slice(mark)));
+  await ctx.close();
+}
+
+{
+  // Offline (or the page closing): the scan stops, and carries on next time.
+  const files = {};
+  for (let i = 0; i < 60; i++) files[`s/${i}.md`] = `# ${i}\n`;
+  const gh = H.fakeGitHub({ files: { ...files, 'z.md': '---\npinned: true\n---\n' } });
+  const ctx = await H.context(gh);
+  let tries = 0, offline = false;
+  await ctx.route('https://api.github.com/repos/**/contents/s/**', r => {
+    if (!offline) return r.fallback();
+    tries++; return r.abort();
+  });
+  offline = true;
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  t.check('offline: the scan stops instead of trying every note', tries > 0 && tries <= 4, `${tries} tries`);
+  offline = false;
+  await p.click('#btn-refresh');
+  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  await H.settle(p, 500);
+  t.check('back online: carries on', (await pinTabs(p)).includes('z.md'), JSON.stringify(await pinTabs(p)));
+  p.errors.length = 0;
+  await ctx.close();
+}
+
 /* ===== bounded on a large repository ===== */
 {
   const files = {};

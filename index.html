@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-EpyswjlkU9uyrww1rQiAjZKsMYX4Bum2snlsfFXzio8=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-SWU7Dn2kV31ACISJgpqu3oupoozhh1U4kt2XukCoGSY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -2553,7 +2553,7 @@ function taskView(show) {
 	 answers in `ui.pinShas`. Files that cannot hold a property (not Markdown,
 	 or a read-only repository) are pinned in this browser, as before N15,
 	 and so are pins made before it. */
-var pinFound = pathMap(), pinSeen = pathMap(), pinScanSeq = 0, pinScanning = false;   // pinned per scan / per text seen here
+var pinFound = pathMap(), pinSeen = pathMap(), pinScanning = false, pinAgain = false;   // pinned per scan / per text seen here
 function pins() {
 	var out = cfg.pins.slice();
 	Object.keys(pinFound).sort().forEach(function (p) { if (pinFound[p] && out.indexOf(p) === -1) out.push(p); });
@@ -2561,62 +2561,90 @@ function pins() {
 }
 function isPinned(path) { return pins().indexOf(path) !== -1; }
 function inNote(path) { return /\.(md|markdown)$/i.test(path) && !readOnly; }
-function frontOf(text) { return text.match(/^---\n([\s\S]*?\n)?---(?:\n|$)/); }
+// Frontmatter: YAML between a first line "---" and a line "---" or "...".
+function frontOf(text) { return text.match(/^---\n([\s\S]*?\n)?(---|\.\.\.)(?:\n|$)/); }
 function pinnedText(text) {
 	var m = frontOf(text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n"));
 	return !!m && /^pinned:[ \t]*(true|yes)[ \t]*$/im.test(m[1] || "");
 }
+// The text with the pin set or cleared, or null when the note already uses
+// "pinned" for something else (a list, a date): never overwritten.
 function withPin(text, on) {
-	var m = frontOf(text), rest = m ? (m[1] || "").replace(/^pinned:.*\n/gim, "") : "", after = m ? text.slice(m[0].length) : text;
-	if (on) return "---\n" + rest + "pinned: true\n---\n" + after;
-	return m && rest ? "---\n" + rest + "---\n" + after : after;
+	var m = frontOf(text), rest = m ? (m[1] || "").replace(/^pinned:[ \t]*(true|false|yes|no)[ \t]*\n/gim, "") : "";
+	if (/^pinned:/im.test(rest)) return null;
+	var after = m ? text.slice(m[0].length) : text, end = m ? m[2] : "---";
+	if (on) return "---\n" + rest + "pinned: true\n" + end + "\n" + after;
+	return rest ? "---\n" + rest + end + "\n" + after : after;
+}
+// Pinned notes found change the list: the one shown stays the one shown.
+function setPins(fn) {
+	var shown = activePin();
+	fn();
+	ui.pin = Math.max(0, pins().indexOf(shown));
+	renderPinTabs();
+	if (activePin() !== shown) renderPins();
 }
 // What this tab saw in a note's own text is newer than any scan.
 function notePinned(path, text) {
-	pinSeen[path] = pinFound[path] = pinnedText(text);
-	renderPinTabs();
+	setPins(function () { pinSeen[path] = pinFound[path] = pinnedText(text); });
 }
+/* One scan at a time: a new file list meanwhile means another pass after
+	 it, which skips what is known. Answers are kept as each note is read (a
+	 page closed mid-scan carries on where it stopped next time) and pruned to
+	 the notes present once a scan has seen them all. Known pins show at once. */
 async function scanPins() {
-	var seq = ++pinScanSeq, epoch = pinEpoch, known = ui.pinShas || {}, keep = {}, found = pathMap(), next = 0;
-	var todo = files.filter(function (f) {
-		if (f.type !== "blob" || !f.sha || !/\.(md|markdown)$/i.test(f.path) || isHidden(f.path) || f.size > MAX_BYTES) return false;
-		if (!(f.sha in known)) return true;
-		keep[f.sha] = known[f.sha];
-		found[f.path] = !!known[f.sha];
-	});
-	var total = todo.length + Object.keys(found).length, left = Math.max(0, todo.length - 500);
-	todo = todo.slice(0, 500);
+	if (pinScanning) { pinAgain = true; return; }
 	pinScanning = true;
-	function live() { return seq === pinScanSeq && epoch === pinEpoch && signedIn(); }
+	pinAgain = false;
+	var epoch = pinEpoch, known = ui.pinShas = ui.pinShas || {}, next = 0;
+	var notes = files.filter(function (f) {
+		return f.type === "blob" && f.sha && /\.(md|markdown)$/i.test(f.path) && !isHidden(f.path) && f.size <= MAX_BYTES;
+	});
+	var todo = notes.filter(function (f) { return !(f.sha in known); }), left = Math.max(0, todo.length - 500);
+	todo = todo.slice(0, 500);
+	function found(f) { if (!(f.path in pinSeen)) pinFound[f.path] = !!known[f.sha]; }
+	setPins(function () { notes.forEach(function (f) { if (f.sha in known) found(f); }); });
+	function live() { return !pinAgain && epoch === pinEpoch && signedIn(); }
 	async function worker() {
 		while (live() && next < todo.length) {
 			var f = todo[next++];
 			try {
 				var r = await readFile(f.path);
-				if (r.sha) found[f.path] = !!(keep[r.sha] = pinnedText(r.text) ? 1 : 0);
-			} catch (e) {}
+				if (r.sha) known[r.sha] = pinnedText(r.text) ? 1 : 0;
+				if (live() && r.sha === f.sha) setPins(function () { found(f); });
+			} catch (e) {
+				if (!e.refused) return;                // offline, or the page closing: stop, carry on next time
+				known[f.sha] = 0;                      // not text it can open: not pinned
+			}
+			persist(UI_KEY, ui);                     // a page closed mid-scan keeps it too
 		}
 	}
 	await Promise.all([worker(), worker(), worker(), worker()]);
-	if (seq === pinScanSeq) pinScanning = false;
+	pinScanning = false;
+	if (pinAgain) return scanPins();
 	if (!live()) return;
-	Object.keys(pinSeen).forEach(function (p) { found[p] = pinSeen[p]; });
-	pinFound = found;
-	ui.pinShas = keep;
+	if (!left) {
+		var keep = {};
+		notes.forEach(function (f) { if (f.sha in known) keep[f.sha] = known[f.sha]; });
+		ui.pinShas = keep;
+	}
 	persist(UI_KEY, ui);
 	$("pin-help").textContent = "Pinned notes say so in their properties, so they show on every device." +
-		(left ? " Looked in " + (total - left) + " of " + total + " notes so far." : "");
-	renderPinTabs();
+		(left ? " Looked in " + (notes.length - left) + " of " + notes.length + " notes so far." : "");
 	if (current) setCrumb(current.path, $("crumb").querySelector(".tag") ? $("crumb").querySelector(".tag").textContent : "");
 }
 function togglePin() {
 	if (!current || !signedIn()) return;
-	var path = current.path, on = !isPinned(path), at = cfg.pins.indexOf(path);
+	var path = current.path, text = editor.getValue(), at = cfg.pins.indexOf(path);
+	// A restored draft is saved only when the person chooses to.
+	if (inNote(path) && dirty() && !current.touched && !current.template) { flash("Save or Discard your restored changes first, then pin.", true); return; }
+	var on = !(at !== -1 || (inNote(path) ? pinnedText(text) : isPinned(path))), next = inNote(path) && withPin(text, on);
 	if (at !== -1) cfg.pins.splice(at, 1);
-	if (!inNote(path)) { if (on) cfg.pins.push(path); }
-	else if (on || pinnedText(editor.getValue())) {
-		replaceText(withPin(editor.getValue(), on));
-		notePinned(path, editor.getValue());
+	if (next == null && inNote(path)) flash("This note uses a \u201cpinned\u201d property already, so it is pinned in this browser only.");
+	if (!next) { if (on) cfg.pins.push(path); }
+	else if (next !== text) {
+		replaceText(next);
+		notePinned(path, next);
 		saveCurrent();
 	}
 	if (!on) hideUndo();

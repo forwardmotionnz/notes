@@ -12,6 +12,7 @@ for (const fallback of [false, true]) {
   const gh = H.fakeGitHub({ files: { 'long.md': text } });
   const ctx = await H.context(gh, { noCdn: fallback, viewport: { width: 390, height: 820 } });
   if (!fallback) await ctx.route('**/cdnjs.cloudflare.com/**', route => {
+    if (!route.request().url().includes('/codemirror/')) return route.fallback();
     const name = new URL(route.request().url()).pathname.split('/').pop();
     return route.fulfill({ contentType: name.endsWith('.css') ? 'text/css' : 'application/javascript',
       body: name.startsWith('codemirror.min.') ? readFileSync(new URL(`./fixtures/codemirror5/${name}`, import.meta.url)) : '' });

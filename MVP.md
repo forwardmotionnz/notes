@@ -1,8 +1,13 @@
 # MVP ledger
 
-Iterations: 30 / 30
+Iterations: 31 (original 30-iteration cap extended by the owner's request to continue N12 and S2)
 
 ## Current handover — 2026-09-27
+
+N12 preview (`0a655fc`) and S2 content search (`ec8d7b5`) are implemented and
+reviewed in [PR #8](https://github.com/forwardmotionnz/notes/pull/8). Its checks
+record the final combined CI result; merge only when both engines are green.
+Next items after this PR: S3 accessibility checks, then S4 preview images.
 
 Account setup is complete. The reconciled MVP and faster development
 workflow were merged into `main` in [PR #5](https://github.com/forwardmotionnz/notes/pull/5),
@@ -185,10 +190,10 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N8 | 17c | done | `tests/app.test.mjs` 70/70, new cases with GitHub slowed to 0.4-0.8 s a commit: three quick ticks all land with nothing refused and two commits; tick then untick ends as it began; a tick and a quick capture both land; a failed commit sends nothing after it, shows GitHub's state and the error, and puts the waiting capture back; a change made elsewhere is still a conflict and kept; changing repository mid-commit; saving settings mid-commit; the open note follows each commit. Commit in the log |
 | N9 | 17d | done | `tests/tasks.test.mjs` 52/52 (new suite): a remove control per task, named for it; removes that one line in one commit, no question; Undo puts it back exactly and goes after 8 s or once used; Clear done removes every ticked task and only them, in one commit, with Undo; CRLF kept; remove, untick and clear while GitHub is slow all land; a stale row removes nothing; a failed remove keeps the task and offers no Undo; Undo withdrawn on changing repository, switching list, or the repository becoming read-only; Undo refuses when lines were added above (incl. a blank line under each heading), still works after a tick or a capture, stays on offer while it cannot be sent yet, comes back after a refusal, and follows a rename; × always shown on a phone, on hover on a computer. `tests/access.test.mjs`: no task can be removed read-only. Screens `tests/screens/n9-{desktop,phone}-{light,dark}-{list,undo}.png`. Commit in the log |
 | N10 | 21a | done | Today’s daily note; `daily-notes` 23/23 in both engines; all 36 suites passed both engines in CI 36277448756 on `8e2b0fb`; PR #6 merged as `4f4a279`. |
-| N11 | 21b | doing | Pin/unpin beside the open note; browser-local Pinned section in the tree; checklist in the main area; remove side panel, phone sheet and Settings pins field. |
-| N12 | 21c | todo | Rendered preview toggle beside Save; sanitised Markdown, frontmatter box and wikilinks; CDN libraries with source-preserving fallback. Promoted from S1. |
+| N11 | 21b | done | Pin toggle and main-area checklist; `pinned-tree` 23/23 both engines; all 37 suites passed both engines in CI 36279330993 on `4eb4756`; PR #7 merged as `00ed737`. |
+| N12 | 21c | done | `0a655fc`, reviewed with `ec8d7b5`; preview 15/15 both engines, CSP 26/26, hostile 28/28. Screens and mutations below; final CI/merge status in PR #8. |
 | S1 | 22 | moved | Rendered preview is now MUST N12. |
-| S2 | 23 | todo | SHOULD: search inside note contents, not only file paths. First SHOULD after all MUSTs. |
+| S2 | 23 | done | `ec8d7b5`; content-search 13/13 each engine: drafts, incomplete results, retained matches, expired sign-in, stale repo/query responses, bounded reads. Independent re-review clear; final CI/merge status in PR #8. |
 | S3 | 24 | todo | SHOULD: automated axe accessibility check with zero serious violations, after N11 layout changes. |
 | S4 | 25 | todo | SHOULD: show referenced images in preview; depends on N12. |
 
@@ -217,6 +222,10 @@ The app is 141,592 bytes with no new runtime dependency or host.
   shown, retaining every draft/capture preservation assertion.
 
 ### N11: verification
+- Completed: [PR #7](https://github.com/forwardmotionnz/notes/pull/7) merged
+  as `00ed737`. All 37 suites passed both engines in
+  [CI 36279330993](https://github.com/forwardmotionnz/notes/actions/runs/36279330993)
+  on `4eb4756`. Next item: N12, sanitised rendered preview.
 - `pinned-tree` failed 0/4 before implementation; final 23/23 in Chromium
   and WebKit, about 10 seconds total. Related app 70/70, tasks 52/52,
   auth-renewal 62/62 and keyboard suites passed focused Chromium checks.
@@ -669,3 +678,35 @@ secret generation or App visibility changes as part of this release.
 - G-3 findings, all taken: (1) Undo put lines back by number after lines were added above, into another section; first fixed with a line-above check, which the re-review showed fooled by a blank line under each heading; now the whole-file check above. (2) Undo lost when refused (access check running, list loading): kept on offer. (3) Undo lost on rename: follows it. (4) Undo left up over another list, or on a read-only repository: withdrawn. Re-review: (5) Undo lost after a conflict with another tab: offered again, and then explains. Also taken: the × on a phone is a finger-sized target (about 31 x 33 px).
 - G-4: screens above; the rows keep their old spacing (the row is now a div around the label, and the settings form's label margin no longer leaks in). No overflow at 390 px.
 - G-5: 131 KB, no new dependency. G-6: README's feature list.
+
+### N12 and S2 — combined validation, 2026-09-27
+
+The owner requested these two items together, extending the original iteration
+cap. N12 implementation: `0a655fc`. S2 follows in a separate commit, with one
+full two-engine CI pass for the final combined PR. Setup and owner smoke checks
+are already complete and are not repeated.
+
+Preview uses pinned Marked 18.0.14 and DOMPurify 3.4.16, SRI, narrow CDN paths
+and sanitised DOM fragments. Frontmatter, tasks, code, links, drafts and CDN
+fallback: 15/15 checks in each engine. Images remain S4.
+
+Content search includes paths and scoped drafts, with at most 300 file reads
+and four workers. Read failures, skipped files and partial lists are visible.
+13/13 checks in each engine, including stale query/repo, auth recovery and
+bounded reads. Both feature suites together take about eight seconds.
+
+Independent review found lost results after selecting a match, and expired
+sign-in leaving search running. Both fixed with regressions; re-review passed
+13/13 and found no residual blocker. Mutations independently caught unsafe
+preview tags, unsafe attributes, stale results and missing sign-in recovery.
+The attribute payload was strengthened to use an allowed paragraph, so that
+check does not accidentally rely on the disallowed-element check.
+
+Screenshots inspected: tests/screens/n12-{1280,390}-{light,dark}.png and
+s2-{1280,390}-{light,dark}.png. No overflow, readable tables/frontmatter/links.
+CSP, hostile, privacy, docs, pinned-view and keyboard regressions passed.
+The keyboard fixture now preserves real preview-library routing.
+
+The app is still one file under 150,000 bytes (148,069 at review), no build.
+Tabs and shortened duplicate introductory prose leave room while preserving
+security/data-loss comments. Existing owner package-lock.json edit untouched.

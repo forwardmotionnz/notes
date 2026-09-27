@@ -259,6 +259,9 @@ export async function context(gh, opts = {}) {
 
   await ctx.route('**/cdnjs.cloudflare.com/**', r => {
     if (opts.noCdn) return r.abort();
+    const url=r.request().url();
+    const fixture=url.includes('/marked/')?'marked-18.0.14.min.js':url.includes('/dompurify/')?'dompurify-3.4.16.min.js':null;
+    if(fixture)return r.fulfill({contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:readFileSync(ROOT+'tests/fixtures/'+fixture)});
     return r.request().url().endsWith('.css')
       ? r.fulfill({ contentType: 'text/css', body: '' })
       : r.fulfill({ contentType: 'application/javascript', body: CM_STUB });

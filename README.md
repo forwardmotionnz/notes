@@ -45,6 +45,22 @@ first note you save (or the first task you add) creates its main branch. If
 the repository's main branch is later renamed, or your first push from
 elsewhere creates a differently named one, the app follows it and says so.
 
+## Preview and search
+
+Use **Preview** beside Save to read the current note, including unsaved edits,
+as rendered Markdown. **Edit** returns to the unchanged source. Frontmatter
+appears as text above the note; task boxes are read-only and wikilinks open
+notes. Images are not loaded yet. If the preview libraries cannot load,
+Notes explains this and keeps the editor available.
+
+In **Files**, typing filters filenames instantly. Press **Enter** or **Search
+contents** to search note text as well, including local drafts. Opening a result
+keeps the list available. Search reads up to 300 text files, four at a time;
+files over 1 MB and hidden folders are excluded. It reports unreadable files,
+scan limits and partial file lists rather than claiming a complete search.
+Press Search contents again to update results after edits, or refresh Files
+to pick up remote changes. Search creates no index or extra repository files.
+
 ## If a request fails
 
 If GitHub or the connection fails, the message stays visible until another

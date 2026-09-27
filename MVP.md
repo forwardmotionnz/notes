@@ -748,3 +748,5 @@ CI check follows focused development; no repeated owner setup or release smoke.
 - A reviewer audit ran during an edit/hash-refresh window and could not open
   sign-in in its final fallback case. Stable-file runs in both engines passed;
   audit failures were not suppressed. Owner package-lock.json remains untouched.
+
+Final CI caught two unchanged manifest assertions requiring spaces after CSS colour variables. Restored that formatting; all assertions retained. Focused manifest and axe checks pass in both engines. The app remains under 150 KB.

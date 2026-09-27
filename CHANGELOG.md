@@ -12,6 +12,10 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
+- Repository images in preview, including Markdown and Obsidian embeds.
+  PNG/JPEG/GIF/WebP up to 1 MB, at most 20 per preview; external and unsupported
+  images show notices. Attachment filenames now meet contrast requirements.
+
 - Offline axe accessibility checks across desktop/phone, light/dark, sign-in,
   tasks, editing, preview, search and settings. Preview task boxes and the
   plain editor now have accessible labels.
@@ -22,7 +26,7 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 - Preview current Markdown and drafts with headings, tables, read-only tasks,
   code, links and a frontmatter box. Sanitised with DOMPurify; CDN failure
-  preserves editing with a visible notice. Images are not loaded yet.
+  preserves editing with a visible notice. Repository images are supported.
 
 - Pin/unpin beside the note name and a Pinned section at the top of Files.
   Pinned notes open as a checklist in the main area, with Edit note and Tasks

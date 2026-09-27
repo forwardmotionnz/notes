@@ -54,7 +54,13 @@ keyboard and screen-reader testing; they do not certify full accessibility.
 Use **Preview** beside Save to read the current note, including unsaved edits,
 as rendered Markdown. **Edit** returns to the unchanged source. Frontmatter
 appears as text above the note; task boxes are read-only and wikilinks open
-notes. Images are not loaded yet. If the preview libraries cannot load,
+notes. Repository PNG, JPEG, GIF and WebP images appear in Markdown image
+references and Obsidian `![[image.png]]` embeds. Relative paths resolve from the
+note's folder; `/` starts at the repository root. Up to 20 images, each no larger
+than 1 MB, load with four requests at a time. External images, SVGs, hidden paths
+and known symlinks show a notice instead. Missing or undecodable images also
+show an explanation. Images never become editable notes.
+If the preview libraries cannot load,
 Notes explains this and keeps the editor available.
 
 In **Files**, typing filters filenames instantly. Press **Enter** or **Search
@@ -147,7 +153,7 @@ Obsidian would not understand, so both can work on the same repository.
 
 - `.obsidian/`, `.trash/` and other dot-folders are hidden. They hold app
   state, not notes.
-- Attachments (images, PDFs) are shown but cannot be opened: decoding them as
+- Attachments (images, PDFs) cannot be opened in the text editor: decoding them as
   text and saving would corrupt them, so the app refuses.
 - `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are.
 - A wikilink opens the note it names: `Ctrl`+click (`Cmd`+click on a Mac),

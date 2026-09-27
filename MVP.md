@@ -1,13 +1,14 @@
 # MVP ledger
 
-Iterations: 31 (original 30-iteration cap extended by the owner's request to continue N12 and S2)
+Iterations: 33 (original cap extended by the owner's requests to complete N12 and S2, then S3 and S4)
 
 ## Current handover — 2026-09-27
 
-N12 preview (`0a655fc`) and S2 content search (`ec8d7b5`) are implemented and
-reviewed in [PR #8](https://github.com/forwardmotionnz/notes/pull/8). Its checks
-record the final combined CI result; merge only when both engines are green.
-Next items after this PR: S3 accessibility checks, then S4 preview images.
+N12 preview and S2 search were merged and published in
+[PR #8](https://github.com/forwardmotionnz/notes/pull/8), with all 39 suites green.
+S3 accessibility and S4 repository images are now implemented on
+`codex/accessibility-images`; the original feature list is complete.
+The combined PR's full two-engine checks remain the final merge gate.
 
 Account setup is complete. The reconciled MVP and faster development
 workflow were merged into `main` in [PR #5](https://github.com/forwardmotionnz/notes/pull/5),
@@ -194,8 +195,8 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N12 | 21c | done | `0a655fc`, reviewed with `ec8d7b5`; preview 15/15 both engines, CSP 26/26, hostile 28/28. Screens and mutations below; final CI/merge status in PR #8. |
 | S1 | 22 | moved | Rendered preview is now MUST N12. |
 | S2 | 23 | done | `ec8d7b5`; content-search 13/13 each engine: drafts, incomplete results, retained matches, expired sign-in, stale repo/query responses, bounded reads. Independent re-review clear; final CI/merge status in PR #8. |
-| S3 | 24 | todo | SHOULD: automated axe accessibility check with zero serious violations, after N11 layout changes. |
-| S4 | 25 | todo | SHOULD: show referenced images in preview; depends on N12. |
+| S3 | 24 | done | `85a2893` plus attachment contrast fix with S4. axe accessibility 29/29 both engines; zero serious/critical across six views, both widths/themes and plain-editor fallback. Injected audit probe detects violations. |
+| S4 | 25 | done | Repository Markdown and Obsidian image embeds; preview-images 15/15 both engines, screenshots and mutation evidence below. External/unsupported images visibly refused; bounded reads and stale-result guards. |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -710,3 +711,40 @@ The keyboard fixture now preserves real preview-library routing.
 The app is still one file under 150,000 bytes (148,069 at review), no build.
 Tabs and shortened duplicate introductory prose leave room while preserving
 security/data-loss comments. Existing owner package-lock.json edit untouched.
+
+### S3 and S4 — 2026-09-27
+
+The owner requested the next two items together. S3 is `85a2893`; S4 is the
+following feature commit on `codex/accessibility-images`. One combined full
+CI check follows focused development; no repeated owner setup or release smoke.
+
+- S3 initially failed on unnamed preview task checkboxes and the plain-editor
+  textarea. Both now have accessible names. Adding actual repository images
+  exposed low-contrast attachment rows in both themes; removing their opacity
+  fixed that. No axe rules are disabled. All serious/critical violations fail.
+  A deliberately unnamed button verifies the audit catches a violation.
+  Full reports including incomplete/manual-review results are in
+  tests/screens/accessibility-{chromium,webkit}.json. This is automated coverage,
+  not a claim of full screen-reader or keyboard accessibility certification.
+- S4 fetches repository PNG/JPEG/GIF/WebP bytes from the existing Contents API,
+  validates encoding, byte limit and raster signatures, and creates image data
+  URLs in memory. No new runtime library or host, no raw HTML image permission,
+  no persistent image cache. Limit 20 references and four concurrent reads;
+  duplicate paths share a request. Relative Markdown URLs and literal Obsidian
+  paths work; missing, unsupported, external and oversized images show notices.
+- Review found literal-percent wiki filenames were incorrectly URI-decoded;
+  fixed and covered. Late image replies cannot replace another note; expired
+  sign-in returns to sign-in. Hidden paths and known symlinks are refused.
+- Focused final checks: accessibility 29/29, preview-images 15/15 in each engine
+  (about twelve seconds together with docs), plus preview, CSP, hostile and
+  real-editor keyboard coverage. The Contents fixture now supplies documented
+  size and base64 encoding fields; no API behaviour invented.
+- Mutations caught missing task/plain-editor labels, raster-type checks,
+  decoded-byte limit, hidden-path refusal, image count limit and auth recovery.
+  Earlier stale-image guards also retain independent detached-node protection.
+- Desktop/phone light/dark images viewed: tests/screens/s4-{1280,390}-{light,dark}.png,
+  including a 512px image shrinking to the phone width. CSS formatting was
+  compacted to retain the single-file/no-build rule; app size 149,000 bytes.
+- A reviewer audit ran during an edit/hash-refresh window and could not open
+  sign-in in its final fallback case. Stable-file runs in both engines passed;
+  audit failures were not suppressed. Owner package-lock.json remains untouched.

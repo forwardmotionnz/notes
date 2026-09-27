@@ -197,6 +197,11 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | S2 | 23 | done | `ec8d7b5`; content-search 13/13 each engine: drafts, incomplete results, retained matches, expired sign-in, stale repo/query responses, bounded reads. Independent re-review clear; final CI/merge status in PR #8. |
 | S3 | 24 | done | `85a2893` plus attachment contrast fix with S4. axe accessibility 29/29 both engines; zero serious/critical across six views, both widths/themes and plain-editor fallback. Injected audit probe detects violations. |
 | S4 | 25 | done | Repository Markdown and Obsidian image embeds; preview-images 15/15 both engines, screenshots and mutation evidence below. External/unsupported images visibly refused; bounded reads and stale-result guards. |
+| N13 | 26 | todo | Owner's request 2026-09-27, 1 of 5 |
+| N14 | 27 | todo | Owner's request 2026-09-27, 2 of 5 |
+| N15 | 28 | todo | Owner's request 2026-09-27, 3 of 5 |
+| N16 | 29 | todo | Owner's request 2026-09-27, 4 of 5 |
+| N17 | 30 | todo | Owner's request 2026-09-27, 5 of 5 |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -421,6 +426,26 @@ The app is 141,592 bytes with no new runtime dependency or host.
 - Fresh reviewer found that "Sign out removes that browser's drafts" overstated cleanup for duplicated session-only tabs. The new regression failed 29/30 (`tests/h3-review-before.log`); the entry now distinguishes shared remembered drafts from the current tab's session drafts and requires signing out in each session-only tab separately. The reviewer confirmed Discard waits for a successful read and the rename itself is atomic; the entry also clarifies that unsaved edits are saved before the rename commit.
 - Six misleading wording variants independently failed their checks: release gate, owner setup, copy before Discard, sign-out draft removal, independent session tabs and separate phone storage (`tests/h3-mutations.log`, `tests/screens/h3-mutation-*.log`). No runtime safeguard changed.
 - Viewed `tests/screens/h3-{desktop,phone}-{light,dark}.png`: readable app, reachable controls and no overflow. No app code, dependency, build step or request changed; index.html remains 127,373 bytes. All 25 Chromium suites passed three consecutive full runs: `tests/screens/h3-gauntlet/run-{1,2,3}.json`. WebKit F2 and the owner's real-phone/real-GitHub tests remain outstanding; the changelog says so.
+
+### After the MVP: the owner's requests (2026-09-27), in the order agreed
+The owner asked for all five; N13 and N14 now, the rest later.
+
+### N13: plan: pin every CDN file to its hash (Subresource Integrity)
+- Why: the editor (CodeMirror: one stylesheet, three scripts), the Markdown renderer and its sanitiser run inside the page, with the person's GitHub sign-in in reach. marked and DOMPurify are pinned already; CodeMirror is not.
+- Done looks like: every `cdnjs` tag in `index.html` carries `integrity` and `crossorigin="anonymous"`; a changed file is refused by the browser and the app falls back to the plain editor with its visible badge; a check run where cdnjs can be reached (CI) proves each hash matches the bytes cdnjs serves, and fails the build the day they differ.
+
+### N14: plan: conflict recovery without copy and Discard
+- Why: today a conflict means "copy your text, then Discard to load theirs": the roughest moment in the app.
+- Done looks like: when GitHub refuses a save because the file changed, the app fetches their version and merges it with yours against the version you started from (three-way, by line). Changes to different lines are combined and saved in one commit, and the person is told. Changes to the same lines are never guessed at: the person chooses to keep theirs as the file and save mine as a new note beside it ("… (my copy).md"), or keep editing. Nothing either side wrote is lost in any path; no conflict markers are written into a note.
+
+### N15: plan: pins that follow you between devices
+- A note is pinned by a line in the note itself (for example `pinned: true` in its frontmatter), an ordinary property other editors show and keep; the Pinned section lists every such note. No app-specific file in the repository (rule 2). Per-browser pins carry over.
+
+### N16: plan: add images to a note
+- Paste or drop an image into a note: it is committed as an attachment (the vault's Obsidian attachment folder when set, otherwise beside the note) and linked where the cursor is; size limit and type check; S4 shows it in the preview.
+
+### N17: plan: backlinks
+- A "Linked from" list under the open note: notes whose wikilinks or Markdown links resolve to it, found with the same bounded reads as S2's search, with its limits said.
 
 ## Needs the owner
 

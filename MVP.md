@@ -632,6 +632,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-25: A3 goes before A2: the signed-out screen links to the privacy note, so the note has to exist first.
 - 2026-09-25: At the owner's request, `main` was fast-forwarded to aaa113f (everything up to A2, plus F2 in progress: Chromium green in CI, WebKit not yet). The release gate still applies before sharing the link.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
+- 2026-09-27: The owner raised the size limit for `index.html` from 150 KB to 200 KB (204,800 bytes), now enforced by `tests/size.test.mjs`. Whether the file needs a clean-up is assessed after N15.
 
 ## Log
 (one line per iteration: date, item, result, commit)

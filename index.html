@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-myBUKJOR/SszduIJrJvCKNTZju0NzbmHF7g32NxOHf8=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-o8Y93+Yjkp8OHMGYPqFFj4+J5o4lF7FZLKT1iBZvM5g=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -1308,10 +1308,10 @@ var loadNote = "";             // said once the next file list is in (it clears 
 	 is in, nothing is written; an answer about a repository no longer shown
 	 is ignored; no answer at all (offline) blocks nothing, since writes
 	 would fail anyway and drafts keep the text. */
-var pinWriting = Promise.resolve();   // every pinned-task commit asked for so far, settling either way
-var pinNext = pathMap();   // path -> { raw, text, onFail } waiting for the commit before it
+var pinWriting = Promise.resolve(); // all pinned commits so far, settled
+var pinNext = pathMap(); // path -> job waiting for the one before
 var pinBusy = pathMap();   // path -> true while a commit to it is on its way
-var pinEpoch = 0;          // counts changes of repository: a reply from before one is ignored
+var pinEpoch = 0; // bumped on changing repository; older replies ignored
 var accessSeq = 0;
 var accessPending = false;
 function checkAccess() {
@@ -2004,7 +2004,7 @@ function saveCurrent(auto) {
 					setCrumb(path, "(conflict, not saved)");
 					showDiscard(true, true);
 				}
-				flash("Conflict: " + path + " changed on GitHub where you edited it. Save yours as a copy beside it, or Discard to load theirs.", true);
+				flash("Conflict: " + path + " changed on GitHub where you edited it. " + (current === doc ? "Save yours as a copy beside it, or Discard to load theirs." : "Your text is kept as a draft."), true);
 			});
 		}
 		doc.merged = false;
@@ -2019,8 +2019,7 @@ function saveCurrent(auto) {
 	});
 	inflight = { key: key, done: done };
 }
-/* A save refused as the note changed on GitHub: merge theirs and mine
-   against the known start (not a stale draft's), once; the queue saves it. */
+// A save refused as the note changed on GitHub: merge once, against a known start.
 function mergeTheirs(doc) {
 	if (current !== doc || doc.stale || doc.merged || doc.unsure) return Promise.reject();
 	return readNote(doc.path).then(function (r) {
@@ -2030,13 +2029,20 @@ function mergeTheirs(doc) {
 		doc.base = r.base;
 		doc.saved = r.text;
 		doc.merged = true;
+		// The caret moves with its text; Undo must not restore the pre-merge
+		// text (the next save would drop their lines).
+		var old = editor.getValue(), at = editor.caret ? editor.caret() : editor.indexFromPos(editor.getCursor()), p = 0, s = 0;
+		while (p < old.length && old[p] === merged[p]) p++;
+		while (s < old.length - p && s < merged.length - p && old[old.length - 1 - s] === merged[merged.length - 1 - s]) s++;
 		editor.setValue(merged);
+		editor.clearHistory();
+		at = at <= p ? at : at >= old.length - s ? at + merged.length - old.length : merged.length - s;
+		if (editor.caret) editor.getWrapperElement().setSelectionRange(at, at); else editor.setCursor(editor.posFromIndex(at));
 		syncDraft();
 		saveAgain = { doc: doc, auto: false };
 	});
 }
-// Where each line of `o` is kept in `x`, or -1 (longest common subsequence
-// between the common ends); null if too large to compare.
+// Where each line of `o` is in `x` (LCS), or -1; null if too large.
 function keptLines(o, x) {
 	var m = [], s = 0, e = 0, n = o.length, k = x.length, L = [], i, j;
 	while (s < n && s < k && o[s] === x[s]) { m[s] = s; s++; }
@@ -2054,12 +2060,16 @@ function keptLines(o, x) {
 	for (i = 0; i < n; i++) if (m[i] === undefined) m[i] = -1;
 	return m;
 }
-// Three-way merge by line: each stretch between lines neither side touched
-// comes from whichever side changed it; changed differently by both: null.
+// Three-way line merge: what one side changed, or null if both did.
 function merge3(base, mine, theirs) {
 	var o = base.split("\n"), a = mine.split("\n"), b = theirs.split("\n");
 	var ma = keptLines(o, a), mb = keptLines(o, b), out = [], io = 0, ia = 0, ib = 0, i;
 	if (!ma || !mb) return null;
+	// Both removing from one run of identical lines: which copy is unknowable.
+	for (i = 0; i < o.length; i = j) {
+		for (var j = i + 1, da = ma[i] < 0, db = mb[i] < 0; o[j] === o[i] && j < o.length; j++) { da = da || ma[j] < 0; db = db || mb[j] < 0; }
+		if (j - i > 1 && da && db) return null;
+	}
 	function same(x, y) { return x.length === y.length && x.join("\n") === y.join("\n"); }
 	for (i = 0; i <= o.length; i++) {
 		if (i < o.length && (ma[i] < 0 || mb[i] < 0)) continue;
@@ -2081,12 +2091,21 @@ function saveCopy() {
 	do to = m[1] + " (my copy" + (n > 1 ? " " + n : "") + ")" + (m[2] || "");
 	while (n++, files.some(function (f) { return f.path === to; }));
 	flash("Saving your version as " + to + "...");
+	moving = true;                         // nothing typed meanwhile could be kept
+	editorLock();
 	writeFile(to, rawFor(editor.getValue(), doc.base), null).then(function () {
+		moving = false;
 		if (current !== doc) return;
 		var said = loadNote = "Your version is saved as " + to + "; " + doc.path.split("/").pop() + " shows theirs.";
 		refreshTree();
 		openFile(doc.path, true).then(function () { flash(said); });
-	}, fail);
+	}, function (err) {
+		moving = false;
+		editorLock();
+		if (err.status !== 409 && err.status !== 422) return fail(err);
+		loadNote = to + " exists already. Press Save as copy again for another name.";
+		refreshTree();                         // so the next try sees it
+	});
 }
 function newFile() {
 	var path = prompt("New note path", suggestPath());
@@ -2381,11 +2400,8 @@ function suggestPath() {
 	return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + ".md";
 }
 /* ================================================================
-	 PINNED FILES
-	 A pinned file is rendered as a task list: every line matching
-	 "- [ ] text" or "- [x] text" becomes a checkbox, and headings become
-	 section labels. Toggling rewrites that one line and commits. The file
-	 stays ordinary markdown, readable in any other editor.
+	 PINNED FILES: "- [ ]" lines as checkboxes, headings as labels; a tick
+	 rewrites that one line. The file stays ordinary markdown.
 	 ================================================================ */
 function renderPinTabs() {
 	var host = $("pin-tabs");
@@ -2658,10 +2674,9 @@ function toggleTask(path, index, checked) {
 	lines[index] = lines[index].replace(/\[([ xX])\]/, checked ? "[x]" : "[ ]");
 	if (commitPin(path, lines.join("\n")) === false) renderPins();   // not saved: show it as it is
 }
-/* Remove task lines in one commit, with a moment to undo instead of a
-	 question first (the repository's history keeps every line anyway).
-	 `gone` is [{ index, line }] as the rows were drawn, in order. */
-var pinUndo = null;   // { path, gone, timer } while Undo is offered; withdrawn on changing repository
+// Remove task lines in one commit, then offer Undo rather than ask first.
+// `gone`: [{ index, line }] as drawn, in order.
+var pinUndo = null; // { path, gone, timer } while offered
 function removeTasks(path, gone, said) {
 	var cached = pinCache[path];
 	if (!cached) return;
@@ -2697,10 +2712,8 @@ function undoRemove() {
 	if (!u) return;
 	var cached = pinCache[u.path];
 	if (!cached) { flash("Still loading that file. Try Undo again in a moment.", true); return; }
-	// The positions hold only in the text the lines were taken from, give or
-	// take ticks and tasks added at the end since. Anything else (lines added
-	// or removed above, here or in another tab) and a line would land in the
-	// wrong place: nothing is put back, and the history on GitHub still has it.
+	// Positions hold only in the text the lines left (ticks and tasks added
+	// at the end aside); otherwise a line could land in the wrong place.
 	var now = untick(cached.text), then = untick(u.left);
 	if (now !== then && now.indexOf(then.replace(/\s*$/, "") + "\n") !== 0) {
 		hideUndo();
@@ -2710,8 +2723,7 @@ function undoRemove() {
 	var lines = cached.text.split("\n");
 	// In order, so each line goes back where it was.
 	u.gone.forEach(function (g) { lines.splice(g.index, 0, g.line); });
-	// Offered until GitHub has taken it: a refusal or a failure offers it again
-	// (and the check above then says if the file has moved on).
+	// A refusal or failure offers it again.
 	var ok = commitPin(u.path, lines.join("\n"), function () { showUndo(u); });
 	if (ok !== false) hideUndo();
 }
@@ -2742,10 +2754,8 @@ function commitPin(path, text, onFail, capture) {
 	pinCache[path] = { text: text, sha: sha, base: baseOf(raw) };   // optimistic: redraw immediately
 	renderPins();
 	flash("Saving...");
-	/* Each commit names the version it replaces, and the next version is
-		 known only once GitHub answers. So writes to a pinned file go one at a
-		 time: clicks while one is on its way wait, and share one commit that
-		 carries the latest state. https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents */
+	// Each commit names the version it replaces, known only once GitHub
+	// answers: one write at a time per file; clicks meanwhile share the next.
 	var job = pinNext[path] || { onFail: [], captures: [] };
 	job.raw = raw;
 	job.text = text;
@@ -2765,8 +2775,7 @@ function sendPin(path) {
 	return writeFile(path, job.raw, sha).then(function (r) {
 		if (pinEpoch !== epoch) return;      // another repository by now
 		if (pinCache[path]) pinCache[path].sha = r.sha;
-		// The open note follows every commit, so a later one failing leaves it
-		// at what GitHub has, not a version behind.
+		// The open note follows every commit, lest a later failure leave it behind.
 		if (current && current.path === path && !dirty()) {
 			current.sha = r.sha;
 			current.saved = job.text;
@@ -3020,9 +3029,7 @@ function pointAt(owner, repo, branch, pins, prepared) {
 	return changedRepo;
 }
 function showPointed(changedRepo) {
-	// Same repository (pins or settings saved): a pinned file with a commit
-	// on its way keeps what it is writing, and what waits behind it, rather
-	// than a read taken before the commit lands.
+	// Same repository: a pinned file being written keeps its state and queue.
 	var keep = pathMap();
 	if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
 	pinCache = keep;

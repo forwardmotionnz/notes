@@ -231,16 +231,19 @@ const CM_STUB = `
 window.CodeMirror = function (host, opts) {
   var ta = document.createElement('textarea'); ta.id = 'cm-stub';
   ta.style.cssText = 'flex:1;width:100%;border:0'; host.appendChild(ta);
-  var hs = [], cm;
+  var hs = [], cm, history = [], last = '';
   // Like CodeMirror 5, "change" fires for setValue too, tagged with its origin.
   var fire = function (origin) { hs.forEach(function (h) { h(cm, { origin: origin }); }); };
   var readOnly = false;
   // Like CodeMirror, a read-only editor takes no input at all.
   ta.addEventListener('beforeinput', function (e) { if (readOnly) e.preventDefault(); });
-  ta.addEventListener('input', function () { if (!readOnly) fire('+input'); });
+  ta.addEventListener('input', function () { if (!readOnly) { history.push(last); last = ta.value; fire('+input'); } });
   ta.value = (opts && opts.value) || '';
   return cm = { getValue: function () { return ta.value; },
-    setValue: function (v) { ta.value = v; fire('setValue'); },
+    // Like CodeMirror 5, setValue is itself a step Undo goes back over,
+    // until clearHistory. https://codemirror.net/5/doc/manual.html#undo
+    setValue: function (v) { history.push(last); ta.value = last = v; fire('setValue'); },
+    undo: function () { if (history.length) { ta.value = last = history.pop(); fire('undo'); } },
     setOption: function (k, v) { if (k === 'readOnly') { readOnly = !!v; ta.readOnly = !!v; } },
     // CodeMirror 5's cursor API: {line, ch} positions, and their offset.
     getCursor: function () {
@@ -253,7 +256,13 @@ window.CodeMirror = function (host, opts) {
       return i + pos.ch;
     },
     getWrapperElement: function () { return ta; },
-    clearHistory: function () {}, focus: function () { ta.focus(); },
+    clearHistory: function () { history = []; }, focus: function () { ta.focus(); },
+    // https://codemirror.net/5/doc/manual.html#posFromIndex , #setCursor
+    posFromIndex: function (i) {
+      var before = ta.value.slice(0, i).split('\\n');
+      return { line: before.length - 1, ch: before[before.length - 1].length };
+    },
+    setCursor: function (pos) { var i = cm.indexFromPos(pos); ta.setSelectionRange(i, i); },
     // Counted, so tests can see when the app asks for them.
     refresh: function () { window.cmRefreshes = (window.cmRefreshes || 0) + 1; },
     scrollIntoView: function () { window.cmScrolls = (window.cmScrolls || 0) + 1; },

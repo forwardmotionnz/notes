@@ -234,5 +234,99 @@ const drafts = p => p.evaluate(() => Object.keys(localStorage).filter(k => k.sta
   await ctx.close();
 }
 
+/* ===== review: Undo after a merge cannot bring their lines back out ===== */
+{
+  const { gh, ctx, p } = await ready();
+  elsewhere(gh, 'ONE (theirs)\ntwo\nthree\nfour\nfive\n');
+  await H.setEditor(p, 'one\ntwo\nthree\nfour\nFIVE (mine)\n');
+  await save(p);
+  const merged = gh.files['inbox.md'];
+  await p.evaluate(() => editor.undo && editor.undo());
+  await p.waitForTimeout(3500);                              // any autosave would have run
+  await H.settle(p, 1500);
+  t.check('undo after a merge: their line stays', gh.files['inbox.md'] === merged && (await H.editorValue(p)) === merged,
+    JSON.stringify(gh.files['inbox.md']) + ' / ' + JSON.stringify(await H.editorValue(p)));
+  await ctx.close();
+}
+
+/* ===== review: the caret stays where you were typing ===== */
+{
+  const { gh, ctx, p } = await ready();
+  elsewhere(gh, 'zero (theirs)\none\ntwo\nthree\nfour\nfive\n');   // a line added above
+  await H.setEditor(p, 'one\ntwo\nthree (mine)\nfour\nfive\n');
+  await p.evaluate(() => { const ta = document.querySelector('#cm-stub'); const i = ta.value.indexOf('(mine)') + 6; ta.setSelectionRange(i, i); });
+  await save(p);
+  const after = await p.evaluate(() => { const ta = document.querySelector('#cm-stub'); return ta.value.slice(0, ta.selectionStart); });
+  t.check('caret: still just after what I typed', after.endsWith('three (mine)'), JSON.stringify(after));
+  await ctx.close();
+}
+
+{
+  // The same in the plain editor (no CDN): the caret is the textarea's own.
+  const gh = H.fakeGitHub({ files: { 'inbox.md': BASE } });
+  const ctx = await H.context(gh, { noCdn: true });
+  const p = await H.page(ctx);
+  await H.signIn(p);
+  await H.clickRow(p, 'inbox.md');
+  elsewhere(gh, 'zero (theirs)\none\ntwo\nthree\nfour\nfive\n');
+  await H.setEditor(p, 'one\ntwo\nthree (mine)\nfour\nfive\n');
+  await p.evaluate(() => { const ta = document.querySelector('.fallback-editor'); const i = ta.value.indexOf('(mine)') + 6; ta.setSelectionRange(i, i); });
+  await save(p);
+  const after = await p.evaluate(() => { const ta = document.querySelector('.fallback-editor'); return ta.value.slice(0, ta.selectionStart); });
+  t.check('caret, plain editor: still just after what I typed', after.endsWith('three (mine)'), JSON.stringify(after));
+  t.check('caret, plain editor: merged and saved', gh.files['inbox.md'] === 'zero (theirs)\none\ntwo\nthree (mine)\nfour\nfive\n');
+  await ctx.close();
+}
+
+/* ===== review: nothing typed while the copy saves is lost ===== */
+{
+  const { gh, ctx, p } = await ready();
+  elsewhere(gh, 'one\ntwo (theirs)\nthree\nfour\nfive\n');
+  await H.setEditor(p, 'one\ntwo (mine)\nthree\nfour\nfive\n');
+  await save(p);
+  await ctx.route('https://api.github.com/repos/**/contents/**', async r => {
+    if (r.request().method() === 'PUT') await new Promise(res => setTimeout(res, 1200));
+    return r.fallback();
+  });
+  await p.click('#btn-copy');
+  await p.waitForTimeout(300);
+  t.check('copy saving: the note takes no typing meanwhile', await p.evaluate(() => document.querySelector('#cm-stub').readOnly));
+  await H.settle(p, 4000);
+  t.check('copy saving: then it takes typing again', await p.evaluate(() => !document.querySelector('#cm-stub').readOnly));
+  await ctx.close();
+}
+
+/* ===== review: one of several identical lines removed on both sides ===== */
+{
+  // Which copy each side meant is unknowable (git keeps two here, a naive
+  // merge one): not guessed.
+  const { gh, ctx, p } = await ready({ 'inbox.md': 'Title\nIntro\n\n\n\nBody\n' });
+  const theirs = 'Intro\n\n\n\nBody\n'.replace('\n\n\n\n', '\n\n\n');
+  elsewhere(gh, theirs);
+  await H.setEditor(p, 'Title\nIntro\n\n\nBody\n');
+  await save(p);
+  t.check('repeated lines: theirs untouched', gh.files['inbox.md'] === theirs, JSON.stringify(gh.files['inbox.md']));
+  t.check('repeated lines: keeping both offered', await p.isVisible('#btn-copy'));
+  await ctx.close();
+}
+
+/* ===== review: a copy name taken since the list was loaded ===== */
+{
+  const { gh, ctx, p } = await ready();
+  elsewhere(gh, 'one\ntwo (theirs)\nthree\nfour\nfive\n');
+  await H.setEditor(p, 'one\ntwo (mine)\nthree\nfour\nfive\n');
+  await save(p);
+  gh.files['inbox (my copy).md'] = 'made on another device\n'; gh.touch();
+  await p.click('#btn-copy');
+  await H.settle(p, 3000);
+  t.check('name taken meanwhile: never overwritten', gh.files['inbox (my copy).md'] === 'made on another device\n');
+  t.check('name taken meanwhile: says so', /exists already/.test(await p.textContent('#status')), await p.textContent('#status'));
+  await p.click('#btn-copy');
+  await H.settle(p, 3000);
+  t.check('name taken meanwhile: the next try uses a free name', gh.files['inbox (my copy 2).md'] === 'one\ntwo (mine)\nthree\nfour\nfive\n',
+    JSON.stringify(Object.keys(gh.files)));
+  await ctx.close();
+}
+
 await H.stop();
 t.finish();

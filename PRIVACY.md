@@ -12,6 +12,9 @@ cdnjs.cloudflare.com, alongside the existing editor library. Script integrity
 hashes verify the preview downloads. Note text is not sent to the CDN.
 Content search reads files directly from GitHub into browser memory and
 includes this repository's local drafts. It creates no persistent search index.
+Preview images are read through the same GitHub API with the current sign-in
+and displayed as image data in memory. External image URLs are not requested;
+no image proxy or extra host sees your notes. Image data is not persisted by Notes.
 
 - Your notes go between your browser and GitHub. They are not sent anywhere
   else by the app.

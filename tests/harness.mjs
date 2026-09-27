@@ -462,7 +462,7 @@ export async function context(gh, opts = {}) {
         // (checked against github/rest-api-description, "If the requested file's size is").
         const size = Buffer.byteLength(gh.files[path], gh.raw[path] ? 'latin1' : 'utf-8');
         if (size > 1024 * 1024) return json({ path, sha: gh.sha(path), size, encoding: 'none', content: '' });
-        return json({ path, sha: gh.sha(path),
+        return json({ path, sha: gh.sha(path), size, encoding: 'base64',
           content: Buffer.from(gh.files[path], gh.raw[path] ? 'latin1' : 'utf-8').toString('base64') });
       }
       // https://docs.github.com/en/rest/repos/contents#delete-a-file

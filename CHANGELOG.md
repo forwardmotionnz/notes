@@ -12,6 +12,10 @@ Record their results in the [release checklist](RELEASE_CHECKLIST.md).
 
 ### Added
 
+- Offline axe accessibility checks across desktop/phone, light/dark, sign-in,
+  tasks, editing, preview, search and settings. Preview task boxes and the
+  plain editor now have accessible labels.
+
 - Search inside note contents and local drafts from Files with Enter or Search
   contents. Filename filtering stays instant; bounded reads and visible
   incomplete-result notices keep larger repositories manageable.

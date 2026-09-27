@@ -47,6 +47,10 @@ elsewhere creates a differently named one, the app follows it and says so.
 
 ## Preview and search
 
+Automated accessibility checks use axe against the main views and plain-editor
+fallback, failing on serious or critical violations. They supplement manual
+keyboard and screen-reader testing; they do not certify full accessibility.
+
 Use **Preview** beside Save to read the current note, including unsaved edits,
 as rendered Markdown. **Edit** returns to the unchanged source. Frontmatter
 appears as text above the note; task boxes are read-only and wikilinks open

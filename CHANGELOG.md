@@ -11,6 +11,10 @@ in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
 
+- On a computer, the file list can be hidden (☰) and resized by dragging
+  its edge; both are remembered. A theme choice in Settings: the device's
+  setting, Light or Dark.
+
 - Pins follow you between devices: pinning a note adds `pinned: true` to
   its properties, and each device finds pinned notes by reading each note
   once (up to 500 per visit, then only notes that changed). Pins from before

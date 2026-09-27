@@ -187,7 +187,7 @@ async function device(gh, opts = {}) {
   await H.clickRow(p, 'mine.md');
   t.check('mid-scan: a scan is running', await p.evaluate(() => pinScanning));
   await p.click('#btn-pin');
-  await p.waitForFunction(() => !pinScanning && !saving, null, { timeout: 30000 });
+  await p.waitForFunction(() => treeState === 'ok' && !pinScanning && !saving, null, { timeout: 30000 });
   await H.settle(p, 500);
   t.check('mid-scan: the pin stays listed', (await pinTabs(p)).includes('mine.md'), JSON.stringify(await pinTabs(p)));
   await ctx.close();
@@ -239,7 +239,7 @@ async function device(gh, opts = {}) {
   await H.clickRow(p, 'z.md');
   t.check('scan adds a pin ahead: setup, not found yet', !(await pinTabs(p)).includes('a.md'));
   await p.evaluate(() => showTasks());
-  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  await p.waitForFunction(() => treeState === 'ok' && !pinScanning, null, { timeout: 30000 });
   await H.settle(p, 500);
   t.check('scan adds a pin ahead: still showing the same list', await p.evaluate(() => activePin()) === 'z.md', await p.evaluate(() => activePin()));
   t.check('scan adds a pin ahead: its tab still the one marked', (await p.textContent('#pin-tabs button.active')) === 'z.md');
@@ -266,7 +266,7 @@ async function device(gh, opts = {}) {
   for (let i = 0; i < 3; i++) { await p.click('#btn-refresh'); await p.waitForTimeout(300); }
   t.check('cut short: setup, still scanning', await p.evaluate(() => pinScanning));
   await p.reload();                                     // the page closed mid-scan
-  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  await p.waitForFunction(() => treeState === 'ok' && !pinScanning, null, { timeout: 30000 });
   const counted = reads.filter(r => r.startsWith('s/'));
   // Refreshing loses nothing; the page closing loses at most the four reads then in flight.
   t.check('cut short and refreshed: each note read once, bar those in flight at the close', new Set(counted).size === 60 && counted.length <= 64, `${counted.length} reads`);
@@ -275,7 +275,7 @@ async function device(gh, opts = {}) {
   await p.reload();
   await p.waitForSelector('#pin-tabs button');
   t.check('known pins show at once', (await pinTabs(p)).includes('pinned.md'));
-  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  await p.waitForFunction(() => treeState === 'ok' && !pinScanning, null, { timeout: 30000 });
   t.check('a note that cannot be opened is not read again', !reads.slice(mark).includes('bad.md'), JSON.stringify(reads.slice(mark)));
   await ctx.close();
 }
@@ -294,11 +294,11 @@ async function device(gh, opts = {}) {
   offline = true;
   const p = await H.page(ctx);
   await H.signIn(p);
-  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  await p.waitForFunction(() => treeState === 'ok' && !pinScanning, null, { timeout: 30000 });
   t.check('offline: the scan stops instead of trying every note', tries > 0 && tries <= 4, `${tries} tries`);
   offline = false;
   await p.click('#btn-refresh');
-  await p.waitForFunction(() => !pinScanning, null, { timeout: 30000 });
+  await p.waitForFunction(() => treeState === 'ok' && !pinScanning, null, { timeout: 30000 });
   await H.settle(p, 500);
   t.check('back online: carries on', (await pinTabs(p)).includes('z.md'), JSON.stringify(await pinTabs(p)));
   p.errors.length = 0;

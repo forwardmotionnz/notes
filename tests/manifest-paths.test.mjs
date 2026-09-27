@@ -30,7 +30,7 @@ const apple = existsSync(applePath) ? readFileSync(applePath) : null;
 t.check('Apple receives a real 180px PNG', apple?.subarray(0, 8).toString('hex') === '89504e470d0a1a0a' &&
   apple.readUInt32BE(16) === 180 && apple.readUInt32BE(20) === 180);
 t.check('the separate iPhone home-screen sign-in and drafts are explained',
-  /On iPhone or iPad[\s\S]*sign in again[\s\S]*drafts[\s\S]*stay in the browser/.test(readFileSync(new URL('README.md', root), 'utf8')));
+  /On iPhone or iPad[\s\S]*sign in again[\s\S]*drafts[\s\S]*stay in the browser/.test(readFileSync(new URL('docs/guide.md', root), 'utf8')));
 t.check('a scalable browser icon is linked', /<link rel="icon" href="icon.svg" type="image\/svg\+xml">/.test(html));
 t.check('no service worker is installed', !/serviceWorker\s*\.\s*register/.test(html));
 

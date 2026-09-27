@@ -118,7 +118,7 @@ async function setPins(p, pins) {
 {
   const { gh, ctx, p } = await ready();
   p.removeAllListeners('dialog');
-  p.on('dialog', d => d.type() === 'prompt' ? d.accept('projects/holflo/ideas') : d.accept());
+  p.on('dialog', d => d.type() === 'prompt' ? d.accept('projects/orchard/ideas') : d.accept());
   await p.click('#btn-new');
   await H.settle(p, 150);
   t.check('extension appended', (await p.textContent('#crumb .name')) === 'ideas.md');
@@ -127,8 +127,8 @@ async function setPins(p, pins) {
   await H.settle(p, 60);
   await p.click('#btn-save');
   await H.settle(p, 450);
-  t.check('nested file created', gh.files['projects/holflo/ideas.md'] === '# Ideas\n');
-  t.check('create commit worded as create', gh.commits.at(-1).message === 'Create projects/holflo/ideas.md');
+  t.check('nested file created', gh.files['projects/orchard/ideas.md'] === '# Ideas\n');
+  t.check('create commit worded as create', gh.commits.at(-1).message === 'Create projects/orchard/ideas.md');
   t.check('tree refreshed', (await H.rows(p)).includes('projects'));
   await ctx.close();
 }

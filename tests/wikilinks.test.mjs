@@ -6,19 +6,19 @@ await H.start();
 
 const DAILY = [
   '# 2026-09-25',
-  'See [[Holflo hardware]] today.',
-  'Also [[holflo HARDWARE|the kit]].',
+  'See [[Orchard hardware]] today.',
+  'Also [[orchard HARDWARE|the kit]].',
   'And [[Missing note]].',
   'Yesterday: [[Daily/2026-09-24]].',
-  'Specs: [[Holflo hardware#Specs]].',
+  'Specs: [[Orchard hardware#Specs]].',
   'Plain text here.',
   '',
 ].join('\n');
 const VAULT = () => ({
   // Listed deepest first, so the shortest path has to be chosen, not met first.
-  '.trash/Holflo hardware.md': '# trashed\n',
-  'Archive/Old/2020/Holflo hardware.md': '# old copy\n',
-  'Projects/Holflo/Holflo hardware.md': '# Holflo hardware\n\nthe right one\n',
+  '.trash/Orchard hardware.md': '# trashed\n',
+  'Archive/Old/2020/Orchard hardware.md': '# old copy\n',
+  'Projects/Orchard/Orchard hardware.md': '# Orchard hardware\n\nthe right one\n',
   'Daily/2026-09-25.md': DAILY,
   'Daily/2026-09-24.md': '# 2026-09-24\n',
   'todo.md': '',
@@ -58,17 +58,17 @@ async function run(label, ctxOpts) {
   p.on('dialog', d => { p.asked.push(d.message()); return p.answer ? d.accept() : d.dismiss(); });
 
   await open();
-  await hit(p, 'Holflo hardware]]', 'mouse');
+  await hit(p, 'Orchard hardware]]', 'mouse');
   t.check(`${label}: a plain click only places the cursor`, (await name(p)) === '2026-09-25.md');
 
-  await hit(p, 'Holflo hardware]]', 'ctrl');
-  t.check(`${label}: Ctrl-click opens the linked note`, (await name(p)) === 'Holflo hardware.md');
-  t.check(`${label}: the shortest path wins, the trash is ignored`, (await dir(p)) === 'Projects/Holflo/' &&
+  await hit(p, 'Orchard hardware]]', 'ctrl');
+  t.check(`${label}: Ctrl-click opens the linked note`, (await name(p)) === 'Orchard hardware.md');
+  t.check(`${label}: the shortest path wins, the trash is ignored`, (await dir(p)) === 'Projects/Orchard/' &&
     (await H.editorValue(p)).includes('the right one'), await dir(p));
 
   await open();
   await hit(p, 'the kit', 'meta');
-  t.check(`${label}: Cmd-click on an alias, any case, opens it too`, (await name(p)) === 'Holflo hardware.md');
+  t.check(`${label}: Cmd-click on an alias, any case, opens it too`, (await name(p)) === 'Orchard hardware.md');
 
   await open();
   await hit(p, 'Daily/2026-09-24', 'ctrl');
@@ -76,13 +76,13 @@ async function run(label, ctxOpts) {
 
   await open();
   await hit(p, 'hardware#Specs', 'ctrl');
-  t.check(`${label}: a link to a heading opens the note`, (await name(p)) === 'Holflo hardware.md');
+  t.check(`${label}: a link to a heading opens the note`, (await name(p)) === 'Orchard hardware.md');
 
   await open();
-  await hit(p, 'Holflo hardware]] today', 'tap');
-  await p.waitForFunction(() => current?.path === 'Projects/Holflo/Holflo hardware.md' &&
+  await hit(p, 'Orchard hardware]] today', 'tap');
+  await p.waitForFunction(() => current?.path === 'Projects/Orchard/Orchard hardware.md' &&
     editor.getValue().includes('the right one'), null, { timeout: 5000 });
-  t.check(`${label}: a tap on a phone opens it`, (await name(p)) === 'Holflo hardware.md');
+  t.check(`${label}: a tap on a phone opens it`, (await name(p)) === 'Orchard hardware.md');
 
   await open();
   await hit(p, 'Plain text', 'ctrl');

@@ -159,5 +159,5 @@ because it keeps nothing.
 You can run your own copy, with your own GitHub App, your own page and your
 own broker, so the only people you trust are GitHub and the companies that
 host the page and the broker (GitHub Pages and Cloudflare, unless you
-choose others). The README's *Setup* section walks through it: about twenty
+choose others). [Running your own copy](docs/self-hosting.md) walks through it: about twenty
 minutes, with a GitHub account and a free Cloudflare account.

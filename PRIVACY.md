@@ -1,7 +1,7 @@
 # Privacy
 
-Notes is a web page that edits markdown files in GitHub repositories. There
-is no Notes database, no account with us, no analytics and no tracking.
+Padgit is a web page that edits markdown files in GitHub repositories. There
+is no Padgit database, no account with us, no analytics and no tracking.
 This page says exactly who can see what, including the parts that depend
 on trusting whoever runs the copy you are using.
 
@@ -15,7 +15,7 @@ Content search reads files directly from GitHub into browser memory and
 includes this repository's local drafts. It creates no persistent search index.
 Preview images are read through the same GitHub API with the current sign-in
 and displayed as image data in memory. External image URLs are not requested;
-no image proxy or extra host sees your notes. Image data is not persisted by Notes.
+no image proxy or extra host sees your notes. Image data is not persisted by Padgit.
 
 - Your notes go between your browser and GitHub. They are not sent anywhere
   else by the app.
@@ -23,7 +23,7 @@ no image proxy or extra host sees your notes. Image data is not persisted by Not
   only to their contents (read and write).
 - A small helper, the broker, is used only to sign you in. It stores nothing
   and logs nothing, and your notes never pass through it.
-- Whoever runs the copy of Notes you use (its GitHub App and its web page)
+- Whoever runs the copy of Padgit you use (its GitHub App and its web page)
   is someone you are trusting with those repositories. If that is not you,
   read [Who you are trusting](#who-you-are-trusting).
 - Your sign-in and any unsaved changes are kept in your browser until you
@@ -82,7 +82,7 @@ data only to GitHub and the broker.
 
 ## Who you are trusting
 
-If you use someone else's copy of Notes, you are trusting that person, not
+If you use someone else's copy of Padgit, you are trusting that person, not
 just this code:
 
 - **Their GitHub App.** Installing it grants the app itself read and write
@@ -144,7 +144,7 @@ On GitHub, click your profile picture, then **Settings**, then
 - **Authorized GitHub Apps**
   (<https://github.com/settings/apps/authorizations>): press **Revoke** next
   to the app. Every token and refresh token it holds for you stops working,
-  everywhere; open Notes tabs sign out the next time they talk to GitHub.
+  everywhere; open Padgit tabs sign out the next time they talk to GitHub.
 - **Installed GitHub Apps** (<https://github.com/settings/installations>):
   press **Configure** next to the app to change which repositories it can
   use, or **Uninstall** to remove it from your account. Uninstalling is

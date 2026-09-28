@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-e6GxB7q6wSlWi8L4AuDpsIE9yEx+dctBX1p0nvEvgjw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-CUkLb4au+hrkWU7gC9vjhy+0lthZs3cBAHFH80EjC7A=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>Notes</title>
+<title>Padgit</title>
 <!-- Add to Home Screen: the manifest for Android and desktop, the touch
 		 icon and title for iOS, which does not use the manifest's icons. -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="apple-mobile-web-app-title" content="Notes">
+<meta name="apple-mobile-web-app-title" content="Padgit">
 <meta name="theme-color" content="#2f6f4f" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16181c" media="(prefers-color-scheme: dark)">
 <!-- Single-file Markdown app; no build. GitHub is the data model.
@@ -184,6 +184,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #note-summary[hidden]{display:none;}
 #note-save-time{color:var(--fg-soft);}
 #note-word-count{margin-left:auto;}
+#domain-notice{flex:none;max-height:25%;overflow:auto;padding:7px 12px;background:var(--accent-soft);font-size:12px;}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
@@ -206,6 +207,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		<button class="plain" id="btn-tasks" hidden>Tasks</button>
 		<button class="plain" id="btn-settings" title="Settings">&#9881;</button>
 	</header>
+	<details id="domain-notice" hidden><summary>Notes is now Padgit. Save your notes before the planned address change.</summary><p>The planned address is <span id="domain-target"></span>. Save all notes and copy out any unsaved drafts before the move. Sign-ins and local drafts do not move between addresses. Keep using this address until the move is announced.</p></details>
 	<main>
 		<aside id="sidebar">
 			<div id="sidebar-tools">
@@ -251,7 +253,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 	<!-- Signed out -->
 	<div id="view-signin">
 		<div class="dlg-body">
-			<h2>Notes</h2>
+			<h2>Padgit</h2>
 			<!-- Three sentences: what it is, what it asks GitHub for, where notes
 					 live. PRIVACY.md is published beside the app as PRIVACY.html by
 					 GitHub Pages; docs/self-hosting.md says so for other hosts. -->
@@ -293,16 +295,16 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 				<button id="f-retry">Try again</button></p>
 			<div id="firstrun" hidden>
 				<h2>Now, a place for your notes</h2>
-				<p>Your notes live in a GitHub repository of your own. Make one, then let Notes use it.</p>
+				<p>Your notes live in a GitHub repository of your own. Make one, then let Padgit use it.</p>
 				<ol>
 					<li><a id="fr-create" class="step primary" target="_blank" rel="noopener"
 								 href="https://github.com/new?name=notes&amp;visibility=private">1. Create a repository</a>
 						<em>On GitHub, in a new tab. The name and Private are filled in: press Create repository.
 						Already have one to use? Go to step 2.</em></li>
-					<li><a id="fr-install" class="step" target="_blank" rel="noopener">2. Let Notes use it</a>
+					<li><a id="fr-install" class="step" target="_blank" rel="noopener">2. Let Padgit use it</a>
 						<em>Choose Only select repositories, pick yours, then press Install (or Save).</em></li>
 				</ol>
-				<p class="hint"><span id="fr-status">Then come back here, to this tab or the Notes app: it notices by itself.</span>
+				<p class="hint"><span id="fr-status">Then come back here, to this tab or the Padgit app: it notices by itself.</span>
 					<button id="fr-check">Check now</button></p>
 			</div>
 			<div id="account-form">
@@ -348,7 +350,9 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 {
 	"clientId": "Iv23liBrUeC67BfCYF9c",
 	"appSlug":  "forwardmotion-notes",
-	"broker":   "https://notes-token-broker.forwardmotionnz.workers.dev"
+	"broker":   "https://notes-token-broker.forwardmotionnz.workers.dev",
+	"migrationFrom": "https://forwardmotionnz.github.io/notes/",
+	"migrationTo": "https://padgit.com/"
 }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js" integrity="sha384-J1VD5X/E72gORmmXiADelqS192/84qho9IALLC3d5oxjp1RgEN3He4ANyjqXyz10" crossorigin="anonymous"></script>
@@ -362,6 +366,11 @@ try {
 } catch (e) {}                         // unreadable: treated as not set up
 // Tests and forks can override without editing the file.
 if (window.NOTES_DEPLOYMENT) DEPLOYMENT = Object.assign({}, DEPLOYMENT, window.NOTES_DEPLOYMENT);
+// A notice only: never move a person away from an origin holding their drafts.
+if (DEPLOYMENT.migrationFrom === location.origin + location.pathname && DEPLOYMENT.migrationTo) {
+	document.getElementById("domain-target").textContent = DEPLOYMENT.migrationTo;
+	document.getElementById("domain-notice").hidden = false;
+}
 function filledIn() {
 	return !!(DEPLOYMENT.clientId && DEPLOYMENT.appSlug && DEPLOYMENT.broker) &&
 		!/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);
@@ -3155,8 +3164,8 @@ function accountView(mode) {
 var firstRunShown = false;
 function firstRun() {
 	$("fr-status").textContent = firstRunShown
-		? "Still no repository Notes can use. Finish both steps on GitHub, then come back."
-		: "Then come back here, to this tab or the Notes app: it notices by itself.";
+		? "Still no repository Padgit can use. Finish both steps on GitHub, then come back."
+		: "Then come back here, to this tab or the Padgit app: it notices by itself.";
 	var first = !firstRunShown;
 	firstRunShown = true;
 	accountView("firstrun");
@@ -3606,7 +3615,7 @@ function start() {
 		if (!r || !r.installed) return;
 		// start() has already opened settings when no repository is chosen yet.
 		if (signedIn()) { if (configured()) openSettings(); return; }
-		showSignIn("", "Back from GitHub. If you started in another Notes tab, or in the Notes app on " +
+		showSignIn("", "Back from GitHub. If you started in another Padgit tab, or in the Padgit app on " +
 							 "your home screen, close this and carry on there. Otherwise sign in to use the " +
 							 "repositories you chose.");
 		// Nothing here says whether they wanted to be remembered on this

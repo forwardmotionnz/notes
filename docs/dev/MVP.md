@@ -204,7 +204,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N19 | 30 | done | `tests/theme.test.mjs` 20/20 (new suite): Auto follows the device both ways and is the default; Light and Dark override it at once, with the browser bar colour and form controls; remembered, and in place (with the bar colour) before the app's script has run; signing out keeps it; Auto again forgets it; storage refused, the app still starts; the privacy note lists `notes.theme`. Commit in the log |
 | N20 | 31 | done | Quick switcher 13/13 both engines; switching 33/33 and hostile 28/28 both engines. Independent review's IME finding fixed; hidden-path and composition mutations caught. Screens `tests/screens/n20-{1280,390}-{light,dark}.png` viewed. Final combined PR CI follows N31. |
 | N21 | 32 | done | `note-status` 13/13 both engines, autosave 22/22, conflict 53/53 and axe 33/33 both engines. Four safeguard mutations caught. Review fixes: replaced drafts withdraw local-copy reassurance; lost save replies after undo remain uncertain. Screens `tests/screens/n21-{1280,390}-{light,dark}.png` viewed. |
-| N34 | 33 | todo | Owner's request 2026-09-28: rename to Padgit, served at padgit.com |
+| N34 | 33 | doing | Padgit branding and pre-move notice prepared; custom-domain sign-in/save 11/11 both engines; axe 41/41 and privacy 41/41 both engines. Review fixes: wait across mocked auth navigation; cap notice height with phone keyboard open. Eight screenshots viewed. Awaiting owner name confirmation and coordinated DNS/Pages/App/broker cutover; see `docs/padgit-migration.md`. No domain/secret/account changes made. |
 | N31 | 34 | todo | Owner's request 2026-09-28: About (version and links) |
 | N22 | 35 | todo | UX review 2026-09-28: back and forward between notes |
 | N23 | 36 | todo | UX review 2026-09-28: readable width and text size |
@@ -528,6 +528,15 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 - Settings gains "About": the version (starting at 1.0.0, since the release checks passed), links to the GitHub repository, the privacy note, the changelog and "Report a bug". The version lives in the app and in CHANGELOG.md, and a test keeps them in step. The repository link sits in the deployment block, with room for a support link (empty until N35), so each copy shows its own. Publishing a GitHub release for each version is the owner's call.
 
 ### N34: plan: rename to Padgit, served at padgit.com
+- Preparation 2026-09-29 after N21 (`2d9edb9`): visible branding renamed;
+  notes/storage keys and current working URL retained. Separate cutover broker
+  config prepared; no CNAME committed prematurely. Manifest/auth assertions
+  now expect Padgit with the original assertions retained. Name web search
+  found no obvious software match, not trade-mark clearance.
+  Custom-origin tests use the existing navigation shim in Chromium too:
+  Playwright does not re-intercept a fulfilled 302's destination. This is a
+  test transport constraint, not a change to OAuth behaviour. Await the app's
+  loaded state across navigation. Screens `tests/screens/n34-*-{signin,notice}.png`.
 - Why: "Notes" is the name of every phone's own app, so this one cannot be searched for or told apart; the owner has bought padgit.com, an address that stays the same whatever hosts it (GitHub Pages serves a custom domain over HTTPS, and redirects the old github.io address to it).
 - Done looks like: the app is called Padgit everywhere a person sees a name (page title, home-screen name and label, sign-in screen, messages, README and docs, the privacy note, issue templates); the app and its tests work at `https://padgit.com/` (the deployment block, the broker's allowed origin and redirect address, the README's links); notes, files and storage names (`notes.*`) are unchanged. A notice on the old address, shipped before the switch, asks people to save their changes because browser storage does not move with the address (sign-ins and unsaved drafts stay with the old address; everyone signs in once more).
 - The switch is the owner's (Needs the owner): DNS, the Pages custom domain, the GitHub App's callback and homepage, the broker's redeploy, all at the same moment so sign-in never breaks. Check no existing product or trademark uses the name first.
@@ -551,7 +560,7 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 ## Needs the owner
 
 - **GitHub Sponsors for N35:** set up the Sponsors profile (github.com/sponsors) for the account that should receive support (your personal account, or the forwardmotionnz organisation) and say which. Whether each version is also published as a GitHub release is your call.
-- **Padgit and padgit.com for N34 (when N34 is built; exact steps will be written then):** check the name is free to use; at switch time, in this order: DNS records for padgit.com pointing at GitHub Pages; the custom domain in the repository's Pages settings, with HTTPS enforced (and the domain verified for the organisation, which stops anyone else claiming it on GitHub); the GitHub App renamed to Padgit, with its homepage and callback URL on padgit.com; the broker redeployed with its new allowed origin and redirect address. Optionally, rename the repository to `padgit`.
+- **Padgit cutover for N34:** preparation is built. Follow [the migration checklist](../padgit-migration.md): confirm the name; publish the notice and save/copy drafts first; verify the domain, claim it in Pages before pointing DNS, wait for HTTPS, update the existing App and deploy `broker/wrangler.padgit.toml`, then verify sign-in/save. Update the default broker config and README link after success. The repository need not be renamed. This corrects the earlier DNS-first order using GitHub's guidance.
 
 - **Community readiness (2026-09-27), three settings only the owner can change:**
   1. Settings → Code security → **Private vulnerability reporting**: enable it, so the "Report a vulnerability" button that `SECURITY.md` and the issue chooser point to exists.

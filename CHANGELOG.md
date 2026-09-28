@@ -10,6 +10,9 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Padgit branding (formerly Notes), plus a notice before the planned move
+  to padgit.com. The domain cutover still needs the owner's coordinated
+  account changes; the existing shared address remains in use meanwhile.
 - Persistent note save status, last-save time and source word count. Offline
   status only promises a local copy when the current text is stored.
 - Quick note switcher: Ctrl/Cmd+K or Find, recent paths, ranked name matches,

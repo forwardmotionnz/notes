@@ -313,7 +313,10 @@ export async function context(gh, opts = {}) {
     // redirect ("Cannot fulfill with redirect status"), so there the page
     // replaces itself with the same address instead: the same navigation,
     // with the authorize page left out of history, as a redirect leaves it.
-    if (ENGINE === 'webkit') {
+    // A mocked external origin needs the same navigation shim in Chromium:
+    // a fulfilled 302 bypasses routing for its destination and would hit DNS.
+    // https://playwright.dev/docs/api/class-page#page-route
+    if (ENGINE === 'webkit' || opts.appUrl) {
       return route.fulfill({ status: 200, contentType: 'text/html',
         body: `<script>location.replace(${JSON.stringify(back.toString())})</script>` });
     }
@@ -331,8 +334,9 @@ export async function context(gh, opts = {}) {
     }), {
       CLIENT_ID: DEPLOY.clientId,
       CLIENT_SECRET: 'test-secret',
-      ALLOWED_ORIGIN: origin,
-      REDIRECT_URI: origin + '/notes/',
+      // A deployment's origin/callback are worker configuration, not API behaviour.
+      ALLOWED_ORIGIN: opts.appUrl ? new URL(opts.appUrl).origin : origin,
+      REDIRECT_URI: opts.appUrl || origin + '/notes/',
     });
     return route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers),
                            body: await res.text() });

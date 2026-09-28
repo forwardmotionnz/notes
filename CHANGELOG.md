@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — MVP candidate
+## 1.0.0 — 2026-09-29
 
 This entry tracks the first version and the features since; no version tag
 is published yet. The shared copy's sign-in is configured and its GitHub App
@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- About Padgit in Settings, with the version and links for this deployment.
 - Padgit branding (formerly Notes), plus a notice before the planned move
   to padgit.com. The domain cutover still needs the owner's coordinated
   account changes; the existing shared address remains in use meanwhile.

@@ -22,7 +22,7 @@ for(const width of [1280,390])for(const theme of ['light','dark']){
  if(width===390)await p.click('#btn-tree');
  await p.click('#btn-switcher');await scan('quick switcher');await p.click('#quick-close');
  await p.evaluate(()=>{document.querySelector('#domain-target').textContent='https://padgit.com/';document.querySelector('#domain-notice').hidden=false;document.querySelector('#domain-notice').open=true;});await scan('move notice');
- await p.click('#btn-settings');await scan('settings');
+ await p.click('#btn-settings');await scan('settings');await p.click('#app-about summary');await scan('about');
  // The audit itself must notice a broken accessible name; no rule exclusions.
  await p.evaluate(()=>{const b=document.createElement('button');b.id='axe-probe';document.querySelector('#settings').appendChild(b);});
  const probe=await p.evaluate(async()=> (await axe.run(document)).violations.some(v=>v.id==='button-name'&&v.nodes.some(n=>n.target.includes('#axe-probe'))));

@@ -3,6 +3,9 @@
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
 ## Finding and saving notes
+Settings includes **About Padgit**, with the version, GitHub repository,
+privacy note, changelog and **Report a bug**. Links open in a new tab.
+
 Before browsing folders, you can use **Find** in the header or **Ctrl/Cmd+K**
 to open a note by name or path. Recent notes appear first for an empty query;
 typing ranks exact names and then name prefixes. Use arrow keys and Enter,

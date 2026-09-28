@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-CUkLb4au+hrkWU7gC9vjhy+0lthZs3cBAHFH80EjC7A=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-EGDaGq2ZHHO2yofvU/oggNCbmNteKxpjGW0dvYSEBXg=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -185,6 +185,10 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #note-save-time{color:var(--fg-soft);}
 #note-word-count{margin-left:auto;}
 #domain-notice{flex:none;max-height:25%;overflow:auto;padding:7px 12px;background:var(--accent-soft);font-size:12px;}
+#app-about{border-top:1px solid var(--line);padding-top:12px;font-size:13px;}
+#app-about summary{cursor:pointer;font-weight:600;}
+#app-about nav{display:flex;flex-wrap:wrap;gap:8px 16px;}
+#app-about a{color:var(--accent);}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
@@ -329,6 +333,16 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 				</select>
 			</label>
 			<p class="hint" id="theme-hint">Changes at once, in this browser only.</p>
+			<details id="app-about"><summary>About Padgit</summary>
+				<p>Version <span id="app-version"></span></p>
+				<nav aria-label="About links">
+					<a id="about-source" target="_blank" rel="noopener noreferrer" hidden>GitHub repository</a>
+					<a id="about-privacy" href="PRIVACY.html" target="_blank" rel="noopener noreferrer">Privacy</a>
+					<a id="about-changelog" href="CHANGELOG.html" target="_blank" rel="noopener noreferrer">Changelog</a>
+					<a id="about-bug" target="_blank" rel="noopener noreferrer" hidden>Report a bug</a>
+					<a id="about-support" target="_blank" rel="noopener noreferrer" hidden>Support Padgit</a>
+				</nav>
+			</details>
 			</div>
 		</div>
 		<div class="dlg-foot">
@@ -351,6 +365,8 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 	"clientId": "Iv23liBrUeC67BfCYF9c",
 	"appSlug":  "forwardmotion-notes",
 	"broker":   "https://notes-token-broker.forwardmotionnz.workers.dev",
+	"repository": "https://github.com/forwardmotionnz/notes",
+	"support": "",
 	"migrationFrom": "https://forwardmotionnz.github.io/notes/",
 	"migrationTo": "https://padgit.com/"
 }
@@ -359,6 +375,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js" integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous"></script>
 <script>
 "use strict";
+var APP_VERSION = "1.0.0";
 /* DEPLOYMENT  -  read from the data block above the script. */
 var DEPLOYMENT = { clientId: "", appSlug: "", broker: "" };
 try {
@@ -366,6 +383,19 @@ try {
 } catch (e) {}                         // unreadable: treated as not set up
 // Tests and forks can override without editing the file.
 if (window.NOTES_DEPLOYMENT) DEPLOYMENT = Object.assign({}, DEPLOYMENT, window.NOTES_DEPLOYMENT);
+document.getElementById("app-version").textContent = APP_VERSION;
+(function aboutLinks() {
+	function httpsUrl(value) {
+		try { var u = new URL(value); return u.protocol === "https:" && !u.username && !u.password ? u : null; } catch (e) { return null; }
+	}
+	function link(id, url) { var a = document.getElementById(id); a.href = url; a.hidden = false; }
+	var repo = httpsUrl(DEPLOYMENT.repository), support = httpsUrl(DEPLOYMENT.support);
+	if (repo && repo.hostname === "github.com" && !repo.port && /^\/[\w.-]+\/[\w.-]+\/?$/.test(repo.pathname) && !repo.search && !repo.hash) {
+		var base = repo.origin + repo.pathname.replace(/\/$/, "");
+		link("about-source", base); link("about-bug", base + "/issues/new?template=bug_report.md");
+	}
+	if (support) link("about-support", support.href);
+})();
 // A notice only: never move a person away from an origin holding their drafts.
 if (DEPLOYMENT.migrationFrom === location.origin + location.pathname && DEPLOYMENT.migrationTo) {
 	document.getElementById("domain-target").textContent = DEPLOYMENT.migrationTo;

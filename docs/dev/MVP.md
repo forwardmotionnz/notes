@@ -1,8 +1,21 @@
 # MVP ledger
 
-Iterations: 33 (original cap extended by the owner's requests to complete N12 and S2, then S3 and S4)
+Iterations: 37 (cap extended by the owner's requests; latest batch N20, N21, N34 preparation, N31)
 
-## Current handover — 2026-09-27
+## Current handover — 2026-09-29
+
+The requested four-item batch is N20 quick switcher, N21 persistent save
+status/word count, N34 Padgit/domain preparation, then N31 About. N20 and N21
+are committed as `58278fa` and `2d9edb9`; N34 preparation is `45b3e4c`.
+N31 completes the batch's app work. The final combined PR runs the complete
+two-engine suite once before merge. The owner's package-lock.json edit stays
+untouched. N34 stays doing until its owner-only name/domain/account cutover;
+the old URL is intentionally still the working Try it link.
+
+The original SHOULD list was completed and merged in PR #9. Older handover
+details below are historical, including the pre-merge S3/S4 wording.
+
+### Earlier handover — 2026-09-27
 
 N12 preview and S2 search were merged and published in
 [PR #8](https://github.com/forwardmotionnz/notes/pull/8), with all 39 suites green.
@@ -205,7 +218,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N20 | 31 | done | Quick switcher 13/13 both engines; switching 33/33 and hostile 28/28 both engines. Independent review's IME finding fixed; hidden-path and composition mutations caught. Screens `tests/screens/n20-{1280,390}-{light,dark}.png` viewed. Final combined PR CI follows N31. |
 | N21 | 32 | done | `note-status` 13/13 both engines, autosave 22/22, conflict 53/53 and axe 33/33 both engines. Four safeguard mutations caught. Review fixes: replaced drafts withdraw local-copy reassurance; lost save replies after undo remain uncertain. Screens `tests/screens/n21-{1280,390}-{light,dark}.png` viewed. |
 | N34 | 33 | doing | Padgit branding and pre-move notice prepared; custom-domain sign-in/save 11/11 both engines; axe 41/41 and privacy 41/41 both engines. Review fixes: wait across mocked auth navigation; cap notice height with phone keyboard open. Eight screenshots viewed. Awaiting owner name confirmation and coordinated DNS/Pages/App/broker cutover; see `docs/padgit-migration.md`. No domain/secret/account changes made. |
-| N31 | 34 | todo | Owner's request 2026-09-28: About (version and links) |
+| N31 | 34 | done | About 9/9 both engines; version 1.0.0 agrees with changelog, fork links configurable, unsafe links omitted, mutation caught. Independent review clear; 320/390 px keyboard access verified; `tests/screens/n31-{1280,390}-{light,dark}.png` viewed. |
 | N22 | 35 | todo | UX review 2026-09-28: back and forward between notes |
 | N23 | 36 | todo | UX review 2026-09-28: readable width and text size |
 | N32 | 37 | todo | Owner's request 2026-09-28: checklists in any note (tick, add, edit, reorder, remove); the Tasks screen folds in |

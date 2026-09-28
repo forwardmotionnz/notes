@@ -46,7 +46,7 @@ t.check('readers can find where to submit their report', /\]\(https:\/\/github.c
 const changePath = new URL('CHANGELOG.md', root);
 const changes = existsSync(changePath) ? readFileSync(changePath, 'utf8') : '';
 const ledger = readFileSync(new URL('docs/dev/MVP.md', root), 'utf8');
-t.check('changelog has an unreleased MVP entry', /^## Unreleased — MVP candidate$/m.test(changes));
+t.check('changelog has the first versioned MVP entry', /^## 1\.0\.0 — 2026-09-29$/m.test(changes));
 t.check('MVP entry describes the implemented user features', /autosave/i.test(changes) && /drafts/i.test(changes) &&
   /rename/i.test(changes) && /delete/i.test(changes) && /wikilinks/i.test(changes) && /home.screen/i.test(changes));
 t.check('known limitations include network and file limits', /### Known limitations/.test(changes) &&

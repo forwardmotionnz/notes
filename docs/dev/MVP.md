@@ -205,7 +205,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N20 | 31 | todo | UX review 2026-09-28: quick switcher |
 | N21 | 32 | todo | UX review 2026-09-28: save status and word count |
 | N34 | 33 | todo | Owner's request 2026-09-28: rename to Padgit, served at padgit.com |
-| N31 | 34 | todo | Owner's request 2026-09-28: About (version, GitHub and support links) |
+| N31 | 34 | todo | Owner's request 2026-09-28: About (version and links) |
 | N22 | 35 | todo | UX review 2026-09-28: back and forward between notes |
 | N23 | 36 | todo | UX review 2026-09-28: readable width and text size |
 | N32 | 37 | todo | Owner's request 2026-09-28: checklists in any note (tick, add, edit, reorder, remove); the Tasks screen folds in |
@@ -219,6 +219,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N28 | 44 | todo | UX review 2026-09-28: outline of headings |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
+| N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -513,9 +514,8 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 
 ### Owner's requests (2026-09-28), in the order agreed
 
-### N31: plan: About (version, GitHub and support links)
-- Settings gains "About Notes": the version (starting at 1.0.0, since the release checks passed), links to the GitHub repository, the privacy note, the changelog and "Report a bug", and a support link. The version lives in the app and in CHANGELOG.md, and a test keeps them in step. The support link and repository link sit in the deployment block, so each copy shows its own (or none).
-- Support: GitHub Sponsors (the owner's choice, 2026-09-28): `.github/FUNDING.yml` adds a Sponsor button to the repository, and About links to the sponsor page. The owner sets up the Sponsors profile and says which account it is for (Needs the owner). Publishing a GitHub release for each version is the owner's call.
+### N31: plan: About (version and links)
+- Settings gains "About": the version (starting at 1.0.0, since the release checks passed), links to the GitHub repository, the privacy note, the changelog and "Report a bug". The version lives in the app and in CHANGELOG.md, and a test keeps them in step. The repository link sits in the deployment block, with room for a support link (empty until N35), so each copy shows its own. Publishing a GitHub release for each version is the owner's call.
 
 ### N34: plan: rename to Padgit, served at padgit.com
 - Why: "Notes" is the name of every phone's own app, so this one cannot be searched for or told apart; the owner has bought padgit.com, an address that stays the same whatever hosts it (GitHub Pages serves a custom domain over HTTPS, and redirects the old github.io address to it).
@@ -529,6 +529,9 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 ### N33: plan: tabs
 - A row of open notes above the editor: opening a note from the list, the quick switcher or a link adds a tab (or goes to its tab); × closes one; each keeps its unsaved words as a draft (drafts are already per note); the tabs are remembered in this browser; a limit keeps the row usable, and on a phone the tabs fold into a list behind a button. Built after the quick switcher (N20) and back/forward (N22).
 
+### N35: plan: GitHub Sponsors
+- The owner's choice for support (2026-09-28), as its own item at the end of the list. `.github/FUNDING.yml` adds a Sponsor button to the repository page, and About (N31) links to the sponsor page from the deployment block's support link. Needs the owner's Sponsors profile first.
+
 ### N16: plan: add images to a note
 - Paste or drop an image into a note: it is committed as an attachment (the vault's Obsidian attachment folder when set, otherwise beside the note) and linked where the cursor is; size limit and type check; S4 shows it in the preview.
 
@@ -537,7 +540,7 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 
 ## Needs the owner
 
-- **GitHub Sponsors for N31:** set up the Sponsors profile (github.com/sponsors) for the account that should receive support (your personal account, or the forwardmotionnz organisation) and say which. Whether each version is also published as a GitHub release is your call.
+- **GitHub Sponsors for N35:** set up the Sponsors profile (github.com/sponsors) for the account that should receive support (your personal account, or the forwardmotionnz organisation) and say which. Whether each version is also published as a GitHub release is your call.
 - **Padgit and padgit.com for N34 (when N34 is built; exact steps will be written then):** check the name is free to use; at switch time, in this order: DNS records for padgit.com pointing at GitHub Pages; the custom domain in the repository's Pages settings, with HTTPS enforced (and the domain verified for the organisation, which stops anyone else claiming it on GitHub); the GitHub App renamed to Padgit, with its homepage and callback URL on padgit.com; the broker redeployed with its new allowed origin and redirect address. Optionally, rename the repository to `padgit`.
 
 - **Community readiness (2026-09-27), three settings only the owner can change:**
@@ -755,6 +758,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-28: UX review against a desktop notes app (owner's screenshot): N20-N30 added, ordered with N16 and N17 by value and effort; the note-reading items after a shared note reader (built first in N26); reminders, locked notes, a rich-text editor, tabs and colour labels left out, with reasons.
 - 2026-09-28: Owner's requests: N31 About (version, links, support), N32 checklists in any note with the Tasks screen folded in (the owner's idea; replaces N24), N33 tabs (earlier left out). Placed by priority among N20-N30.
 - 2026-09-28: Owner's choices: GitHub Sponsors for support (N31); rename to Padgit at padgit.com (N34, placed before About so 1.0.0 is Padgit).
+- 2026-09-28: GitHub Sponsors moved out of About (N31) into its own item at the end of the list (N35), as the owner asked.
 
 ## Log
 (one line per iteration: date, item, result, commit)

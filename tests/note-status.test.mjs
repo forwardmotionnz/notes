@@ -27,6 +27,8 @@ if(exists){
  t.check('conflict remains visible',await q.textContent('#note-save-status')==='Not saved: conflict');
  await q.evaluate(()=>openFile('b.md'));t.check('new note does not inherit conflict or save time',await q.textContent('#note-save-status')==='Saved'&&await q.textContent('#note-save-time')==='');
  await q.click('#btn-preview');t.check('summary remains in Preview',await q.locator('#note-summary').isVisible());
+ await q.evaluate(()=>openFile('missing.md'));
+ t.check('absent empty note is never called Saved',await q.textContent('#note-save-status')==='New note: not saved');
  await c.close();
  const g2=H.fakeGitHub({files:{'a.md':'original'}}),c2=await H.context(g2),p2=await H.page(c2);await H.signIn(p2);await p2.waitForFunction(()=>treeState==='ok'&&!accessPending);await p2.evaluate(()=>openFile('a.md'));
  let finish,started;const wait=new Promise(r=>finish=r),sent=new Promise(r=>started=r);

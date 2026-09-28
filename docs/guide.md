@@ -3,6 +3,12 @@
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
 ## No notes repository yet
+Before browsing folders, you can use **Find** in the header or **Ctrl/Cmd+K**
+to open a note by name or path. Recent notes appear first for an empty query;
+typing ranks exact names and then name prefixes. Use arrow keys and Enter,
+or tap a result. Escape closes the switcher. This searches the loaded file
+list without reading note contents; use **Search contents** for that.
+
 
 Signed in, but Notes is on no repository? The app shows two steps and
 nothing else: **Create a repository** opens GitHub's form with the name

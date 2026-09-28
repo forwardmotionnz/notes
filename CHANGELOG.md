@@ -10,6 +10,8 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Quick note switcher: Ctrl/Cmd+K or Find, recent paths, ranked name matches,
+  keyboard navigation and phone support, without extra searches on GitHub.
 
 - On a computer, the file list can be hidden (☰) and resized by dragging
   its edge; both are remembered. A theme choice in Settings: the device's

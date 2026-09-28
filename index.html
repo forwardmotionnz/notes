@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-pdlhg13BnRUCf3tnBv8w5DEnQuQn0gyLkFhkGyGpbW0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-WdRqu+sXsisPuUk+xmbfFX/BuXVk1AWiGkSBIDjad7k=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -176,6 +176,10 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #preview img{max-width:100%;height:auto;display:block;margin:8px 0;}
 #search-tools{padding:4px 8px;}
 #search-status{display:block;font-size:12px;color:var(--fg-soft);padding-top:4px;}
+#quick-switcher{width:min(540px,calc(100vw - 24px));padding:18px;}
+#quick-results{max-height:45vh;overflow:auto;margin:10px 0;}
+#quick-results [role=option]{padding:8px;overflow-wrap:anywhere;cursor:pointer;}
+#quick-results [aria-selected=true]{background:var(--accent-soft);color:var(--accent);}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
@@ -183,6 +187,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 <div id="shell">
 	<header>
 		<button class="plain" id="btn-tree" title="Show or hide the file list" aria-label="Files" aria-controls="sidebar" aria-expanded="true">&#9776;</button>
+		<button class="plain" id="btn-switcher" title="Open a note (Ctrl/Cmd+K)" aria-label="Open a note">Find</button>
 		<div id="crumb">no file open</div>
 		<span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
 		<span id="readonly" title="">read-only</span>
@@ -230,6 +235,13 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		<div id="scrim"></div>
 	</main>
 </div>
+<dialog id="quick-switcher" aria-labelledby="quick-title">
+	<h2 id="quick-title">Open a note</h2>
+	<input id="quick-query" role="combobox" aria-label="Note name or path" aria-controls="quick-results" aria-autocomplete="list" aria-expanded="true" autocomplete="off">
+	<div id="quick-results" role="listbox" aria-label="Matching notes"></div>
+	<p id="quick-status" role="status"></p>
+	<button id="quick-close">Close</button>
+</dialog>
 <dialog id="settings">
 	<!-- Signed out -->
 	<div id="view-signin">
@@ -1845,6 +1857,7 @@ function openFile(path, discarding) {
 		setCrumb(path, draft ? (r.sha ? "(unsaved draft)" : "(new, unsaved draft)") : "");
 		showDiscard(!!draft);
 		ui.last = path;
+		rememberNote(path);
 		persist(UI_KEY, ui);
 		notePinned(path, r.text);
 		if (isPinned(path) && !draft) {
@@ -3156,7 +3169,7 @@ function pointAt(owner, repo, branch, pins, prepared) {
 	cfg.repo = repo;
 	cfg.branch = branch;
 	cfg.pins = pins;
-	if (changedRepo) { ui.open = pathMap(); ui.last = null; }
+	if (changedRepo) { ui.open = pathMap(); ui.last = null; $("quick-switcher").close(); }
 	return changedRepo;
 }
 function showPointed(changedRepo) {
@@ -3406,7 +3419,70 @@ $("f-theme").onchange = function () {
 	applyTheme(t);
 };
 try { applyTheme(localStorage.getItem("notes.theme")); } catch (e) { applyTheme("auto"); }
+/* Quick switcher uses only the loaded tree. Recents belong to this repository
+   and branch, and share the existing session-only/sign-out storage rules. */
+var quickScope = "", quickMatches = [], quickIndex = 0;
+function recentScope() { return JSON.stringify([cfg.owner, cfg.repo, cfg.branch]); }
+function rememberNote(path) {
+	var scope = recentScope(), recent = ui.recent;
+	var paths = recent && recent.scope === scope && Array.isArray(recent.paths) ? recent.paths : [];
+	ui.recent = { scope: scope, paths: [path].concat(paths.filter(function (p) { return p !== path; })).slice(0, 30) };
+}
+function quickRender() {
+	var q = $("quick-query").value.trim().toLowerCase(), recent = ui.recent;
+	var paths = recent && recent.scope === quickScope && Array.isArray(recent.paths) ? recent.paths : [];
+	function rank(p) {
+		var name = p.split("/").pop().toLowerCase().replace(/\.[^.]+$/, "");
+		return name === q ? 0 : name.indexOf(q) === 0 ? 1 : 2;
+	}
+	quickMatches = files.filter(function (f) { return f.type === "blob" && !isHidden(f.path) && isTextFile(f.path) && f.path.toLowerCase().indexOf(q) !== -1; }).map(function (f) { return f.path; });
+	quickMatches.sort(function (a, b) {
+		var ai = paths.indexOf(a), bi = paths.indexOf(b);
+		return (q ? rank(a) - rank(b) : (ai < 0 ? 31 : ai) - (bi < 0 ? 31 : bi)) || a.localeCompare(b);
+	});
+	var total = quickMatches.length;
+	quickMatches = quickMatches.slice(0, 50); quickIndex = 0;
+	$("quick-results").textContent = "";
+	quickMatches.forEach(function (path, i) {
+		var row = document.createElement("div"); row.id = "quick-" + i;
+		row.setAttribute("role", "option"); row.textContent = path;
+		row.onclick = function () { quickIndex = i; quickChoose(); };
+		$("quick-results").appendChild(row);
+	});
+	$("quick-status").textContent = treeState !== "ok" ? "File list not ready. Refresh Files and try again." : files.truncated ? "Only the loaded part of this repository is searched." : total > 50 ? "First 50 matches. Type more to narrow the list." : total ? "Arrow keys to choose, Enter to open, Escape to close." : "No matching notes.";
+	quickSelect();
+}
+function quickSelect() {
+	Array.from($("quick-results").children).forEach(function (row, i) { row.setAttribute("aria-selected", String(i === quickIndex)); });
+	var row = $("quick-" + quickIndex);
+	if (row) { $("quick-query").setAttribute("aria-activedescendant", row.id); row.scrollIntoView({ block: "nearest" }); }
+	else $("quick-query").removeAttribute("aria-activedescendant");
+}
+function quickChoose() {
+	if (quickScope !== recentScope() || !configured()) { $("quick-switcher").close(); return; }
+	var path = quickMatches[quickIndex];
+	if (!path || !files.some(function (f) { return f.path === path && f.type === "blob"; })) return;
+	$("quick-switcher").close();
+	Promise.resolve(openFile(path)).then(function () { if (current && current.path === path && !isPinned(path)) editor.focus(); });
+}
+function quickOpen() {
+	if (!configured() || $("settings").open) return;
+	quickScope = recentScope(); $("quick-query").value = "";
+	if (!$("quick-switcher").open) $("quick-switcher").showModal();
+	quickRender(); $("quick-query").focus();
+}
+$("btn-switcher").onclick = quickOpen;
+$("quick-close").onclick = function () { $("quick-switcher").close(); };
+$("quick-query").oninput = quickRender;
+$("quick-query").onkeydown = function (e) {
+	if (e.isComposing || e.keyCode === 229) return;
+	if (e.key === "Enter") { e.preventDefault(); quickChoose(); }
+	if ((e.key === "ArrowDown" || e.key === "ArrowUp") && quickMatches.length) {
+		e.preventDefault(); quickIndex = (quickIndex + (e.key === "ArrowDown" ? 1 : -1) + quickMatches.length) % quickMatches.length; quickSelect();
+	}
+};
 document.addEventListener("keydown", function (e) {
+	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); quickOpen(); }
 	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
 		e.preventDefault();
 		saveCurrent();

@@ -202,7 +202,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N15 | 28 | done | `tests/pins-sync.test.mjs` 54/54 (new suite): pinned notes found on a device that never saw them, and only those (not `pinned: false`, not in the body, not in hidden folders); a second visit reads nothing already read; a pin made elsewhere appears after a refresh, reading only that note; pinning writes `pinned: true` (with a frontmatter block if none, beside existing properties, inside `...` frontmatter), unpinning removes only that line, restoring the note exactly; another device sees both; CRLF/BOM kept; unsaved words saved with the pin; a restored draft is never saved by pinning; a `pinned` property used for something else is never overwritten (pinned in this browser, and said); browser pins from before carry over; non-Markdown and read-only repositories pin in this browser with nothing sent; typed by hand counts once saved; rename and delete keep the list right; a scan never undoes a pin made meanwhile; the list shown stays shown when the scan adds pins ahead of it; a scan cut short or refreshed keeps what it read; known pins show at once; unreadable notes are not read again; offline, the scan stops rather than trying every note, and carries on later; at most 500 notes a visit, and says so. Commit in the log |
 | N18 | 29 | done | `tests/sidebar.test.mjs` 33/33 (new suite): ☰ on a computer hides and shows the list, says so, remembered; a handle resizes it by dragging (from where it is grabbed), arrow keys, Home, and double-click reset, remembered, 180 px to 600 px and at most 60% of the window, keeping room for the note when the window narrows; the handle is its own column, not over the note; the editor lays itself out again; hidden with nothing open, the hint says ☰ brings the list back; phones keep the drawer, with no handle, and the button follows the drawer however it closes. Commit in the log |
 | N19 | 30 | done | `tests/theme.test.mjs` 20/20 (new suite): Auto follows the device both ways and is the default; Light and Dark override it at once, with the browser bar colour and form controls; remembered, and in place (with the bar colour) before the app's script has run; signing out keeps it; Auto again forgets it; storage refused, the app still starts; the privacy note lists `notes.theme`. Commit in the log |
-| N20 | 31 | todo | UX review 2026-09-28: quick switcher |
+| N20 | 31 | done | Quick switcher 13/13 both engines; switching 33/33 and hostile 28/28 both engines. Independent review's IME finding fixed; hidden-path and composition mutations caught. Screens `tests/screens/n20-{1280,390}-{light,dark}.png` viewed. Final combined PR CI follows N31. |
 | N21 | 32 | todo | UX review 2026-09-28: save status and word count |
 | N34 | 33 | todo | Owner's request 2026-09-28: rename to Padgit, served at padgit.com |
 | N31 | 34 | todo | Owner's request 2026-09-28: About (version and links) |
@@ -473,6 +473,11 @@ Asked alongside "sync the pins between devices", which N15 already does (merged 
 Each keeps the rules: notes stay plain Markdown files, nothing app-specific is written into the repository, one HTML file. Small, everyday items first; the items that read many notes (N26, N27, N17) come after the shared note reader recommended in the clean-up assessment, which N26 builds first.
 
 ### N20: plan: quick switcher
+- Completed 2026-09-29: Find / Ctrl/Cmd+K, 30 repository-scoped recent paths,
+  ranked loaded-tree matches, capped at 50 visible results, accessible keyboard
+  selection and literal filename rendering. No requests until opening a note.
+  WebKit's native Escape closes asynchronously; the test awaits closure before
+  asserting it. Existing save-on-leave behavior is used unchanged.
 - Ctrl/Cmd+K (and a button on phones) opens a box: type part of a name or path and Enter opens the note; recent notes first, then the best matches; arrow keys, Escape. Uses the file list already loaded, so no extra requests.
 
 ### N21: plan: save status and word count

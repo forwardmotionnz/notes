@@ -203,7 +203,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N18 | 29 | done | `tests/sidebar.test.mjs` 33/33 (new suite): ☰ on a computer hides and shows the list, says so, remembered; a handle resizes it by dragging (from where it is grabbed), arrow keys, Home, and double-click reset, remembered, 180 px to 600 px and at most 60% of the window, keeping room for the note when the window narrows; the handle is its own column, not over the note; the editor lays itself out again; hidden with nothing open, the hint says ☰ brings the list back; phones keep the drawer, with no handle, and the button follows the drawer however it closes. Commit in the log |
 | N19 | 30 | done | `tests/theme.test.mjs` 20/20 (new suite): Auto follows the device both ways and is the default; Light and Dark override it at once, with the browser bar colour and form controls; remembered, and in place (with the bar colour) before the app's script has run; signing out keeps it; Auto again forgets it; storage refused, the app still starts; the privacy note lists `notes.theme`. Commit in the log |
 | N20 | 31 | done | Quick switcher 13/13 both engines; switching 33/33 and hostile 28/28 both engines. Independent review's IME finding fixed; hidden-path and composition mutations caught. Screens `tests/screens/n20-{1280,390}-{light,dark}.png` viewed. Final combined PR CI follows N31. |
-| N21 | 32 | todo | UX review 2026-09-28: save status and word count |
+| N21 | 32 | done | `note-status` 13/13 both engines, autosave 22/22, conflict 53/53 and axe 33/33 both engines. Four safeguard mutations caught. Review fixes: replaced drafts withdraw local-copy reassurance; lost save replies after undo remain uncertain. Screens `tests/screens/n21-{1280,390}-{light,dark}.png` viewed. |
 | N34 | 33 | todo | Owner's request 2026-09-28: rename to Padgit, served at padgit.com |
 | N31 | 34 | todo | Owner's request 2026-09-28: About (version and links) |
 | N22 | 35 | todo | UX review 2026-09-28: back and forward between notes |
@@ -481,6 +481,11 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 - Ctrl/Cmd+K (and a button on phones) opens a box: type part of a name or path and Enter opens the note; recent notes first, then the best matches; arrow keys, Escape. Uses the file list already loaded, so no extra requests.
 
 ### N21: plan: save status and word count
+- Completed 2026-09-29 after N20 (`58278fa`). Summary follows the document,
+  not transient messages; only confirmed saves get a time. Source word count
+  is whitespace-delimited, documented explicitly. No new storage key.
+  A save whose reply was lost is never called Saved even if the text was
+  undone to its old value. No full-suite reruns during development.
 - A small, always-visible line under the note: "Saved", "Saving…", "Unsaved changes", "Not saved: conflict" or "Offline: kept on this device", with the time of the last save, and the note's word count. Replaces guessing from the header's transient messages.
 
 ### N22: plan: back and forward between notes

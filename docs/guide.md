@@ -2,12 +2,21 @@
 
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
-## No notes repository yet
+## Finding and saving notes
 Before browsing folders, you can use **Find** in the header or **Ctrl/Cmd+K**
 to open a note by name or path. Recent notes appear first for an empty query;
 typing ranks exact names and then name prefixes. Use arrow keys and Enter,
 or tap a result. Escape closes the switcher. This searches the loaded file
 list without reading note contents; use **Search contents** for that.
+
+The line below the note keeps its save status visible, including in Preview:
+Saved, Saving, Unsaved changes, a conflict, or an offline draft. A successful
+save in this open note shows its time. Word count counts whitespace-separated
+parts of the Markdown source, including frontmatter and Markdown markers.
+If browser storage is full or blocked, the line says the local copy is
+unavailable; save or copy your text before closing the page.
+
+## No notes repository yet
 
 
 Signed in, but Notes is on no repository? The app shows two steps and

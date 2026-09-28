@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-WdRqu+sXsisPuUk+xmbfFX/BuXVk1AWiGkSBIDjad7k=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-e6GxB7q6wSlWi8L4AuDpsIE9yEx+dctBX1p0nvEvgjw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Notes</title>
@@ -180,6 +180,10 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #quick-results{max-height:45vh;overflow:auto;margin:10px 0;}
 #quick-results [role=option]{padding:8px;overflow-wrap:anywhere;cursor:pointer;}
 #quick-results [aria-selected=true]{background:var(--accent-soft);color:var(--accent);}
+#note-summary{flex:none;display:flex;flex-wrap:wrap;gap:6px 16px;padding:5px 12px;border-top:1px solid var(--line);font-size:12px;background:var(--bg-soft);}
+#note-summary[hidden]{display:none;}
+#note-save-time{color:var(--fg-soft);}
+#note-word-count{margin-left:auto;}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
@@ -234,6 +238,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		</aside>
 		<div id="scrim"></div>
 	</main>
+	<footer id="note-summary" hidden aria-label="Note status"><span id="note-save-status" role="status"></span><span id="note-save-time"></span><span id="note-word-count"></span></footer>
 </div>
 <dialog id="quick-switcher" aria-labelledby="quick-title">
 	<h2 id="quick-title">Open a note</h2>
@@ -492,6 +497,7 @@ function syncDraft() {
 		if (d && (d.text === draftWritten[draftKey(current.path)] || d.text === current.saved)) {
 			dropDraft(current.path);
 		}
+		updateNoteSummary();
 		return;
 	}
 	try {
@@ -506,6 +512,7 @@ function syncDraft() {
 		if (!draftWarned) flash("Could not keep a local copy of your changes. Save soon.", true);
 		draftWarned = true;
 	}
+	updateNoteSummary();
 }
 function draftKeys(store) {
 	var keys = [];
@@ -810,6 +817,7 @@ function signOutLocally(spent) {
 }
 /* Keep tabs in step: a refresh or sign-out in one applies to the others. */
 window.addEventListener("storage", function (e) {
+	if (current && (!e.key || e.key === draftKey(current.path))) updateNoteSummary();
 	if (e.key !== CFG_KEY) return;
 	if (!e.newValue) {
 		cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
@@ -864,7 +872,9 @@ function request(path, options, retried) {
 			},
 			body: options.body ? JSON.stringify(options.body) : undefined
 		}).catch(function () {
-			throw new Error("Could not reach GitHub. Check your connection, then try again.");
+			var err = new Error("Could not reach GitHub. Check your connection, then try again.");
+			err.offline = true;
+			throw err;
 		});
 	}).then(function (reply) {
 		var res = reply.res;
@@ -1302,6 +1312,7 @@ function $(id) { return document.getElementById(id); }
 	 no innerHTML anywhere in this file, and tests/hostile.test.mjs fails if
 	 one appears. File names and notes are data, never markup. */
 function flash(msg, isError, ms) {
+	updateNoteSummary();
 	var el = $("status");
 	el.textContent = msg;                    // may carry a path or GitHub's message: text
 	el.className = isError ? "err" : "";
@@ -1319,6 +1330,7 @@ var readOnly = "";            // why this repository cannot be changed, or ""
 // The editor takes typing only when there is a note for it to go into.
 function editorLock() {
 	if (editor && editor.setOption) editor.setOption("readOnly", !!readOnly || moving || !current);
+	updateNoteSummary();
 }
 function applyAccess(reason) {
 	var was = readOnly;
@@ -1777,6 +1789,27 @@ function spelledLikeFolders(path) {
 function dirty() {
 	return !!(current && editor && editor.getValue() !== current.saved);
 }
+// Status belongs to the open document, never to a transient toast or a save
+// finishing for a note left behind. Check the actual stored draft before
+// promising a local copy: a full or blocked store is not a safety net.
+function updateNoteSummary() {
+	var box = $("note-summary");
+	if (!box) return;
+	box.hidden = !current || !editor || !signedIn();
+	if (box.hidden) return;
+	var changed = dirty(), text = editor.getValue(), message = "Saved";
+	var draft = changed && readDraft(current.path), kept = draft && draft.text === text;
+	if (current.conflict || current.stale) message = "Not saved: conflict";
+	else if (typeof current.pending === "string") message = "Saving…";
+	else if (!changed && typeof current.unsure === "string") message = "Save outcome unknown: check GitHub before closing";
+	else if (changed) message = current.saveError === "offline" ? "Offline: " + (kept ? "kept on this device" : "local copy unavailable")
+		: current.saveError ? "Not saved: try Save again" : "Unsaved changes";
+	if (changed && !kept && message.indexOf("local copy unavailable") === -1) message += " · local copy unavailable";
+	if ($("note-save-status").textContent !== message) $("note-save-status").textContent = message;
+	$("note-save-time").textContent = current.savedAt ? "Last saved " + new Date(current.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+	var count = (text.match(/\S+/g) || []).length;
+	$("note-word-count").textContent = count + (count === 1 ? " word" : " words");
+}
 // Discard is only offered where there is something it would rescue you
 // from: a restored draft, or a save GitHub rejected as a conflict.
 function showDiscard(on, copy) {
@@ -1970,6 +2003,8 @@ function saveCurrent(auto) {
 	$("btn-save").disabled = true;
 	saving = true;
 	doc.pending = text;
+	doc.saveError = "";
+	updateNoteSummary();
 	var attempted = false;
 	// Resolve the previous uncertain write before sending newer text. If a
 	// second attempt is offline too, it must not erase what may have landed.
@@ -1996,6 +2031,7 @@ function saveCurrent(auto) {
 	// Start an ordinary write before leaving the file can change settings;
 	// writeFile captures this repository and branch synchronously.
 	var done = (ready ? ready.then(write) : write()).then(function (r) {
+		doc.savedAt = Date.now(); doc.saveError = ""; doc.conflict = false; doc.stale = false;
 		doc.unsure = null;
 		doc.base = baseOf(raw);              // the next save compares with what this wrote
 		if (current === doc) {
@@ -2031,6 +2067,7 @@ function saveCurrent(auto) {
 		doc.merged = false;
 	}).catch(function (err) {
 		$("btn-save").disabled = false;
+		doc.saveError = err.offline ? "offline" : "failed";
 		if (attempted && (!err.status || err.status >= 500)) doc.unsure = raw;  // may or may not have landed
 		if (!err.writeBlocked && (err.status === 409 || err.status === 422)) {
 			return mergeTheirs(doc).catch(function () {
@@ -2049,6 +2086,7 @@ function saveCurrent(auto) {
 		saving = false;
 		inflight = null;
 		doc.pending = null;
+		updateNoteSummary();
 		var again = saveAgain;
 		saveAgain = null;
 		if (again && again.doc === current) saveCurrent(again.auto);
@@ -2923,6 +2961,7 @@ function sendPin(path) {
 		if (current && current.path === path && !dirty()) {
 			current.sha = r.sha;
 			current.saved = job.text;
+			current.savedAt = Date.now(); current.saveError = "";
 			current.base = baseOf(job.raw);
 			editor.setValue(job.text);
 		}
@@ -3490,6 +3529,7 @@ document.addEventListener("keydown", function (e) {
 });
 // A phone may never bring a hidden page back; commit what is there now.
 document.addEventListener("visibilitychange", function () {
+	updateNoteSummary();
 	if (document.visibilityState === "hidden") saveCurrent(true);
 	// Back from GitHub's repository settings in the other tab.
 	else if ($("settings").open && !$("view-account").hidden && signedIn()) loadRepoList();

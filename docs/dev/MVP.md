@@ -204,17 +204,21 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N19 | 30 | done | `tests/theme.test.mjs` 20/20 (new suite): Auto follows the device both ways and is the default; Light and Dark override it at once, with the browser bar colour and form controls; remembered, and in place (with the bar colour) before the app's script has run; signing out keeps it; Auto again forgets it; storage refused, the app still starts; the privacy note lists `notes.theme`. Commit in the log |
 | N20 | 31 | todo | UX review 2026-09-28: quick switcher |
 | N21 | 32 | todo | UX review 2026-09-28: save status and word count |
-| N22 | 33 | todo | UX review 2026-09-28: back and forward between notes |
-| N23 | 34 | todo | UX review 2026-09-28: readable width and text size |
-| N24 | 35 | todo | UX review 2026-09-28: tick tasks in any note |
-| N25 | 36 | todo | UX review 2026-09-28: formatting toolbar |
-| N16 | 37 | todo | Owner's request 2026-09-27, 4 of 5 |
-| N26 | 38 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |
-| N27 | 39 | todo | UX review 2026-09-28: tags |
-| N17 | 40 | todo | Owner's request 2026-09-27, 5 of 5 |
-| N28 | 41 | todo | UX review 2026-09-28: outline of headings |
-| N29 | 42 | todo | UX review 2026-09-28: callouts in Preview |
-| N30 | 43 | todo | UX review 2026-09-28: recently deleted notes |
+| N34 | 33 | todo | Owner's request 2026-09-28: rename to Padgit, served at padgit.com |
+| N31 | 34 | todo | Owner's request 2026-09-28: About (version, GitHub and support links) |
+| N22 | 35 | todo | UX review 2026-09-28: back and forward between notes |
+| N23 | 36 | todo | UX review 2026-09-28: readable width and text size |
+| N32 | 37 | todo | Owner's request 2026-09-28: checklists in any note (tick, add, edit, reorder, remove); the Tasks screen folds in |
+| N24 | 37 | moved | Folded into N32 |
+| N25 | 38 | todo | UX review 2026-09-28: formatting toolbar |
+| N16 | 39 | todo | Owner's request 2026-09-27, 4 of 5 |
+| N33 | 40 | todo | Owner's request 2026-09-28: tabs |
+| N26 | 41 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |
+| N27 | 42 | todo | UX review 2026-09-28: tags |
+| N17 | 43 | todo | Owner's request 2026-09-27, 5 of 5 |
+| N28 | 44 | todo | UX review 2026-09-28: outline of headings |
+| N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
+| N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -479,8 +483,8 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 ### N23: plan: readable width and text size
 - The editor and Preview keep lines to a comfortable width, centred on wide screens (as the screenshot's reading column does), and Settings gains a text size (smaller, normal, larger), remembered in this browser like the theme.
 
-### N24: plan: tick tasks in any note
-- In Preview, task checkboxes can be ticked (today they are read-only): each tick rewrites that one line and saves, using the one-at-a-time writing of pinned lists (N8), so quick clicks never conflict. Read-only repositories keep them read-only.
+### N24: folded into N32
+- Ticking tasks in Preview is now part of N32, which also adds, edits, reorders and removes them.
 
 ### N25: plan: formatting toolbar
 - A small toolbar for the editor (bold, italic, heading, bulleted, numbered and task lists, link, quote, code), most useful on phones: each inserts or toggles the Markdown itself around the selection, so the note stays plain text. Keyboard shortcuts for the same (Ctrl/Cmd+B, I, K).
@@ -504,8 +508,26 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 - Reminders: would need notifications from a server, and Notes has none.
 - Locked (encrypted) notes: key management and recovery are a project of their own, and an encrypted note is no longer a plain file.
 - A rich-text (WYSIWYG) editor: notes would stop being edited as the Markdown they are; the formatting toolbar (N25) and Preview cover most of the need.
-- Tabs for several open notes: back and forward (N22) and the quick switcher (N20) cover moving between notes, at a fraction of the complexity.
+- Tabs were left out here, then added at the owner's request (N33).
 - Colour labels and notebooks as separate things: folders are the notebooks, and colours would need app-specific data in the repository.
+
+### Owner's requests (2026-09-28), in the order agreed
+
+### N31: plan: About (version, GitHub and support links)
+- Settings gains "About Notes": the version (starting at 1.0.0, since the release checks passed), links to the GitHub repository, the privacy note, the changelog and "Report a bug", and a support link. The version lives in the app and in CHANGELOG.md, and a test keeps them in step. The support link and repository link sit in the deployment block, so each copy shows its own (or none).
+- Support: GitHub Sponsors (the owner's choice, 2026-09-28): `.github/FUNDING.yml` adds a Sponsor button to the repository, and About links to the sponsor page. The owner sets up the Sponsors profile and says which account it is for (Needs the owner). Publishing a GitHub release for each version is the owner's call.
+
+### N34: plan: rename to Padgit, served at padgit.com
+- Why: "Notes" is the name of every phone's own app, so this one cannot be searched for or told apart; the owner has bought padgit.com, an address that stays the same whatever hosts it (GitHub Pages serves a custom domain over HTTPS, and redirects the old github.io address to it).
+- Done looks like: the app is called Padgit everywhere a person sees a name (page title, home-screen name and label, sign-in screen, messages, README and docs, the privacy note, issue templates); the app and its tests work at `https://padgit.com/` (the deployment block, the broker's allowed origin and redirect address, the README's links); notes, files and storage names (`notes.*`) are unchanged. A notice on the old address, shipped before the switch, asks people to save their changes because browser storage does not move with the address (sign-ins and unsaved drafts stay with the old address; everyone signs in once more).
+- The switch is the owner's (Needs the owner): DNS, the Pages custom domain, the GitHub App's callback and homepage, the broker's redeploy, all at the same moment so sign-in never breaks. Check no existing product or trademark uses the name first.
+
+### N32: plan: checklists in any note; the Tasks screen folds in
+- The owner's idea: a to-do list is just a note with a checklist. In Preview, task checkboxes can be ticked; a task's text can be edited in place; tasks can be reordered (a drag handle, and move up/down buttons for the keyboard and screen readers); removed (with Undo, as N9); and added (the one-line box at the end of each list). Each change rewrites only the lines concerned, through the one-at-a-time writing of N8, so quick clicks never conflict. Nested tasks move with their parent.
+- The separate Tasks screen for pinned notes folds into this: a pinned note opens in Preview, with the same abilities. One way of showing a note instead of two. The toolbar's checklist button (N25) starts a list in any note. Read-only repositories keep checklists read-only.
+
+### N33: plan: tabs
+- A row of open notes above the editor: opening a note from the list, the quick switcher or a link adds a tab (or goes to its tab); × closes one; each keeps its unsaved words as a draft (drafts are already per note); the tabs are remembered in this browser; a limit keeps the row usable, and on a phone the tabs fold into a list behind a button. Built after the quick switcher (N20) and back/forward (N22).
 
 ### N16: plan: add images to a note
 - Paste or drop an image into a note: it is committed as an attachment (the vault's Obsidian attachment folder when set, otherwise beside the note) and linked where the cursor is; size limit and type check; S4 shows it in the preview.
@@ -514,6 +536,9 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 - A "Linked from" list under the open note: notes whose wikilinks or Markdown links resolve to it, found with the same bounded reads as S2's search, with its limits said.
 
 ## Needs the owner
+
+- **GitHub Sponsors for N31:** set up the Sponsors profile (github.com/sponsors) for the account that should receive support (your personal account, or the forwardmotionnz organisation) and say which. Whether each version is also published as a GitHub release is your call.
+- **Padgit and padgit.com for N34 (when N34 is built; exact steps will be written then):** check the name is free to use; at switch time, in this order: DNS records for padgit.com pointing at GitHub Pages; the custom domain in the repository's Pages settings, with HTTPS enforced (and the domain verified for the organisation, which stops anyone else claiming it on GitHub); the GitHub App renamed to Padgit, with its homepage and callback URL on padgit.com; the broker redeployed with its new allowed origin and redirect address. Optionally, rename the repository to `padgit`.
 
 - **Community readiness (2026-09-27), three settings only the owner can change:**
   1. Settings → Code security → **Private vulnerability reporting**: enable it, so the "Report a vulnerability" button that `SECURITY.md` and the issue chooser point to exists.
@@ -728,6 +753,8 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-27: The owner raised the size limit for `index.html` from 150 KB to 200 KB (204,800 bytes), now enforced by `tests/size.test.mjs`. Whether the file needs a clean-up is assessed after N15.
 - 2026-09-27: The README split for the community: a short front door (what it is, Try it, privacy, links); the detailed guide in `docs/guide.md`; self-hosting in `docs/self-hosting.md` with `YOUR-USERNAME` placeholders; `CONTRIBUTING.md`, `SECURITY.md`, pull request and feature request templates; this ledger and the release checklist moved to `docs/dev/`. Docs tests follow the moved text, and a new check keeps every relative link (and heading anchor) in the docs working. Test data no longer uses the owner's own project name.
 - 2026-09-28: UX review against a desktop notes app (owner's screenshot): N20-N30 added, ordered with N16 and N17 by value and effort; the note-reading items after a shared note reader (built first in N26); reminders, locked notes, a rich-text editor, tabs and colour labels left out, with reasons.
+- 2026-09-28: Owner's requests: N31 About (version, links, support), N32 checklists in any note with the Tasks screen folded in (the owner's idea; replaces N24), N33 tabs (earlier left out). Placed by priority among N20-N30.
+- 2026-09-28: Owner's choices: GitHub Sponsors for support (N31); rename to Padgit at padgit.com (N34, placed before About so 1.0.0 is Padgit).
 
 ## Log
 (one line per iteration: date, item, result, commit)

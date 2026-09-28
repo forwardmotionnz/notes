@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-EGDaGq2ZHHO2yofvU/oggNCbmNteKxpjGW0dvYSEBXg=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-c7OJM3kW9jqilFrZnrlPyztiwrlr/8FuZnbhkKJoRIQ=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -3559,8 +3559,11 @@ $("quick-query").onkeydown = function (e) {
 		e.preventDefault(); quickIndex = (quickIndex + (e.key === "ArrowDown" ? 1 : -1) + quickMatches.length) % quickMatches.length; quickSelect();
 	}
 };
+// Capture before CodeMirror's macOS Ctrl-K binding can delete a line.
 document.addEventListener("keydown", function (e) {
-	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); quickOpen(); }
+	if (!e.isComposing && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
+}, true);
+document.addEventListener("keydown", function (e) {
 	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
 		e.preventDefault();
 		saveCurrent();

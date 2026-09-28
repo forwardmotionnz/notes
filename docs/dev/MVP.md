@@ -491,6 +491,11 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
   selection and literal filename rendering. No requests until opening a note.
   WebKit's native Escape closes asynchronously; the test awaits closure before
   asserting it. Existing save-on-leave behavior is used unchanged.
+- Final real-editor check caught CodeMirror's macOS Ctrl-K deleting a line
+  before the document listener ran. The shortcut now captures the event first.
+  Both shortcuts leave text intact in real CodeMirror and the fallback;
+  quick-switcher is now 19/19 in each engine. This regression is also a
+  mutation proof: the previous bubbling listener failed the new test.
 - Ctrl/Cmd+K (and a button on phones) opens a box: type part of a name or path and Enter opens the note; recent notes first, then the best matches; arrow keys, Escape. Uses the file list already loaded, so no extra requests.
 
 ### N21: plan: save status and word count

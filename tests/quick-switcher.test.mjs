@@ -1,4 +1,5 @@
 import * as H from './harness.mjs';
+import {readFileSync} from 'node:fs';
 const t=H.suite('quick-switcher');await H.start();
 const gh=H.fakeGitHub({files:{'alpha.md':'one','folder/beta.md':'two','beta.md':'three','.hidden.md':'secret','photo.png':'binary','<img onerror=alert(1)>.md':'literal'}});
 const ctx=await H.context(gh),p=await H.page(ctx);p.setDefaultTimeout(5000);await H.signIn(p);
@@ -34,4 +35,20 @@ if(exists){
  t.check('old repository cannot be selected',!await p.locator('#quick-switcher').evaluate(e=>e.open)&&await p.evaluate(()=>openSeq)===seq);
  await ctx.close();
 }else await ctx.close();
+for(const plain of [false,true]){
+ const c=await H.context(H.fakeGitHub({files:{'note.md':'Keep this whole line'}}),{noCdn:plain});
+ if(!plain)await c.route('**/codemirror/5.65.16/**',r=>{const n=new URL(r.request().url()).pathname.split('/').pop();return r.fulfill({contentType:n.endsWith('.css')?'text/css':'application/javascript',headers:{'access-control-allow-origin':'*'},body:n.startsWith('codemirror.min.')?readFileSync(new URL('./fixtures/codemirror5/'+n,import.meta.url)):''});});
+ const p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await p.evaluate(()=>openFile('note.md'));
+ t.check(plain?'fallback editor tested':'real CodeMirror tested',await p.locator(plain?'.fallback-editor':'.CodeMirror').count()===1);
+ // On macOS CodeMirror's Ctrl-K normally kills the rest of the line.
+ if(!plain)await p.evaluate(()=>editor.setOption('keyMap','macDefault'));
+ for(const key of ['Control+k','Meta+k']){
+  await p.evaluate(()=>{editor.focus();if(editor.setCursor)editor.setCursor({line:0,ch:5});else editor.getWrapperElement().setSelectionRange(5,5);});
+  await p.keyboard.press(key);
+  const actual=await p.evaluate(()=>({open:document.querySelector('#quick-switcher').open,text:editor.getValue()}));
+  t.check(`${plain?'plain':'CodeMirror'} ${key} opens switcher without editing`,actual.open&&actual.text==='Keep this whole line',JSON.stringify(actual));
+  await p.evaluate(()=>document.querySelector('#quick-switcher').close());
+ }
+ await c.close();
+}
 await H.stop();t.finish();

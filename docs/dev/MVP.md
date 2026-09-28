@@ -202,8 +202,19 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N15 | 28 | done | `tests/pins-sync.test.mjs` 54/54 (new suite): pinned notes found on a device that never saw them, and only those (not `pinned: false`, not in the body, not in hidden folders); a second visit reads nothing already read; a pin made elsewhere appears after a refresh, reading only that note; pinning writes `pinned: true` (with a frontmatter block if none, beside existing properties, inside `...` frontmatter), unpinning removes only that line, restoring the note exactly; another device sees both; CRLF/BOM kept; unsaved words saved with the pin; a restored draft is never saved by pinning; a `pinned` property used for something else is never overwritten (pinned in this browser, and said); browser pins from before carry over; non-Markdown and read-only repositories pin in this browser with nothing sent; typed by hand counts once saved; rename and delete keep the list right; a scan never undoes a pin made meanwhile; the list shown stays shown when the scan adds pins ahead of it; a scan cut short or refreshed keeps what it read; known pins show at once; unreadable notes are not read again; offline, the scan stops rather than trying every note, and carries on later; at most 500 notes a visit, and says so. Commit in the log |
 | N18 | 29 | done | `tests/sidebar.test.mjs` 33/33 (new suite): ☰ on a computer hides and shows the list, says so, remembered; a handle resizes it by dragging (from where it is grabbed), arrow keys, Home, and double-click reset, remembered, 180 px to 600 px and at most 60% of the window, keeping room for the note when the window narrows; the handle is its own column, not over the note; the editor lays itself out again; hidden with nothing open, the hint says ☰ brings the list back; phones keep the drawer, with no handle, and the button follows the drawer however it closes. Commit in the log |
 | N19 | 30 | done | `tests/theme.test.mjs` 20/20 (new suite): Auto follows the device both ways and is the default; Light and Dark override it at once, with the browser bar colour and form controls; remembered, and in place (with the bar colour) before the app's script has run; signing out keeps it; Auto again forgets it; storage refused, the app still starts; the privacy note lists `notes.theme`. Commit in the log |
-| N16 | 31 | todo | Owner's request 2026-09-27, 4 of 5 |
-| N17 | 32 | todo | Owner's request 2026-09-27, 5 of 5 |
+| N20 | 31 | todo | UX review 2026-09-28: quick switcher |
+| N21 | 32 | todo | UX review 2026-09-28: save status and word count |
+| N22 | 33 | todo | UX review 2026-09-28: back and forward between notes |
+| N23 | 34 | todo | UX review 2026-09-28: readable width and text size |
+| N24 | 35 | todo | UX review 2026-09-28: tick tasks in any note |
+| N25 | 36 | todo | UX review 2026-09-28: formatting toolbar |
+| N16 | 37 | todo | Owner's request 2026-09-27, 4 of 5 |
+| N26 | 38 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |
+| N27 | 39 | todo | UX review 2026-09-28: tags |
+| N17 | 40 | todo | Owner's request 2026-09-27, 5 of 5 |
+| N28 | 41 | todo | UX review 2026-09-28: outline of headings |
+| N29 | 42 | todo | UX review 2026-09-28: callouts in Preview |
+| N30 | 43 | todo | UX review 2026-09-28: recently deleted notes |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -453,6 +464,49 @@ Asked alongside "sync the pins between devices", which N15 already does (merged 
 - Today the app follows the device's setting only (light or dark, by `prefers-color-scheme`); there is no choice in the app.
 - Done looks like: a three-way choice, Auto (the device's setting, the default), Light or Dark, in Settings or the header; remembered per browser; applied before the first paint (no flash of the other theme), including the browser's theme colour; accessibility checks still pass in both themes.
 
+### UX review against a desktop notes app (owner's screenshot, 2026-09-28), in the order agreed
+Each keeps the rules: notes stay plain Markdown files, nothing app-specific is written into the repository, one HTML file. Small, everyday items first; the items that read many notes (N26, N27, N17) come after the shared note reader recommended in the clean-up assessment, which N26 builds first.
+
+### N20: plan: quick switcher
+- Ctrl/Cmd+K (and a button on phones) opens a box: type part of a name or path and Enter opens the note; recent notes first, then the best matches; arrow keys, Escape. Uses the file list already loaded, so no extra requests.
+
+### N21: plan: save status and word count
+- A small, always-visible line under the note: "Saved", "Saving…", "Unsaved changes", "Not saved: conflict" or "Offline: kept on this device", with the time of the last save, and the note's word count. Replaces guessing from the header's transient messages.
+
+### N22: plan: back and forward between notes
+- Opening a note adds it to the browser's history (the address carries the note's path), so the browser's back and forward buttons, the phone back gesture and ← → buttons in the header move between notes. A link or bookmark to a note opens it after sign-in. Leaving a note still saves or keeps its draft as today.
+
+### N23: plan: readable width and text size
+- The editor and Preview keep lines to a comfortable width, centred on wide screens (as the screenshot's reading column does), and Settings gains a text size (smaller, normal, larger), remembered in this browser like the theme.
+
+### N24: plan: tick tasks in any note
+- In Preview, task checkboxes can be ticked (today they are read-only): each tick rewrites that one line and saves, using the one-at-a-time writing of pinned lists (N8), so quick clicks never conflict. Read-only repositories keep them read-only.
+
+### N25: plan: formatting toolbar
+- A small toolbar for the editor (bold, italic, heading, bulleted, numbered and task lists, link, quote, code), most useful on phones: each inserts or toggles the Markdown itself around the selection, so the note stays plain text. Keyboard shortcuts for the same (Ctrl/Cmd+B, I, K).
+
+### N26: plan: recent notes with previews (with the shared note reader)
+- First the shared note reader from the clean-up assessment: one bounded, cancellable reader, with results kept by blob sha, used by search, the pin scan and what follows. Then a "Recent" section in Files: notes opened recently on this device, and notes changed recently in the repository, each with its title (first heading), a short preview and when it changed.
+
+### N27: plan: tags
+- Tags from frontmatter (`tags:`) and inline `#tags`, as Obsidian writes them, found with the shared reader; a Tags section in Files with counts, choosing one lists its notes; the open note shows its tags as chips, and adding or removing one edits its frontmatter (like N15's pins).
+
+### N28: plan: outline of headings
+- A button shows the open note's headings; choosing one moves the editor, or Preview, to it. Built from the text already open: no requests.
+
+### N29: plan: callouts in Preview
+- Obsidian callouts (`> [!tip] Title`, `> [!warning]`, foldable `> [!note]-`) render as coloured boxes in Preview, as in the screenshot and in Obsidian; other editors still see a plain quote.
+
+### N30: plan: recently deleted notes
+- A "Recently deleted" view lists notes deleted in the repository's recent history (from commits), and restores one as a new commit of its last version. No trash folder is written into the repository: git history already keeps every deleted note.
+
+### Left out of the UX review, and why
+- Reminders: would need notifications from a server, and Notes has none.
+- Locked (encrypted) notes: key management and recovery are a project of their own, and an encrypted note is no longer a plain file.
+- A rich-text (WYSIWYG) editor: notes would stop being edited as the Markdown they are; the formatting toolbar (N25) and Preview cover most of the need.
+- Tabs for several open notes: back and forward (N22) and the quick switcher (N20) cover moving between notes, at a fraction of the complexity.
+- Colour labels and notebooks as separate things: folders are the notebooks, and colours would need app-specific data in the repository.
+
 ### N16: plan: add images to a note
 - Paste or drop an image into a note: it is committed as an attachment (the vault's Obsidian attachment folder when set, otherwise beside the note) and linked where the cursor is; size limit and type check; S4 shows it in the preview.
 
@@ -673,6 +727,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-25: Ledger updates land in a small follow-up commit, since an item's commit cannot contain its own hash.
 - 2026-09-27: The owner raised the size limit for `index.html` from 150 KB to 200 KB (204,800 bytes), now enforced by `tests/size.test.mjs`. Whether the file needs a clean-up is assessed after N15.
 - 2026-09-27: The README split for the community: a short front door (what it is, Try it, privacy, links); the detailed guide in `docs/guide.md`; self-hosting in `docs/self-hosting.md` with `YOUR-USERNAME` placeholders; `CONTRIBUTING.md`, `SECURITY.md`, pull request and feature request templates; this ledger and the release checklist moved to `docs/dev/`. Docs tests follow the moved text, and a new check keeps every relative link (and heading anchor) in the docs working. Test data no longer uses the owner's own project name.
+- 2026-09-28: UX review against a desktop notes app (owner's screenshot): N20-N30 added, ordered with N16 and N17 by value and effort; the note-reading items after a shared note reader (built first in N26); reminders, locked notes, a rich-text editor, tabs and colour labels left out, with reasons.
 
 ## Log
 (one line per iteration: date, item, result, commit)

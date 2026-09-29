@@ -297,6 +297,9 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N28 | 44 | done | Heading outline with source/Preview jumps, nested headings and pagination. 36/36 both engines; axe 57/57; review/mutation/screens below. |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
+| N36 | 29a | todo | Owner's review 2026-09-29: remove the back and forward buttons |
+| N37 | 29b | todo | Owner's review 2026-09-29: one kind of note (the Tasks screen, "Add a task" and pinned-only logic go) |
+| N38 | 29c | todo | Owner's review 2026-09-29: visual redesign (mock-up for approval first) |
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 
 ### N10: plan
@@ -645,6 +648,19 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 ### N17: plan: backlinks
 - A "Linked from" list under the open note: notes whose wikilinks or Markdown links resolve to it, found with the same bounded reads as S2's search, with its limits said.
 
+### Owner's review of the built app (2026-09-29), in the order agreed
+The owner found the app's look clunky (text buttons, glyphs as icons, three stacked rows of controls), the to-do list still a separate experience, the "Add a task" box on every pinned note, and the ← → buttons confusing (they follow the order notes were visited, which with tabs often reads as reversed). Checked: in a clean history the buttons do go back and forward; the confusion is visit order against the tabs' left-to-right order.
+
+### N36: plan: remove the back and forward buttons
+- The header's ← → buttons go. Notes stay in the browser's history (N22), so the browser's back and forward, Alt+←/→ and the phone's back gesture keep working, and note links still open notes. Tests that used the buttons use the browser's history instead.
+
+### N37: plan: one kind of note
+- The separate Tasks screen, the "Add a task" box, pinned-only task lists (N8/N9's pinned writing and Undo bar where nothing else uses them) and the Edit note / Tasks switch go. A pinned note is a shortcut at the top of Files and opens like any other note; checklists are edited in Preview (N32) and started with the toolbar's checklist button (N25). Nothing a person could do with a task is lost: tick, add, edit, reorder and remove all remain, in every note. Tests for the removed screen are retired with it, each replaced by the same check against Preview checklists where the ability remains.
+
+### N38: plan: visual redesign
+- A design pass over the whole app, not piecemeal tweaks: one inline SVG icon set (openly licensed, no extra requests); a small family of buttons (icon, subtle, primary) with one size and radius; a calm header (file list, the note's title, save status, an Edit/Preview switch, and a ⋯ menu for Rename, Delete, Outline and Tags); tabs that look like tabs; one icon toolbar; sidebar sections (Pinned, Recent, Tags, Files) with consistent rows, icons and counts; a type scale and spacing tuned for reading; both themes; phones.
+- First a static mock-up (desktop and phone, light and dark) for the owner's approval; then the build, with accessibility (axe) and every existing behaviour kept. Needs size headroom: `index.html` is 201 KB of 200 KB; N36 and N37 free some, and the owner may be asked to raise the limit (e.g. to 250 KB).
+
 ## Needs the owner
 
 - **GitHub Sponsors for N35:** set up the Sponsors profile (github.com/sponsors) for the account that should receive support (your personal account, or the forwardmotionnz organisation) and say which. Whether each version is also published as a GitHub release is your call.
@@ -866,6 +882,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-28: Owner's requests: N31 About (version, links, support), N32 checklists in any note with the Tasks screen folded in (the owner's idea; replaces N24), N33 tabs (earlier left out). Placed by priority among N20-N30.
 - 2026-09-28: Owner's choices: GitHub Sponsors for support (N31); rename to Padgit at padgit.com (N34, placed before About so 1.0.0 is Padgit).
 - 2026-09-28: GitHub Sponsors moved out of About (N31) into its own item at the end of the list (N35), as the owner asked.
+- 2026-09-29: Owner's review of the built app: N36 remove ← →, N37 one kind of note (Tasks screen and "Add a task" go), N38 visual redesign with a mock-up first. Placed ahead of the remaining items.
 
 ## Log
 (one line per iteration: date, item, result, commit)

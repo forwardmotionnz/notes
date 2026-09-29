@@ -678,6 +678,18 @@ export const newNote = async (p, name, folder = '') => {
   await p.fill('#nn-name', name);
   await p.press('#nn-name', 'Enter');
 };
+// Rename or move through its dialog, typing a path from the top level as the
+// old prompt took it. Returns the dialog's reason when it refuses (and closes
+// it), or '' when the move was asked for.
+export const moveNote = async (p, target) => {
+  await noteAction(p, '#btn-rename');
+  await p.waitForSelector('#new-note[open]');
+  await p.selectOption('#nn-folder', '');
+  await p.fill('#nn-name', target);
+  if (await p.isDisabled('#nn-go')) { const said = await p.textContent('#nn-path'); await p.click('#nn-cancel'); return said; }
+  await p.press('#nn-name', 'Enter');
+  return '';
+};
 // Ticks or unticks the Preview checkbox whose task text is `name`.
 export const tick = (p, name) => p.getByRole('checkbox', { name, exact: true }).click();
 // Fixture setup for persisted pin lists; pin/unpin UI is covered by pinned-tree.

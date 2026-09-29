@@ -14,12 +14,14 @@ async function ready(opts = {}) {
   await H.settle(p, 400);
   return { gh, ctx, p };
 }
+// Since the Rename or move dialog, a name that is refused is refused in the
+// dialog (its reason is returned) before anything is asked of GitHub.
+let said = '';
 const renameTo = async (p, target) => {
-  p.removeAllListeners('dialog');
-  p.on('dialog', d => d.type() === 'prompt' ? d.accept(target) : d.accept());
-  await H.noteAction(p, '#btn-rename');
+  said = await H.moveNote(p, target);
   await H.settle(p, 700);
 };
+const told = async p => said || await H.status(p);
 
 /* ===== the move itself ===== */
 {
@@ -95,7 +97,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   p.on('request', r => { if (r.url().startsWith('https://api.github.com/')) gitCalls++; });
   await renameTo(p, 'plan.md');
   t.check('an existing file is never overwritten by a move', gh.files['plan.md'] === '# Plan\n' && 'inbox.md' in gh.files);
-  t.check('and the person is told', /already/i.test(await H.status(p)), await H.status(p));
+  t.check('and the person is told', /already/i.test(await told(p)), await told(p));
   // A file already in the list is refused before anything is asked of GitHub.
   t.check('refused at once, before any request to GitHub', gitCalls === 0, String(gitCalls));
   await ctx.close();
@@ -121,9 +123,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   await p.route('https://api.github.com/**/git/refs/heads/**', async r => {
     await new Promise(res => setTimeout(res, 1500)); return r.fallback();
   });
-  p.removeAllListeners('dialog');
-  p.on('dialog', d => d.type() === 'prompt' ? d.accept('moved.md') : d.accept());
-  await H.noteAction(p, '#btn-rename');
+  await H.moveNote(p, 'moved.md');
   await H.settle(p, 500);
   t.check('the note is locked while it moves', await p.evaluate(() => document.querySelector('#cm-stub').readOnly));
   await p.waitForTimeout(2500);
@@ -207,9 +207,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   await p.route('https://api.github.com/**/git/refs/heads/**', async r => {
     await new Promise(res => setTimeout(res, 1500)); return r.fallback();
   });
-  p.removeAllListeners('dialog');
-  p.on('dialog', d => d.type() === 'prompt' ? d.accept('moved.md') : d.accept());
-  await H.noteAction(p, '#btn-rename');
+  await H.moveNote(p, 'moved.md');
   await H.settle(p, 300);
   await p.click('#btn-refresh');
   await H.settle(p, 400);
@@ -247,7 +245,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   for (const bad of ['notes.pdf', '.archive/x.md', 'todo.md/inside.md']) {
     await renameTo(p, bad);
     t.check(`"${bad}" is refused, nothing moves`, 'Groceries.md' in gh.files && !(bad in gh.files) &&
-      /not renamed/i.test(await H.status(p)), await H.status(p));
+      /not renamed|could not open|starting with a dot|not a folder/i.test(await told(p)), await told(p));
   }
   await ctx.close();
 }
@@ -261,7 +259,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   await H.clickRow(p, 'inbox.md');
   await renameTo(p, 'moved.md');
   t.check('a symbolic link is not renamed here', 'inbox.md' in gh.files && !('moved.md' in gh.files) &&
-    /link|rename it on GitHub/i.test(await H.status(p)), await H.status(p));
+    /link|rename it on GitHub/i.test(await told(p)), await told(p));
   await ctx.close();
 }
 

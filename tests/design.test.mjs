@@ -19,9 +19,12 @@ for (const width of [1280, 390]) {
 
   // the note's ⋯ menu
   await p.click('#btn-more');
-  t.check(`${width}: ⋯ opens the note menu with its actions`, await p.locator('#note-menu').isVisible() &&
-    JSON.stringify(await p.locator('#note-menu [role^=menuitem]:visible').allInnerTexts()) === JSON.stringify(['Rename or move', 'Outline', 'Tags', 'Delete']) &&
-    await p.getAttribute('#btn-more', 'aria-expanded') === 'true');
+  // Text read from the DOM, not innerText: WebKit's innerText differs in whitespace for these flex buttons.
+  const offered = await p.evaluate(() => [...document.querySelectorAll('#note-menu [role^=menuitem]')]
+    .filter(b => !b.hidden && getComputedStyle(b).display !== 'none' && b.getClientRects().length).map(b => b.textContent.replace(/\s+/g, ' ').trim()));
+  const menuOpen = await p.locator('#note-menu').isVisible(), expanded = await p.getAttribute('#btn-more', 'aria-expanded');
+  t.check(`${width}: ⋯ opens the note menu with its actions`, menuOpen && expanded === 'true' &&
+    JSON.stringify(offered) === JSON.stringify(['Rename or move', 'Outline', 'Tags', 'Delete']), JSON.stringify({ menuOpen, expanded, offered }));
   t.check(`${width}: the first action has focus`, await p.evaluate(() => document.activeElement.id === 'btn-rename'));
   await p.keyboard.press('ArrowDown');
   t.check(`${width}: arrow keys move through the menu`, await p.evaluate(() => document.activeElement.id === 'btn-outline'));

@@ -1,6 +1,6 @@
-# Contributing to Notes
+# Contributing to Padgit
 
-Thank you for helping. Notes is small on purpose, and these notes are here so
+Thank you for helping. Padgit is small on purpose, and these notes are here so
 that a change is quick to review and easy to accept.
 
 ## Before you start
@@ -9,7 +9,7 @@ that a change is quick to review and easy to accept.
   A fix without an issue is welcome too, if it comes with a test.
 - **Features:** open an issue first ([feature request](.github/ISSUE_TEMPLATE/feature_request.md))
   so we can agree it fits before you spend time on it. The guide lists
-  [what Notes deliberately does not do](docs/guide.md#what-it-deliberately-does-not-do).
+  [what Padgit deliberately does not do](docs/guide.md#what-it-deliberately-does-not-do).
 - **Security problems:** never in a public issue. See [SECURITY.md](SECURITY.md).
 
 ## Design rules
@@ -26,7 +26,7 @@ that a change is quick to review and easy to accept.
    broker and the CDN it loads its libraries from, and nothing else. A new
    library comes from cdnjs, pinned by its integrity hash, and the app must
    still work (with a visible notice) if it fails to load.
-5. **Nothing the app writes needs Notes to read it.** No app-specific files
+5. **Nothing the app writes needs Padgit to read it.** No app-specific files
    in anyone's repository; a note stays an ordinary Markdown file.
 6. **`index.html` stays under 200 KB** (`tests/size.test.mjs` checks it).
 
@@ -100,7 +100,7 @@ prints the new hash to paste in.
 
 ## How the maintainers work
 
-Much of Notes has been built with AI coding agents, held to the rules above
+Much of Padgit has been built with AI coding agents, held to the rules above
 by a written process: every change is tested first, every safeguard is
 checked by breaking it on purpose, and every change is reviewed by a second
 agent looking for ways it could lose notes or leak a sign-in. The process

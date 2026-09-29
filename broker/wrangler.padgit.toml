@@ -1,0 +1,11 @@
+# Cutover only: npx wrangler deploy --config wrangler.padgit.toml
+# Use after the owner prepares Pages HTTPS and the GitHub App callback.
+# Same Worker and existing CLIENT_SECRET; no new secret is needed.
+name = "notes-token-broker"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+CLIENT_ID = "Iv23liBrUeC67BfCYF9c"
+ALLOWED_ORIGIN = "https://padgit.com"
+REDIRECT_URI = "https://padgit.com/"

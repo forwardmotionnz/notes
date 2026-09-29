@@ -1,14 +1,32 @@
-# Using Notes
+# Using Padgit
 
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
+## Finding and saving notes
+Settings includes **About Padgit**, with the version, GitHub repository,
+privacy note, changelog and **Report a bug**. Links open in a new tab.
+
+Before browsing folders, you can use **Find** in the header or **Ctrl/Cmd+K**
+to open a note by name or path. Recent notes appear first for an empty query;
+typing ranks exact names and then name prefixes. Use arrow keys and Enter,
+or tap a result. Escape closes the switcher. This searches the loaded file
+list without reading note contents; use **Search contents** for that.
+
+The line below the note keeps its save status visible, including in Preview:
+Saved, Saving, Unsaved changes, a conflict, or an offline draft. A successful
+save in this open note shows its time. Word count counts whitespace-separated
+parts of the Markdown source, including frontmatter and Markdown markers.
+If browser storage is full or blocked, the line says the local copy is
+unavailable; save or copy your text before closing the page.
+
 ## No notes repository yet
 
-Signed in, but Notes is on no repository? The app shows two steps and
+
+Signed in, but Padgit is on no repository? The app shows two steps and
 nothing else: **Create a repository** opens GitHub's form with the name
-`notes` and *Private* already filled in, and **Let Notes use it** opens the
+`notes` and *Private* already filled in, and **Let Padgit use it** opens the
 page where you choose that repository for the app. Both open in a new tab.
-Come back to the Notes tab and it notices by itself (or press *Check now*):
+Come back to the Padgit tab and it notices by itself (or press *Check now*):
 with one private repository you go straight in, with several you choose
 (a private one called `notes` is offered first). A public repository is never
 chosen for you, and choosing one says that anyone can read what is saved
@@ -25,7 +43,7 @@ elsewhere creates a differently named one, the app follows it and says so.
 
 **Today** in Files opens your daily note using your device's local date.
 Without Obsidian settings it uses `Daily/YYYY-MM-DD.md`. If your vault has
-`.obsidian/daily-notes.json`, Notes reads its folder, format and template
+`.obsidian/daily-notes.json`, Padgit reads its folder, format and template
 without changing that file. An empty folder means the repository root.
 Common Moment year, month, day and time tokens and `[literal text]` work;
 unsupported filename formats fall back to `YYYY-MM-DD` with a notice.
@@ -106,7 +124,7 @@ than 1 MB, load with four requests at a time. External images, SVGs, hidden path
 and known symlinks show a notice instead. Missing or undecodable images also
 show an explanation. Images never become editable notes.
 If the preview libraries cannot load,
-Notes explains this and keeps the editor available.
+Padgit explains this and keeps the editor available.
 
 In **Files**, typing filters filenames instantly. Press **Enter** or **Search
 contents** to search note text as well, including local drafts. Opening a result
@@ -123,14 +141,14 @@ action. Retry the same button: **Save** for a note, the file-list refresh
 button for the list, or the file name to open it again. A request that does
 not answer times out after 30 seconds. A temporary sign-in service outage
 keeps your sign-in; a rejected refresh token still asks you to sign in again.
-For a rate limit, wait for the time shown before retrying. Notes also holds
+For a rate limit, wait for the time shown before retrying. Padgit also holds
 requests during that wait. Repository rules may require the repository
 owner's help before a write can succeed.
 
 An interrupted save keeps your draft. If you reload or change repositories
 before its outcome is known, retrying may report a conflict with your own
 earlier save: **Save as copy** keeps your text as a new note beside it.
-Notes does not silently replace a version it cannot verify.
+Padgit does not silently replace a version it cannot verify.
 
 If a note changed on GitHub while you were editing it (another device, a
 colleague), saving merges the two when you changed different lines, and
@@ -160,12 +178,12 @@ to settings.
 
 It is a web page, so any browser works: home, work, phone. Sign in once per
 browser. On a phone, open the URL and choose *Add to Home Screen*.
-The home-screen shortcut is named **Notes**, uses the paper icon and opens
+The home-screen shortcut is named **Padgit**, uses the paper icon and opens
 the app in its own window. It still needs a connection to GitHub to load
 and commit notes.
 On iPhone or iPad, sign in again in the home-screen app. Save any browser
 drafts first; they stay in the browser. When GitHub opens in a browser to
-choose repositories, return to the Notes home-screen app afterwards.
+choose repositories, return to the Padgit home-screen app afterwards.
 On a phone, the editor follows the space above the keyboard, keeping the
 caret and header controls visible. Pinch zoom remains available.
 

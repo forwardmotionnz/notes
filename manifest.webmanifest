@@ -1,6 +1,6 @@
 {
-  "name": "Notes",
-  "short_name": "Notes",
+  "name": "Padgit",
+  "short_name": "Padgit",
   "description": "Markdown notes kept in a GitHub repository of your own.",
   "start_url": "./",
   "scope": "./",

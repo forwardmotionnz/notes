@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Tell us what went wrong and what you expected Notes to do.
+about: Tell us what went wrong and what you expected Padgit to do.
 ---
 
 Reports are public. Do not include private notes, passwords, tokens or sign-in
@@ -13,12 +13,12 @@ Phone, tablet or computer? Which model and operating system/version?
 
 ## Browser
 
-Browser name and version, if known. Was Notes in a browser tab or opened from
+Browser name and version, if known. Was Padgit in a browser tab or opened from
 the home-screen icon?
 
 ## Steps to reproduce
 
-1. Open Notes and ...
+1. Open Padgit and ...
 2. ...
 
 ## Expected result

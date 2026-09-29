@@ -158,7 +158,7 @@ await H.start();
     (await H.stored(p)).local === null);
   t.check('the unsolicited install code is not used', gh.codes.get('install_code').used === false);
   t.check('it shows the sign-in view with a note, not an error', await H.dialogOpen(p) &&
-    /another Notes tab/i.test(await p.textContent('#signin-info')) && await p.isHidden('#signin-error'),
+    /another Padgit tab/i.test(await p.textContent('#signin-info')) && await p.isHidden('#signin-error'),
     await p.textContent('#signin-info'));
   t.check('"Forget me" starts ticked there', await p.isChecked('#f-session-in'));
   await p.click('#f-signin');

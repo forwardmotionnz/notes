@@ -8,7 +8,7 @@ const path = new URL('manifest.webmanifest', root);
 t.check('the web app manifest exists', existsSync(path));
 if (existsSync(path)) {
   const manifest = JSON.parse(readFileSync(path, 'utf8'));
-  t.check('home screen uses the Notes name', manifest.name === 'Notes' && manifest.short_name === 'Notes');
+  t.check('home screen uses the Padgit name', manifest.name === 'Padgit' && manifest.short_name === 'Padgit');
   t.check('opens the canonical app path without sign-in query parameters', manifest.start_url === './' && manifest.scope === './');
   t.check('home screen opens a standalone window', manifest.display === 'standalone');
   const icons = manifest.icons || [];
@@ -54,7 +54,7 @@ for (const base of [H.APP(), new URL('/a-fork/', H.APP()).href]) {
       const loaded = await client.send('Page.getAppManifest');
       t.check(`${new URL(base).pathname} browser accepts the manifest under CSP`,
         loaded.url === new URL(manifest, base).href && loaded.errors.length === 0 &&
-        JSON.parse(loaded.data || '{}').name === 'Notes', JSON.stringify(loaded.errors));
+        JSON.parse(loaded.data || '{}').name === 'Padgit', JSON.stringify(loaded.errors));
       await client.detach();
     }
   }

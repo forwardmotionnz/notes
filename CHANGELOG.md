@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — MVP candidate
+## 1.0.0 — 2026-09-29
 
 This entry tracks the first version and the features since; no version tag
 is published yet. The shared copy's sign-in is configured and its GitHub App
@@ -10,6 +10,14 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- About Padgit in Settings, with the version and links for this deployment.
+- Padgit branding (formerly Notes), plus a notice before the planned move
+  to padgit.com. The domain cutover still needs the owner's coordinated
+  account changes; the existing shared address remains in use meanwhile.
+- Persistent note save status, last-save time and source word count. Offline
+  status only promises a local copy when the current text is stored.
+- Quick note switcher: Ctrl/Cmd+K or Find, recent paths, ranked name matches,
+  keyboard navigation and phone support, without extra searches on GitHub.
 
 - On a computer, the file list can be hidden (☰) and resized by dragging
   its edge; both are remembered. A theme choice in Settings: the device's

@@ -1,6 +1,6 @@
 # Security
 
-Notes holds people's GitHub sign-in in their browser and reads and writes
+Padgit holds people's GitHub sign-in in their browser and reads and writes
 their private notes, so security reports are especially welcome.
 
 ## Reporting a vulnerability
@@ -27,7 +27,7 @@ anyone else.
 - The sign-in broker, `broker/worker.js`.
 - The shared copy's configuration (its GitHub App and broker settings).
 
-Out of scope: GitHub itself, Cloudflare, and copies of Notes run by other
+Out of scope: GitHub itself, Cloudflare, and copies of Padgit run by other
 people (report those to whoever runs them, and here too if the problem is in
 this code).
 

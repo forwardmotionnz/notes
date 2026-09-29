@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-pdlhg13BnRUCf3tnBv8w5DEnQuQn0gyLkFhkGyGpbW0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-gjS+7QXqa4d2/AD2Zdo5nvRHHpW7WvCsBcBv69dnmVU=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>Notes</title>
+<title>Padgit</title>
 <!-- Add to Home Screen: the manifest for Android and desktop, the touch
 		 icon and title for iOS, which does not use the manifest's icons. -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="apple-mobile-web-app-title" content="Notes">
+<meta name="apple-mobile-web-app-title" content="Padgit">
 <meta name="theme-color" content="#2f6f4f" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16181c" media="(prefers-color-scheme: dark)">
 <!-- Single-file Markdown app; no build. GitHub is the data model.
@@ -158,10 +158,11 @@ body.side-hidden #sidebar{display:flex;}
 #scrim{position:absolute;inset:0;z-index:15;background:rgba(0,0,0,.35);display:none;}
 body.tree-open #scrim{display:block;}
 main{position:relative;overflow:hidden;}
-#crumb{font-size:12px;}
+#crumb{font-size:12px;order:-1;flex-basis:100%;}
 #btn-rename .ic, #btn-delete .ic{display:inline;}
 #btn-rename .lbl, #btn-delete .lbl{display:none;}
-header{flex-wrap:wrap;}
+header{flex-wrap:wrap;gap:4px;}
+header button{padding:5px 7px;}
 #status{order:10;flex-basis:100%;white-space:normal;}
 #status:empty{display:none;}
 }
@@ -176,6 +177,19 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #preview img{max-width:100%;height:auto;display:block;margin:8px 0;}
 #search-tools{padding:4px 8px;}
 #search-status{display:block;font-size:12px;color:var(--fg-soft);padding-top:4px;}
+#quick-switcher{width:min(540px,calc(100vw - 24px));padding:18px;}
+#quick-results{max-height:45vh;overflow:auto;margin:10px 0;}
+#quick-results [role=option]{padding:8px;overflow-wrap:anywhere;cursor:pointer;}
+#quick-results [aria-selected=true]{background:var(--accent-soft);color:var(--accent);}
+#note-summary{flex:none;display:flex;flex-wrap:wrap;gap:6px 16px;padding:5px 12px;border-top:1px solid var(--line);font-size:12px;background:var(--bg-soft);}
+#note-summary[hidden]{display:none;}
+#note-save-time{color:var(--fg-soft);}
+#note-word-count{margin-left:auto;}
+#domain-notice{flex:none;max-height:20%;overflow:auto;padding:7px 12px;background:var(--accent-soft);font-size:12px;}
+#app-about{border-top:1px solid var(--line);padding-top:12px;font-size:13px;}
+#app-about summary{cursor:pointer;font-weight:600;}
+#app-about nav{display:flex;flex-wrap:wrap;gap:8px 16px;}
+#app-about a{color:var(--accent);}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
@@ -183,6 +197,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 <div id="shell">
 	<header>
 		<button class="plain" id="btn-tree" title="Show or hide the file list" aria-label="Files" aria-controls="sidebar" aria-expanded="true">&#9776;</button>
+		<button class="plain" id="btn-switcher" title="Open a note (Ctrl/Cmd+K)" aria-label="Open a note">Find</button>
 		<div id="crumb">no file open</div>
 		<span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
 		<span id="readonly" title="">read-only</span>
@@ -197,6 +212,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		<button class="plain" id="btn-tasks" hidden>Tasks</button>
 		<button class="plain" id="btn-settings" title="Settings">&#9881;</button>
 	</header>
+	<details id="domain-notice" hidden><summary>Notes is now Padgit. Save your notes before the planned address change.</summary><p>The planned address is <span id="domain-target"></span>. Save all notes and copy out any unsaved drafts before the move. Sign-ins and local drafts do not move between addresses. Keep using this address until the move is announced.</p></details>
 	<main>
 		<aside id="sidebar">
 			<div id="sidebar-tools">
@@ -229,12 +245,20 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		</aside>
 		<div id="scrim"></div>
 	</main>
+	<footer id="note-summary" hidden aria-label="Note status"><span id="note-save-status" role="status"></span><span id="note-save-time"></span><span id="note-word-count"></span></footer>
 </div>
+<dialog id="quick-switcher" aria-labelledby="quick-title">
+	<h2 id="quick-title">Open a note</h2>
+	<input id="quick-query" role="combobox" aria-label="Note name or path" aria-controls="quick-results" aria-autocomplete="list" aria-expanded="true" autocomplete="off">
+	<div id="quick-results" role="listbox" aria-label="Matching notes"></div>
+	<p id="quick-status" role="status"></p>
+	<button id="quick-close">Close</button>
+</dialog>
 <dialog id="settings">
 	<!-- Signed out -->
 	<div id="view-signin">
 		<div class="dlg-body">
-			<h2>Notes</h2>
+			<h2>Padgit</h2>
 			<!-- Three sentences: what it is, what it asks GitHub for, where notes
 					 live. PRIVACY.md is published beside the app as PRIVACY.html by
 					 GitHub Pages; docs/self-hosting.md says so for other hosts. -->
@@ -276,16 +300,16 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 				<button id="f-retry">Try again</button></p>
 			<div id="firstrun" hidden>
 				<h2>Now, a place for your notes</h2>
-				<p>Your notes live in a GitHub repository of your own. Make one, then let Notes use it.</p>
+				<p>Your notes live in a GitHub repository of your own. Make one, then let Padgit use it.</p>
 				<ol>
 					<li><a id="fr-create" class="step primary" target="_blank" rel="noopener"
 								 href="https://github.com/new?name=notes&amp;visibility=private">1. Create a repository</a>
 						<em>On GitHub, in a new tab. The name and Private are filled in: press Create repository.
 						Already have one to use? Go to step 2.</em></li>
-					<li><a id="fr-install" class="step" target="_blank" rel="noopener">2. Let Notes use it</a>
+					<li><a id="fr-install" class="step" target="_blank" rel="noopener">2. Let Padgit use it</a>
 						<em>Choose Only select repositories, pick yours, then press Install (or Save).</em></li>
 				</ol>
-				<p class="hint"><span id="fr-status">Then come back here, to this tab or the Notes app: it notices by itself.</span>
+				<p class="hint"><span id="fr-status">Then come back here, to this tab or the Padgit app: it notices by itself.</span>
 					<button id="fr-check">Check now</button></p>
 			</div>
 			<div id="account-form">
@@ -310,6 +334,16 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 				</select>
 			</label>
 			<p class="hint" id="theme-hint">Changes at once, in this browser only.</p>
+			<details id="app-about"><summary>About Padgit</summary>
+				<p>Version <span id="app-version"></span></p>
+				<nav aria-label="About links">
+					<a id="about-source" target="_blank" rel="noopener noreferrer" hidden>GitHub repository</a>
+					<a id="about-privacy" href="PRIVACY.html" target="_blank" rel="noopener noreferrer">Privacy</a>
+					<a id="about-changelog" href="CHANGELOG.html" target="_blank" rel="noopener noreferrer">Changelog</a>
+					<a id="about-bug" target="_blank" rel="noopener noreferrer" hidden>Report a bug</a>
+					<a id="about-support" target="_blank" rel="noopener noreferrer" hidden>Support Padgit</a>
+				</nav>
+			</details>
 			</div>
 		</div>
 		<div class="dlg-foot">
@@ -331,13 +365,18 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 {
 	"clientId": "Iv23liBrUeC67BfCYF9c",
 	"appSlug":  "forwardmotion-notes",
-	"broker":   "https://notes-token-broker.forwardmotionnz.workers.dev"
+	"broker":   "https://notes-token-broker.forwardmotionnz.workers.dev",
+	"repository": "https://github.com/forwardmotionnz/notes",
+	"support": "",
+	"migrationFrom": "https://forwardmotionnz.github.io/notes/",
+	"migrationTo": "https://padgit.com/"
 }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js" integrity="sha384-J1VD5X/E72gORmmXiADelqS192/84qho9IALLC3d5oxjp1RgEN3He4ANyjqXyz10" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js" integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous"></script>
 <script>
 "use strict";
+var APP_VERSION = "1.0.0";
 /* DEPLOYMENT  -  read from the data block above the script. */
 var DEPLOYMENT = { clientId: "", appSlug: "", broker: "" };
 try {
@@ -345,6 +384,24 @@ try {
 } catch (e) {}                         // unreadable: treated as not set up
 // Tests and forks can override without editing the file.
 if (window.NOTES_DEPLOYMENT) DEPLOYMENT = Object.assign({}, DEPLOYMENT, window.NOTES_DEPLOYMENT);
+document.getElementById("app-version").textContent = APP_VERSION;
+(function aboutLinks() {
+	function httpsUrl(value) {
+		try { var u = new URL(value); return u.protocol === "https:" && !u.username && !u.password ? u : null; } catch (e) { return null; }
+	}
+	function link(id, url) { var a = document.getElementById(id); a.href = url; a.hidden = false; }
+	var repo = httpsUrl(DEPLOYMENT.repository), support = httpsUrl(DEPLOYMENT.support);
+	if (repo && repo.hostname === "github.com" && !repo.port && /^\/[\w.-]+\/[\w.-]+\/?$/.test(repo.pathname) && !repo.search && !repo.hash) {
+		var base = repo.origin + repo.pathname.replace(/\/$/, "");
+		link("about-source", base); link("about-bug", base + "/issues/new?template=bug_report.md");
+	}
+	if (support) link("about-support", support.href);
+})();
+// A notice only: never move a person away from an origin holding their drafts.
+if (DEPLOYMENT.migrationFrom === location.origin + location.pathname && DEPLOYMENT.migrationTo) {
+	document.getElementById("domain-target").textContent = DEPLOYMENT.migrationTo;
+	document.getElementById("domain-notice").hidden = false;
+}
 function filledIn() {
 	return !!(DEPLOYMENT.clientId && DEPLOYMENT.appSlug && DEPLOYMENT.broker) &&
 		!/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);
@@ -480,6 +537,7 @@ function syncDraft() {
 		if (d && (d.text === draftWritten[draftKey(current.path)] || d.text === current.saved)) {
 			dropDraft(current.path);
 		}
+		updateNoteSummary();
 		return;
 	}
 	try {
@@ -494,6 +552,7 @@ function syncDraft() {
 		if (!draftWarned) flash("Could not keep a local copy of your changes. Save soon.", true);
 		draftWarned = true;
 	}
+	updateNoteSummary();
 }
 function draftKeys(store) {
 	var keys = [];
@@ -798,6 +857,7 @@ function signOutLocally(spent) {
 }
 /* Keep tabs in step: a refresh or sign-out in one applies to the others. */
 window.addEventListener("storage", function (e) {
+	if (current && (!e.key || e.key === draftKey(current.path))) updateNoteSummary();
 	if (e.key !== CFG_KEY) return;
 	if (!e.newValue) {
 		cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
@@ -852,7 +912,9 @@ function request(path, options, retried) {
 			},
 			body: options.body ? JSON.stringify(options.body) : undefined
 		}).catch(function () {
-			throw new Error("Could not reach GitHub. Check your connection, then try again.");
+			var err = new Error("Could not reach GitHub. Check your connection, then try again.");
+			err.offline = true;
+			throw err;
 		});
 	}).then(function (reply) {
 		var res = reply.res;
@@ -1290,6 +1352,7 @@ function $(id) { return document.getElementById(id); }
 	 no innerHTML anywhere in this file, and tests/hostile.test.mjs fails if
 	 one appears. File names and notes are data, never markup. */
 function flash(msg, isError, ms) {
+	updateNoteSummary();
 	var el = $("status");
 	el.textContent = msg;                    // may carry a path or GitHub's message: text
 	el.className = isError ? "err" : "";
@@ -1307,6 +1370,7 @@ var readOnly = "";            // why this repository cannot be changed, or ""
 // The editor takes typing only when there is a note for it to go into.
 function editorLock() {
 	if (editor && editor.setOption) editor.setOption("readOnly", !!readOnly || moving || !current);
+	updateNoteSummary();
 }
 function applyAccess(reason) {
 	var was = readOnly;
@@ -1765,6 +1829,28 @@ function spelledLikeFolders(path) {
 function dirty() {
 	return !!(current && editor && editor.getValue() !== current.saved);
 }
+// Status belongs to the open document, never to a transient toast or a save
+// finishing for a note left behind. Check the actual stored draft before
+// promising a local copy: a full or blocked store is not a safety net.
+function updateNoteSummary() {
+	var box = $("note-summary");
+	if (!box) return;
+	box.hidden = !current || !editor || !signedIn();
+	if (box.hidden) return;
+	var changed = dirty(), text = editor.getValue(), message = "Saved";
+	var draft = changed && readDraft(current.path), kept = draft && draft.text === text;
+	if (current.conflict || current.stale) message = "Not saved: conflict";
+	else if (typeof current.pending === "string") message = "Saving…";
+	else if (!changed && typeof current.unsure === "string") message = "Save outcome unknown: check GitHub before closing";
+	else if (!changed && !current.sha) message = "New note: not saved";
+	else if (changed) message = current.saveError === "offline" ? "Offline: " + (kept ? "kept on this device" : "local copy unavailable")
+		: current.saveError ? "Not saved: try Save again" : "Unsaved changes";
+	if (changed && !kept && message.indexOf("local copy unavailable") === -1) message += " · local copy unavailable";
+	if ($("note-save-status").textContent !== message) $("note-save-status").textContent = message;
+	$("note-save-time").textContent = current.savedAt ? "Last saved " + new Date(current.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+	var count = (text.match(/\S+/g) || []).length;
+	$("note-word-count").textContent = count + (count === 1 ? " word" : " words");
+}
 // Discard is only offered where there is something it would rescue you
 // from: a restored draft, or a save GitHub rejected as a conflict.
 function showDiscard(on, copy) {
@@ -1845,6 +1931,7 @@ function openFile(path, discarding) {
 		setCrumb(path, draft ? (r.sha ? "(unsaved draft)" : "(new, unsaved draft)") : "");
 		showDiscard(!!draft);
 		ui.last = path;
+		rememberNote(path);
 		persist(UI_KEY, ui);
 		notePinned(path, r.text);
 		if (isPinned(path) && !draft) {
@@ -1957,6 +2044,8 @@ function saveCurrent(auto) {
 	$("btn-save").disabled = true;
 	saving = true;
 	doc.pending = text;
+	doc.saveError = "";
+	updateNoteSummary();
 	var attempted = false;
 	// Resolve the previous uncertain write before sending newer text. If a
 	// second attempt is offline too, it must not erase what may have landed.
@@ -1983,6 +2072,7 @@ function saveCurrent(auto) {
 	// Start an ordinary write before leaving the file can change settings;
 	// writeFile captures this repository and branch synchronously.
 	var done = (ready ? ready.then(write) : write()).then(function (r) {
+		doc.savedAt = Date.now(); doc.saveError = ""; doc.conflict = false; doc.stale = false;
 		doc.unsure = null;
 		doc.base = baseOf(raw);              // the next save compares with what this wrote
 		if (current === doc) {
@@ -2018,6 +2108,7 @@ function saveCurrent(auto) {
 		doc.merged = false;
 	}).catch(function (err) {
 		$("btn-save").disabled = false;
+		doc.saveError = err.offline ? "offline" : "failed";
 		if (attempted && (!err.status || err.status >= 500)) doc.unsure = raw;  // may or may not have landed
 		if (!err.writeBlocked && (err.status === 409 || err.status === 422)) {
 			return mergeTheirs(doc).catch(function () {
@@ -2036,6 +2127,7 @@ function saveCurrent(auto) {
 		saving = false;
 		inflight = null;
 		doc.pending = null;
+		updateNoteSummary();
 		var again = saveAgain;
 		saveAgain = null;
 		if (again && again.doc === current) saveCurrent(again.auto);
@@ -2910,6 +3002,7 @@ function sendPin(path) {
 		if (current && current.path === path && !dirty()) {
 			current.sha = r.sha;
 			current.saved = job.text;
+			current.savedAt = Date.now(); current.saveError = "";
 			current.base = baseOf(job.raw);
 			editor.setValue(job.text);
 		}
@@ -3103,8 +3196,8 @@ function accountView(mode) {
 var firstRunShown = false;
 function firstRun() {
 	$("fr-status").textContent = firstRunShown
-		? "Still no repository Notes can use. Finish both steps on GitHub, then come back."
-		: "Then come back here, to this tab or the Notes app: it notices by itself.";
+		? "Still no repository Padgit can use. Finish both steps on GitHub, then come back."
+		: "Then come back here, to this tab or the Padgit app: it notices by itself.";
 	var first = !firstRunShown;
 	firstRunShown = true;
 	accountView("firstrun");
@@ -3156,7 +3249,7 @@ function pointAt(owner, repo, branch, pins, prepared) {
 	cfg.repo = repo;
 	cfg.branch = branch;
 	cfg.pins = pins;
-	if (changedRepo) { ui.open = pathMap(); ui.last = null; }
+	if (changedRepo) { ui.open = pathMap(); ui.last = null; $("quick-switcher").close(); }
 	return changedRepo;
 }
 function showPointed(changedRepo) {
@@ -3406,6 +3499,72 @@ $("f-theme").onchange = function () {
 	applyTheme(t);
 };
 try { applyTheme(localStorage.getItem("notes.theme")); } catch (e) { applyTheme("auto"); }
+/* Quick switcher uses only the loaded tree. Recents belong to this repository
+   and branch, and share the existing session-only/sign-out storage rules. */
+var quickScope = "", quickMatches = [], quickIndex = 0;
+function recentScope() { return JSON.stringify([cfg.owner, cfg.repo, cfg.branch]); }
+function rememberNote(path) {
+	var scope = recentScope(), recent = ui.recent;
+	var paths = recent && recent.scope === scope && Array.isArray(recent.paths) ? recent.paths : [];
+	ui.recent = { scope: scope, paths: [path].concat(paths.filter(function (p) { return p !== path; })).slice(0, 30) };
+}
+function quickRender() {
+	var q = $("quick-query").value.trim().toLowerCase(), recent = ui.recent;
+	var paths = recent && recent.scope === quickScope && Array.isArray(recent.paths) ? recent.paths : [];
+	function rank(p) {
+		var name = p.split("/").pop().toLowerCase().replace(/\.[^.]+$/, "");
+		return name === q ? 0 : name.indexOf(q) === 0 ? 1 : 2;
+	}
+	quickMatches = files.filter(function (f) { return f.type === "blob" && !isHidden(f.path) && isTextFile(f.path) && f.path.toLowerCase().indexOf(q) !== -1; }).map(function (f) { return f.path; });
+	quickMatches.sort(function (a, b) {
+		var ai = paths.indexOf(a), bi = paths.indexOf(b);
+		return (q ? rank(a) - rank(b) : (ai < 0 ? 31 : ai) - (bi < 0 ? 31 : bi)) || a.localeCompare(b);
+	});
+	var total = quickMatches.length;
+	quickMatches = quickMatches.slice(0, 50); quickIndex = 0;
+	$("quick-results").textContent = "";
+	quickMatches.forEach(function (path, i) {
+		var row = document.createElement("div"); row.id = "quick-" + i;
+		row.setAttribute("role", "option"); row.textContent = path;
+		row.onclick = function () { quickIndex = i; quickChoose(); };
+		$("quick-results").appendChild(row);
+	});
+	$("quick-status").textContent = treeState !== "ok" ? "File list not ready. Refresh Files and try again." : files.truncated ? "Only the loaded part of this repository is searched." : total > 50 ? "First 50 matches. Type more to narrow the list." : total ? "Arrow keys to choose, Enter to open, Escape to close." : "No matching notes.";
+	quickSelect();
+}
+function quickSelect() {
+	Array.from($("quick-results").children).forEach(function (row, i) { row.setAttribute("aria-selected", String(i === quickIndex)); });
+	var row = $("quick-" + quickIndex);
+	if (row) { $("quick-query").setAttribute("aria-activedescendant", row.id); row.scrollIntoView({ block: "nearest" }); }
+	else $("quick-query").removeAttribute("aria-activedescendant");
+}
+function quickChoose() {
+	if (quickScope !== recentScope() || !configured()) { $("quick-switcher").close(); return; }
+	var path = quickMatches[quickIndex];
+	if (!path || !files.some(function (f) { return f.path === path && f.type === "blob"; })) return;
+	$("quick-switcher").close();
+	Promise.resolve(openFile(path)).then(function () { if (current && current.path === path && !isPinned(path)) editor.focus(); });
+}
+function quickOpen() {
+	if (!configured() || $("settings").open) return;
+	quickScope = recentScope(); $("quick-query").value = "";
+	if (!$("quick-switcher").open) $("quick-switcher").showModal();
+	quickRender(); $("quick-query").focus();
+}
+$("btn-switcher").onclick = quickOpen;
+$("quick-close").onclick = function () { $("quick-switcher").close(); };
+$("quick-query").oninput = quickRender;
+$("quick-query").onkeydown = function (e) {
+	if (e.isComposing || e.keyCode === 229) return;
+	if (e.key === "Enter") { e.preventDefault(); quickChoose(); }
+	if ((e.key === "ArrowDown" || e.key === "ArrowUp") && quickMatches.length) {
+		e.preventDefault(); quickIndex = (quickIndex + (e.key === "ArrowDown" ? 1 : -1) + quickMatches.length) % quickMatches.length; quickSelect();
+	}
+};
+// Capture before CodeMirror's macOS Ctrl-K binding can delete a line.
+document.addEventListener("keydown", function (e) {
+	if (!e.isComposing && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
+}, true);
 document.addEventListener("keydown", function (e) {
 	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
 		e.preventDefault();
@@ -3414,6 +3573,7 @@ document.addEventListener("keydown", function (e) {
 });
 // A phone may never bring a hidden page back; commit what is there now.
 document.addEventListener("visibilitychange", function () {
+	updateNoteSummary();
 	if (document.visibilityState === "hidden") saveCurrent(true);
 	// Back from GitHub's repository settings in the other tab.
 	else if ($("settings").open && !$("view-account").hidden && signedIn()) loadRepoList();
@@ -3490,7 +3650,7 @@ function start() {
 		if (!r || !r.installed) return;
 		// start() has already opened settings when no repository is chosen yet.
 		if (signedIn()) { if (configured()) openSettings(); return; }
-		showSignIn("", "Back from GitHub. If you started in another Notes tab, or in the Notes app on " +
+		showSignIn("", "Back from GitHub. If you started in another Padgit tab, or in the Padgit app on " +
 							 "your home screen, close this and carry on there. Otherwise sign in to use the " +
 							 "repositories you chose.");
 		// Nothing here says whether they wanted to be remembered on this

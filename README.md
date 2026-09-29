@@ -1,33 +1,38 @@
-# Notes
+# Padgit
 
 Markdown notes in your own GitHub repository, from any browser, computer or
 phone. Every note is a plain file and every save is an ordinary commit, so
 nothing is locked in: the same repository works in Obsidian, on github.com
-or in any editor. There is no Notes server, database or account; the app is
+or in any editor. There is no Padgit server, database or account; the app is
 a single web page.
 
-![Notes in a browser: the file list on the left, a note rendered in Preview on the right](docs/screenshot.png)
+![Padgit in a browser: the file list on the left, a note rendered in Preview on the right](docs/screenshot.png)
 
 ## Try it
 
 The shared copy below is ready to use: sign-in is configured and its
 GitHub App is public.
 
-1. Open [Notes](https://forwardmotionnz.github.io/notes/) on your computer or
+Notes is now **Padgit**. The planned address is [padgit.com](https://padgit.com/);
+the working link below stays in use until the coordinated move. Save your
+notes and copy out any unsaved drafts before then: browser sign-ins and
+drafts do not transfer to a new address. [Move details](docs/padgit-migration.md).
+
+1. Open [Padgit](https://forwardmotionnz.github.io/notes/) on your computer or
    phone. You need a GitHub account and an internet connection.
-2. Choose **Sign in with GitHub**. When GitHub asks where to install Notes,
+2. Choose **Sign in with GitHub**. When GitHub asks where to install Padgit,
    choose only the private repository you want to use for notes.
    A repository is a folder of files on GitHub, with a history of your changes.
    [No notes repository yet?](docs/guide.md#no-notes-repository-yet) Follow the two steps
-   in Notes to create one and let the app use it.
-3. Back in Notes, choose your repository if asked, then press **Save** to
+   in Padgit to create one and let the app use it.
+3. Back in Padgit, choose your repository if asked, then press **Save** to
    close settings. On a phone, open **☰ Files** first. Press **+** (*New note*)
    in the file list, give your note a name such as `Hello.md`, write a few
    words and press **Save** above the editor.
    Your note is now a plain file in your repository; you can edit it in
    Obsidian or on GitHub too.
 
-Read the [privacy note](PRIVACY.md) before signing in. Notes reads and writes
+Read the [privacy note](PRIVACY.md) before signing in. Padgit reads and writes
 files in repositories its GitHub App is installed on that you can access;
 this may include repositories someone else installed it on. The app's owner
 also has access through that installation. Only use a copy whose owner you
@@ -82,7 +87,7 @@ GitHub.
 
 ## Documentation
 
-- [Guide](docs/guide.md): using Notes, in detail
+- [Guide](docs/guide.md): using Padgit, in detail
 - [Running your own copy](docs/self-hosting.md): your own page, GitHub App and broker
 - [Privacy](PRIVACY.md)
 - [Changelog](CHANGELOG.md)

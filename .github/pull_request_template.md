@@ -1,6 +1,6 @@
 ## What this changes
 
-<!-- What does a person using Notes notice? Link the issue if there is one. -->
+<!-- What does a person using Padgit notice? Link the issue if there is one. -->
 
 ## How it is tested
 

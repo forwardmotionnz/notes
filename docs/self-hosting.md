@@ -6,6 +6,14 @@ your own page, your own GitHub App and your own sign-in broker. The
 [privacy note](../PRIVACY.md) explains what each part sees.
 
 ## How it fits together
+Remove `migrationFrom` and `migrationTo` from the deployment block for your
+own copy unless you are planning your own address change. They control a
+notice only; they do not set the OAuth callback or redirect visitors.
+Set `repository` to your copy's GitHub repository URL for About and bug
+reports. Leave `support` empty unless you want an HTTPS support link shown.
+For static hosts without Markdown rendering, publish `CHANGELOG.md` as
+`CHANGELOG.html`, alongside `PRIVACY.html`, so About's local links work.
+
 
 ```
  browser ──── sign in ────▶ github.com ──── code ────▶ browser
@@ -125,7 +133,7 @@ Open the app, **Sign in with GitHub**, and install the app on your notes
 repository when GitHub asks. If it is installed on one repository you go
 straight in; with several you choose. To add or remove repositories later,
 use *Choose repositories* in the app's settings. It opens GitHub in a new
-tab; save your choice there, come back to the Notes tab, and the list has
+tab; save your choice there, come back to the Padgit tab, and the list has
 updated. (GitHub does not send you back after a change, only after a first
 install.) Arriving from a GitHub install never signs you in by itself: you
 are asked to sign in, with *Forget me* ticked, since the app cannot tell

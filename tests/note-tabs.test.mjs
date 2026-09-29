@@ -5,6 +5,12 @@ const exists=await p.locator('#note-tabs').count();t.check('open notes strip exi
 if(exists){
  await p.evaluate(()=>openFile('n0.md'));await p.evaluate(()=>openFile('n1.md'));await p.evaluate(()=>openFile('n0.md'));
  const paths=()=>p.evaluate(()=>tabPaths());t.check('opening an existing tab never duplicates it',JSON.stringify(await paths())===JSON.stringify(['n0.md','n1.md']));
+ // Review of N38: a comment swallowed the tab's click handler; nothing clicked a tab by its name.
+ await p.locator('#note-tabs span button',{hasText:'n1'}).first().click();await p.waitForFunction(()=>current?.path==='n1.md',null,{timeout:3000}).catch(()=>{});
+ t.check('clicking a tab opens its note',await p.evaluate(()=>current?.path)==='n1.md');
+ t.check('and marks that tab as open',await p.evaluate(()=>{const on=[...document.querySelectorAll('#note-tabs span.on button:first-child')];return on.length===1&&on[0].title==='n1.md'&&on[0].getAttribute('aria-pressed')==='true';}));
+ await p.locator('#note-tabs span button',{hasText:'n0'}).first().click();await p.waitForFunction(()=>current?.path==='n0.md',null,{timeout:3000}).catch(()=>{});
+ t.check('and back again',await p.evaluate(()=>current?.path)==='n0.md');
  await p.reload();await p.waitForFunction(()=>current?.path==='n0.md');t.check('tabs survive reload scoped to repository',JSON.stringify(await paths())===JSON.stringify(['n0.md','n1.md']));
  await p.evaluate(()=>{window.realRead=readNote;readNote=p=>p==='n1.md'?new Promise(resolve=>window.releaseTab=()=>realRead(p).then(resolve)):realRead(p);openFile('n1.md');});await p.waitForFunction(()=>!!window.releaseTab);
  await p.getByRole('button',{name:'Close n1.md',exact:true}).click();await p.evaluate(async()=>{await releaseTab();readNote=realRead;});

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-l5wm1eku0BtXNvVbgJXtLdsvk6yCSr8ZuRvIW6HENCI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-1bg5v8UduijHyr54Wz6ijwqzizY/GSUjUXORkMWMDV8=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -3128,7 +3128,13 @@ function renderPins() {
 		readNote(path).then(function (r) {
 			if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
 			pinCache[path] = r; renderPins();
-		}).catch(function (e) { if (epoch === pinEpoch) fail(e); });
+		}).catch(function (e) {
+			if (epoch !== pinEpoch || sequence !== pinReadSeq) return;
+			if (!current && path === activePin() && document.body.classList.contains("preview-view")) {
+				$("pin-list").replaceChildren(emptyNote(e.message));
+			}
+			fail(e);
+		});
 		return;
 	}
 	if (document.body.classList.contains("task-view") || document.body.classList.contains("preview-view")) previewView(true);

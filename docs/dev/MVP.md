@@ -28,6 +28,15 @@ a test deadlock; they now launch the operation without awaiting that gate.
 The complete release-races suite passes 14/14 in both engines. Development
 used focused suites rather than repeated full runs.
 
+The first full CI run caught a missing refusal message for an unreadable pin;
+Preview now shows the read error, with stale-read guards. The existing large
+file overwrite protections still pass (large 20/20 both engines). Two Padgit
+URL assertions now allow the note bookmark fragment while retaining exact
+origin/path and OAuth redirect checks (11/11). Hostile content checks open
+the pin's Preview and assert sanitised task text and no executable elements,
+instead of expecting raw HTML to be displayed as literal text (28/28). These
+three focused suites pass in both engines; the corrected PR repeats full CI.
+
 The original SHOULD list was completed and merged in PR #9. Older handover
 details below are historical, including the pre-merge S3/S4 wording.
 

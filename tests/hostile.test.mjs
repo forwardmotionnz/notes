@@ -109,7 +109,8 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   t.check('filter results render as text', (await H.rows(p)).length >= 3);
   await p.fill('#filter', '');
 
-  t.check('pinned tasks render as text', (await p.textContent('#pin-list')).includes(`${IMG} task`));
+  await p.locator('#pin-tabs button').nth(0).click(); await H.settle(p, 300);
+  t.check('pinned task content is sanitised in Preview', (await p.textContent('#pin-list')).includes('task') && await p.locator('#pin-list img, #pin-list script, #pin-list svg, #pin-list iframe').count() === 0);
   const tabs = await p.$$eval('#pin-tabs button', b => b.map(x => x.textContent));
   t.check('hostile pinned name is a text tab', tabs.includes(`${IMG}.md`), JSON.stringify(tabs));
   const pinTab = async i => { await p.locator('#pin-tabs button').nth(i).click(); await H.settle(p, 300); };

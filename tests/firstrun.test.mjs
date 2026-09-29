@@ -50,11 +50,11 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   await H.settle(p, 800);
   t.check('coming back, the one repository is chosen by itself', !(await H.dialogOpen(p)) &&
     (await p.textContent('#crumb')).includes('roldaof/notes'), await p.textContent('#crumb'));
-  t.check('and it says how to write the first note', /empty.*press \+/i.test(await p.textContent('#tree')),
+  t.check('and it says how to write the first note', /empty.*New note/i.test(await p.textContent('#tree')),
     await p.textContent('#tree'));
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.accept('Welcome'));
-  await p.click('#btn-new');
+  await H.newNote(p, 'Welcome');
   await H.settle(p, 200);
   await p.click('#btn-save');
   await H.settle(p, 600);

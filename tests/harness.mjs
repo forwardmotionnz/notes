@@ -667,6 +667,17 @@ export const taskAction = async (p, name) => {
   }, name);
   await p.locator('#pin-list .task-menu:not([hidden])').getByRole('menuitem', { name, exact: true }).click();
 };
+// The New note dialog. A typed path is taken from the top level, as the old
+// prompt did; `folder` picks a folder in the dialog instead.
+export const newNote = async (p, name, folder = '') => {
+  if (await p.evaluate(() => innerWidth <= 820 && !document.body.classList.contains('tree-open'))) { await p.click('#btn-tree'); await still(p); }   // on a phone it is in the Files sheet
+  await p.click('#btn-new');
+  await p.waitForSelector('#new-note[open]');
+  if (name == null) { await p.click('#nn-cancel'); return; }
+  await p.selectOption('#nn-folder', folder);
+  await p.fill('#nn-name', name);
+  await p.press('#nn-name', 'Enter');
+};
 // Ticks or unticks the Preview checkbox whose task text is `name`.
 export const tick = (p, name) => p.getByRole('checkbox', { name, exact: true }).click();
 // Fixture setup for persisted pin lists; pin/unpin UI is covered by pinned-tree.

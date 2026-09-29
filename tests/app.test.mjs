@@ -119,7 +119,7 @@ async function setPins(p, pins) {
   const { gh, ctx, p } = await ready();
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('projects/orchard/ideas') : d.accept());
-  await p.click('#btn-new');
+  await H.newNote(p, 'projects/orchard/ideas');
   await H.settle(p, 150);
   t.check('extension appended', (await p.textContent('#crumb .name')) === 'ideas.md');
   t.check('flagged as new', (await p.textContent('#crumb .tag')) === '(new)');

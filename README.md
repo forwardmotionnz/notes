@@ -26,9 +26,9 @@ drafts do not transfer to a new address. [Move details](docs/padgit-migration.md
    [No notes repository yet?](docs/guide.md#no-notes-repository-yet) Follow the two steps
    in Padgit to create one and let the app use it.
 3. Back in Padgit, choose your repository if asked, then press **Save** to
-   close settings. On a phone, open **☰ Files** first. Press **+** (*New note*)
-   in the file list, give your note a name such as `Hello.md`, write a few
-   words and press **Save** above the editor.
+   close settings. On a phone, open **☰ Files** first. Choose **+** *New note*
+   in the file list, give your note a name such as `Hello` and pick a folder
+   if you like, write a few words and press **Save** at the top.
    Your note is now a plain file in your repository; you can edit it in
    Obsidian or on GitHub too.
 

@@ -71,6 +71,11 @@ autosave). Existing notes and drafts are preserved. Missing templates or
 invalid settings show an explanation and leave the current note alone.
 
 - Folder tree of the repository, collapse state remembered
+- **New note** asks for a name and a folder: it starts in the folder of the
+  note you have open, lists every folder in the repository, and offers **New
+  folder…** for one that does not exist yet (it is made when the note is first
+  saved). The line underneath shows exactly where the note will go; if a note
+  with that name is already there, it offers to open it instead
 - Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
 - The note's **⋯** menu, at the top right, holds **Rename or move**,
   **Outline**, **Tags** and **Delete**.

@@ -38,7 +38,7 @@ const moreOrgs = Array.from({ length: 100 }, (_, i) => ({ id: 1000 + i, account:
   await H.settle(p, 500);
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('hello') : d.accept());
-  await p.click('#btn-new');
+  await H.newNote(p, 'hello');
   await H.settle(p, 200);
   await H.setEditor(p, '# Hello from acme\n');
   await H.settle(p, 60);

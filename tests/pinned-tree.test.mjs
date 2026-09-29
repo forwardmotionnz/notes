@@ -43,7 +43,7 @@ for (const width of [1280,390]) {
  t.check('closed: no shortcut is marked',await p.locator('#pin-tabs button.active, #pin-tabs button[aria-current]').count()===0);
  p.removeAllListeners('dialog');p.on('dialog',d=>d.type()==='prompt'?d.accept('fresh'):d.accept());
  await p.locator('#pin-tabs button').first().click();await p.waitForFunction(()=>current?.path==='todo.md');
- await p.click('#btn-new');await p.waitForFunction(()=>current?.path==='fresh.md');
+ await H.newNote(p, 'fresh');await p.waitForFunction(()=>current?.path==='fresh.md');
  t.check('a new note: the shortcut is no longer marked',await p.locator('#pin-tabs button.active, #pin-tabs button[aria-current]').count()===0);
  await ctx.close();
 }

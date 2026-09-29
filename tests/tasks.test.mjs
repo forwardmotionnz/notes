@@ -324,7 +324,7 @@ const undoShown = p => p.isVisible('#pin-undo');
   const before = gh.files['todo.md'];
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('fresh') : d.accept());
-  await p.click('#btn-new');
+  await H.newNote(p, 'fresh');
   await p.waitForFunction(() => current?.path === 'fresh.md');
   await H.preview(p);
   t.check('a new note: the Undo is not offered there', !(await undoShown(p)) && await p.evaluate(() => pinUndo === null));

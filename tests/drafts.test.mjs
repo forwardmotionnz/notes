@@ -129,7 +129,7 @@ async function type(p, text) {
   const { gh, ctx, p } = await ready();
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('ideas/first') : d.accept());
-  await p.click('#btn-new');
+  await H.newNote(p, 'ideas/first');
   await H.settle(p, 150);
   await type(p, '# First\n\nnot saved yet\n');
   await reloadUnsaved(p);
@@ -267,13 +267,13 @@ async function type(p, text) {
   const { ctx, p } = await ready();
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('idea') : d.type() === 'beforeunload' ? d.accept() : d.dismiss());
-  await p.click('#btn-new');
+  await H.newNote(p, 'idea');
   await H.settle(p, 150);
   await type(p, '# idea\n\nlong important text\n');
   await reloadUnsaved(p);
   await H.settle(p, 700);
   await H.clickRow(p, 'inbox.md');                 // dismissed: the draft stays where it is
-  await p.click('#btn-new');
+  await H.newNote(p, 'idea');
   await H.settle(p, 400);
   t.check('New on a drafted path reopens the draft instead of overwriting it',
     (await H.editorValue(p)) === '# idea\n\nlong important text\n', JSON.stringify(await H.editorValue(p)));

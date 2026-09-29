@@ -71,7 +71,7 @@ async function slowGet(p, name, ms) {
   const { gh, ctx, p } = await ready();
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('later') : d.accept());
-  await p.click('#btn-new');
+  await H.newNote(p, 'later');
   await p.waitForTimeout(IDLE + 600);
   t.check('New alone commits nothing', p.puts === 0 && !('later.md' in gh.files));
   await hide(p);

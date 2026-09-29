@@ -158,7 +158,7 @@ async function run(label, ctxOpts) {
   p.removeAllListeners('dialog');
   p.on('dialog', d => { p.asked.push(d.message()); return d.type() === 'prompt' ? d.accept('Scratch') : d.dismiss(); });
   await H.signIn(p);
-  await p.click('#btn-new');
+  await H.newNote(p, 'Scratch');
   await H.settle(p, 200);
   await H.setEditor(p, '# Scratch\n\nsee [[Plans/Q4]]\n');
   p.asked = [];
@@ -251,12 +251,12 @@ async function run(label, ctxOpts) {
 
   // + with a name that looks like it has an extension.
   p.reply = 'Release 2.0';
-  await p.click('#btn-new');
+  await H.newNote(p, p.reply);
   await H.settle(p, 300);
   t.check('+ "Release 2.0" makes a note too, not a file it could never reopen', (await name(p)) === 'Release 2.0.md',
     await name(p));
   p.reply = 'notes.txt';
-  await p.click('#btn-new');
+  await H.newNote(p, p.reply);
   await H.settle(p, 300);
   t.check('+ still makes a text file by its own extension', (await name(p)) === 'notes.txt', await name(p));
 

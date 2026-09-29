@@ -3,6 +3,12 @@
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
 ## Finding and saving notes
+Opening a note updates the address. Bookmark or copy it to return after
+sign-in; choose the same repository and branch in Settings. Browser Back and
+Forward, phone back gestures and the header arrows move between notes.
+Leaving still saves edits or keeps their draft. Filenames are in the address
+fragment (not sent to the static host), and may remain in browser history.
+
 Settings includes **About Padgit**, with the version, GitHub repository,
 privacy note, changelog and **Report a bug**. Links open in a new tab.
 

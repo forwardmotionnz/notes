@@ -37,31 +37,19 @@ await H.start();
   await ctx.close();
 }
 
-/* ===== the pinned capture box works in an empty repository too ===== */
+/* ===== N37: the pinned note in an empty repository opens and saves like any note ===== */
 {
   const gh = H.fakeGitHub({ empty: true, files: {} });
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
   await H.settle(p, 400);
-  await p.fill('#pin-input', 'first task');
-  await p.press('#pin-input', 'Enter');
-  await H.settle(p, 600);
-  t.check('a first task creates the pinned file', gh.files['todo.md'] === '- [ ] first task\n', await H.status(p));
-  await ctx.close();
-}
-
-/* ===== a first task in the pinned box shows up in the tree ===== */
-{
-  const gh = H.fakeGitHub({ empty: true, files: {} });
-  const ctx = await H.context(gh);
-  const p = await H.page(ctx);
-  await H.signIn(p);
-  await H.settle(p, 400);
-  await p.fill('#pin-input', 'first task');
-  await p.press('#pin-input', 'Enter');
+  t.check('an empty repository offers no task box', await p.getByPlaceholder('Add a task').count() === 0);
+  await p.locator('#pin-tabs button', { hasText: 'todo.md' }).click();
+  await H.saveNote(p, 'todo.md', '- [ ] first task\n');
   await H.settle(p, 700);
-  t.check('the tree no longer says empty once the first task is saved',
+  t.check('a first checklist creates the pinned file', gh.files['todo.md'] === '- [ ] first task\n', await H.status(p));
+  t.check('the tree no longer says empty once the first note is saved',
     (await H.rows(p)).includes('todo.md') && !/empty/i.test(await p.textContent('#tree')), await p.textContent('#tree'));
   await ctx.close();
 }
@@ -143,7 +131,9 @@ await H.start();
   t.check("the app follows the repository's default branch", (await H.rows(p)).includes('notes.md') &&
     (await p.textContent('#crumb')).includes('@trunk'), await p.textContent('#crumb'));
   t.check('and says so', /trunk/.test(await H.status(p)), await H.status(p));
-  t.check('pinned tasks come from it', (await p.textContent('#pin-list')).includes('from trunk'));
+  await p.locator('#pin-tabs button', { hasText: 'todo.md' }).click();
+  await p.waitForFunction(() => current?.path === 'todo.md');
+  t.check('pinned notes come from it', (await H.editorValue(p)).includes('from trunk'));
   await H.clickRow(p, 'notes.md');
   await H.setEditor(p, 'hi there\n');
   await H.settle(p, 60);
@@ -153,18 +143,21 @@ await H.start();
   await ctx.close();
 }
 
-/* ===== a pinned task that fails to save is put back ===== */
+/* ===== N37: a checklist edit that fails to save is kept as a draft ===== */
 {
-  const gh = H.fakeGitHub({ files: { 'todo.md': '' } });
+  const gh = H.fakeGitHub({ files: { 'todo.md': '- [ ] one\n' } });
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
   await H.settle(p, 400);
+  await H.preview(p, 'todo.md');
   await p.route('https://api.github.com/**/contents/**', r => r.request().method() === 'PUT' ? r.abort() : r.fallback());
-  await p.fill('#pin-input', 'do not lose me');
-  await p.press('#pin-input', 'Enter');
+  await p.getByRole('button', { name: 'Edit task: one', exact: true }).click();
+  await p.locator('.task-edit').fill('do not lose me');
+  await p.locator('.task-edit').press('Enter');
   await H.settle(p, 600);
-  t.check('a task that could not be saved is back in the box', (await p.inputValue('#pin-input')) === 'do not lose me');
+  t.check('a task edit that could not be saved is kept as a draft', gh.files['todo.md'] === '- [ ] one\n' &&
+    await p.evaluate(() => Object.keys(localStorage).some(k => k.startsWith('notes.draft.') && localStorage.getItem(k).includes('do not lose me'))));
   await ctx.close();
 }
 

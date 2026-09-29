@@ -14,7 +14,7 @@ for(const width of [1280,390])for(const theme of ['light','dark']){
   const serious=result.violations.filter(v=>['serious','critical'].includes(v.impact));
   t.check(`${width} ${theme} ${view}: zero serious/critical violations`,!serious.length,JSON.stringify(serious.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))));
  }
- await scan('sign-in');await H.signIn(p);await p.evaluate(()=>openFile('todo.md'));await scan('tasks');
+ await scan('sign-in');await H.signIn(p);await H.preview(p,'todo.md');await p.waitForSelector('#pin-list .task');await scan('checklist preview');
  await p.evaluate(()=>openFile('note.md'));
  t.check(`${width} ${theme}: the editor scanned is CodeMirror`,await p.locator('.CodeMirror').count()===1);await scan('editor');
  await p.click('#btn-outline');await scan('heading outline');await p.click('#outline-close');

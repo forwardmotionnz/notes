@@ -238,15 +238,14 @@ async function device(gh, opts = {}) {
   await H.signIn(p);
   await H.clickRow(p, 'z.md');
   t.check('scan adds a pin ahead: setup, not found yet', !(await pinTabs(p)).includes('a.md'));
-  await p.evaluate(() => showTasks());
+  await H.preview(p);
   await p.waitForFunction(() => treeState === 'ok' && !pinScanning, null, { timeout: 30000 });
   await H.settle(p, 500);
-  t.check('scan adds a pin ahead: still showing the same list', await p.evaluate(() => activePin()) === 'z.md', await p.evaluate(() => activePin()));
+  t.check('scan adds a pin ahead: still showing the same list', await p.evaluate(() => current.path === 'z.md' && document.body.classList.contains('preview-view')) && (await p.textContent('#pin-list')).includes('zebra'));
   t.check('scan adds a pin ahead: its tab still the one marked', (await p.textContent('#pin-tabs button.active')) === 'z.md');
-  await p.fill('#pin-input', 'zucchini');
-  await p.press('#pin-input', 'Enter');
+  await H.tick(p, 'zebra');
   await H.settle(p, 3000);
-  t.check('scan adds a pin ahead: a new task goes where it is shown', gh.files['z.md'].includes('zucchini') && !gh.files['a.md'].includes('zucchini'));
+  t.check('scan adds a pin ahead: a tick goes where it is shown', gh.files['z.md'].includes('[x] zebra') && !gh.files['a.md'].includes('[x]'));
   await ctx.close();
 }
 

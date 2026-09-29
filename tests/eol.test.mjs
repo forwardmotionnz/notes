@@ -265,16 +265,19 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
 /* ===== pinned task list in a CRLF file ===== */
 {
   const { gh, ctx, p } = await ready();
+  await H.preview(p, 'todo.md');
   const tasks = await p.$$eval('#pin-list .task span', e => e.map(s => s.textContent));
   t.check('CRLF tasks are listed', JSON.stringify(tasks) === '["ring the panelbeater","swap the spare"]', JSON.stringify(tasks));
   await p.locator('#pin-list .task input').nth(0).click();
   await H.settle(p, 400);
   t.check('ticking keeps CRLF and changes one line',
     gh.files['todo.md'] === '# Today\r\n\r\n- [x] ring the panelbeater\r\n- [x] swap the spare\r\n', JSON.stringify(gh.files['todo.md']));
-  await p.fill('#pin-input', 'book the wof');
-  await p.press('#pin-input', 'Enter');
+  // N37: the capture box is gone; editing a task's text in Preview keeps CRLF.
+  await p.getByRole('button', { name: 'Edit task: swap the spare', exact: true }).click();
+  await p.locator('.task-edit').fill('swap the spare tyre');
+  await p.locator('.task-edit').press('Enter');
   await H.settle(p, 400);
-  t.check('capture appends with CRLF', gh.files['todo.md'].endsWith('- [x] swap the spare\r\n- [ ] book the wof\r\n'),
+  t.check('editing a task keeps CRLF', gh.files['todo.md'] === '# Today\r\n\r\n- [x] ring the panelbeater\r\n- [x] swap the spare tyre\r\n',
     JSON.stringify(gh.files['todo.md']));
   await ctx.close();
 }

@@ -79,8 +79,10 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   t.check('hostile branch shown as text in the header', (await p.textContent('#crumb')).includes(BRANCH));
   await p.locator('#pin-tabs button').nth(2).click();
   await H.settle(p, 300);
-  t.check('a pin named like an object property loads at once',
-    (await p.textContent('#pin-list')).includes('awkward name'), await p.textContent('#pin-list'));
+  // N37: a pin is a shortcut that opens the note like any other.
+  await p.waitForFunction(() => current?.path === 'hasOwnProperty', null, { timeout: 5000 }).catch(() => {});
+  t.check('a pin named like an object property opens at once',
+    (await H.editorValue(p) || '').includes('awkward name'), await H.editorValue(p));
   await p.locator('#pin-tabs button').nth(0).click();
 
   const rows = await H.rows(p);
@@ -109,16 +111,16 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   t.check('filter results render as text', (await H.rows(p)).length >= 3);
   await p.fill('#filter', '');
 
-  await p.locator('#pin-tabs button').nth(0).click(); await H.settle(p, 300);
+  await p.locator('#pin-tabs button').nth(0).click(); await H.preview(p, 'todo.md'); await H.settle(p, 300);
   t.check('pinned task content is sanitised in Preview', (await p.textContent('#pin-list')).includes('task') && await p.locator('#pin-list img, #pin-list script, #pin-list svg, #pin-list iframe').count() === 0);
   const tabs = await p.$$eval('#pin-tabs button', b => b.map(x => x.textContent));
   t.check('hostile pinned name is a text tab', tabs.includes(`${IMG}.md`), JSON.stringify(tabs));
   const pinTab = async i => { await p.locator('#pin-tabs button').nth(i).click(); await H.settle(p, 300); };
   await pinTab(2);
-  t.check('a pin named like an object property loads', (await p.textContent('#pin-list')).includes('awkward name'));
+  t.check('a pin named like an object property loads', (await H.editorValue(p) || '').includes('awkward name'));
   await pinTab(3);
-  t.check('an empty hostile pin is named as text', (await p.textContent('#pin-list')).includes(`${SVG}-missing.md`),
-    await p.textContent('#pin-list'));
+  t.check('an empty hostile pin is named as text', (await p.textContent('#crumb')).includes(`${SVG}-missing.md`),
+    await p.textContent('#crumb'));
   await p.route('https://api.github.com/**/contents/**', r => r.request().url().includes('broken')
     ? r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: IFR }) })
     : r.fallback());

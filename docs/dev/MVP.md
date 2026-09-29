@@ -297,8 +297,8 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N28 | 44 | done | Heading outline with source/Preview jumps, nested headings and pagination. 36/36 both engines; axe 57/57; review/mutation/screens below. |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
-| N36 | 44a | todo | Owner's review 2026-09-29: remove the back and forward buttons |
-| N37 | 44b | todo | Owner's review 2026-09-29: one kind of note (the Tasks screen, "Add a task" and pinned-only logic go) |
+| N36 | 44a | done | The header's ← → buttons removed; `tests/navigation.test.mjs` 14/14 now drives the browser's own back and forward (both ways, after a reload and from the middle of history) and checks the header has no arrows. Full suite 61/61 Chromium. Commit in the log |
+| N37 | 44b | done | Tasks screen, "Add a task" boxes, Edit note / Tasks switch and pinned-only logic removed; a pin opens like any note; Preview checklists keep tick, edit, move, drag, remove, Clear done and Undo. 18 suites that drove the Tasks screen now drive Preview (reasons under "N37: tests changed"). G-1: full suite 61/61 Chromium, three runs. G-2: each safeguard reverted alone fails a test: Undo withdrawn on opening another note (tasks "another note: the Undo is withdrawn", "a new note: the Undo is not offered there"), cache refilled before Preview's shortcut (tasks "another list: setup"), Undo refused with unsaved typing (tasks "unsaved typing: Undo sends nothing"), shortcut marked only while open (pinned-tree "a new note: the shortcut is no longer marked"), late checklist reply never rolls the editor back (tasks "late tick reply: the note shows what GitHub has"). G-3: four findings, all fixed with those tests. G-4 `tests/screens/n37-*.png`. Commits in the log |
 | N38 | 44c | todo | Owner's review 2026-09-29: visual redesign (mock-up for approval first) |
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 
@@ -657,6 +657,13 @@ The owner found the app's look clunky (text buttons, glyphs as icons, three stac
 ### N37: plan: one kind of note
 - The separate Tasks screen, the "Add a task" box, pinned-only task lists (N8/N9's pinned writing and Undo bar where nothing else uses them) and the Edit note / Tasks switch go. A pinned note is a shortcut at the top of Files and opens like any other note; checklists are edited in Preview (N32) and started with the toolbar's checklist button (N25). Nothing a person could do with a task is lost: tick, add, edit, reorder and remove all remain, in every note. Tests for the removed screen are retired with it, each replaced by the same check against Preview checklists where the ability remains.
 
+### N37: tests changed with the Tasks screen
+- Tests that typed into the "Add a task" box only to make a write happen (auth, auth-renewal, privacy, vault, delete, access, eol) now tick, edit or save the same note instead; what they check is unchanged.
+- Tests of the capture box itself (capture-recovery, app's capture checks, empty, large, keyboard, release-races) check the same guarantee for Preview edits: failed edits are kept as drafts, over-limit edits are refused and stay in the field, the edit field stays above a phone keyboard, queued edits survive a repository change.
+- Tests of the Tasks screen and its switch (pinned-tree, pins-sync, hostile, tasks) now open the pinned note like any note and use Preview. Retired with no equivalent: merging queued captures into a dirty editor's draft (it can no longer happen, because Edit waits for a checklist save in flight; release-races checks that instead) and reading a pinned list with no note open (replaced by: alpha's checklist is not left showing under beta).
+- G-3 review (fixed, each with a test): an Undo offer followed New note or Today into another note and would have written to the first; Undo could commit unsaved typing past the checklist lock; the pinned shortcut stayed marked after its note closed; a slow checklist reply could roll the editor back after the note was saved again (older race, reachable via ★).
+- Found while doing this: after Settings were saved, Remove in Preview did nothing, because the cache was emptied under a view that was still shown. Fixed; tasks' "another list: setup" catches it.
+
 ### N38: plan: visual redesign
 - A design pass over the whole app, not piecemeal tweaks: one inline SVG icon set (openly licensed, no extra requests); a small family of buttons (icon, subtle, primary) with one size and radius; a calm header (file list, the note's title, save status, an Edit/Preview switch, and a ⋯ menu for Rename, Delete, Outline and Tags); tabs that look like tabs; one icon toolbar; sidebar sections (Pinned, Recent, Tags, Files) with consistent rows, icons and counts; a type scale and spacing tuned for reading; both themes; phones.
 - First a static mock-up (desktop and phone, light and dark) for the owner's approval; then the build, with accessibility (axe) and every existing behaviour kept. Needs size headroom: `index.html` is 201 KB of 200 KB; N36 and N37 free some, and the owner may be asked to raise the limit (e.g. to 250 KB).
@@ -883,6 +890,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-28: Owner's choices: GitHub Sponsors for support (N31); rename to Padgit at padgit.com (N34, placed before About so 1.0.0 is Padgit).
 - 2026-09-28: GitHub Sponsors moved out of About (N31) into its own item at the end of the list (N35), as the owner asked.
 - 2026-09-29: Owner's review of the built app: N36 remove ← →, N37 one kind of note (Tasks screen and "Add a task" go), N38 visual redesign with a mock-up first. Placed ahead of the remaining items.
+- 2026-09-29: The owner raised the size limit for `index.html` to 250 KB (256,000 bytes) for the redesign (N38).
 
 ## Log
 (one line per iteration: date, item, result, commit)
@@ -1072,3 +1080,5 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - Outline 36/36, Preview 15/15, axe 57/57 and size checks pass in both engines. Related tags 53/53 and pins-sync 54/54 also pass after the frontmatter fix. One initial combined focused run reported an outline WebKit failure; isolated and subsequent combined checks passed with all assertions retained. Full CI remains the combined release validation.
 - Removing the source-change guard causes the intended assertion to fail (tests/screens/outline-mutation.log). Inspected tests/screens/n28-{1280,390}-{light,dark}.png. Remaining longer source comments moved to the existing implementation notes with AST equivalence checked, preserving the single-file size limit without runtime dependencies or a build.
 - Full CI on a3de4bb: all 61 WebKit suites passed; Chromium caught the backlinks summary covering task capture at the iPhone SE keyboard height. Fixed viewport resize handling to scroll the focused Preview field into view and collapse expanded backlinks when the keyboard leaves under 450px. Existing keyboard assertions retained; expanded-panel checks added. Keyboard now 33/33 in both engines, with editor resize/scroll-count assertions unchanged. The corrected PR runs full CI again before merge.
+- 2026-09-29 · N36 · done · (the commit "N36: remove the header's back and forward buttons")
+- 2026-09-29 · N37 · done · 0823ccd and the commit "N37: fixes from review"

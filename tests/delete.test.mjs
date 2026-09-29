@@ -278,13 +278,13 @@ const answer = (p, yes) => {
   const order = [];
   p.on('request', r => { if (r.url().includes('/contents/') && r.method() !== 'GET') order.push('start ' + r.method()); });
   p.on('requestfinished', r => { if (r.url().includes('/contents/') && r.method() !== 'GET') order.push('end ' + r.method()); });
-  await p.fill('#pin-input', 'a task');
-  await p.press('#pin-input', 'Enter');
+  await H.preview(p, 'todo.md');
+  await H.tick(p, 'one');
   await H.clickRow(p, 'inbox.md');
   answer(p, true);
   await p.click('#btn-delete');
   await p.waitForTimeout(2500);
-  t.check('both the task and the delete land', gh.files['todo.md'].includes('a task') && !('inbox.md' in gh.files),
+  t.check('both the task and the delete land', gh.files['todo.md'] === '- [x] one\n' && !('inbox.md' in gh.files),
     await H.status(p));
   // GitHub: writes to files must go one after another, never overlapping.
   t.check('and the delete is sent only after the task has been saved',

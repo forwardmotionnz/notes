@@ -11,7 +11,9 @@ if(await boxes.count()===3){
  await p.getByRole('button',{name:'Move down: fresh fruit',exact:true}).click();await p.waitForFunction(()=>!Object.keys(pinBusy).length);t.check('moving parent carries nested child',gh.files['list.md'].includes('- [ ] bread\n- [x] fresh fruit\n  - [ ] apples'));
  await p.getByRole('button',{name:'Remove task: fresh fruit',exact:true}).click();await p.waitForFunction(()=>!Object.keys(pinBusy).length);t.check('remove includes nested task',!gh.files['list.md'].includes('apples'));
  await p.click('#pin-undo button');await p.waitForFunction(()=>!Object.keys(pinBusy).length);t.check('undo restores complete subtree',gh.files['list.md'].includes('- [x] fresh fruit\n  - [ ] apples'));
- await p.locator('#pin-input').fill('milk');await p.locator('#pin-input').press('Enter');await p.waitForFunction(()=>!Object.keys(pinBusy).length);t.check('add stays in its list before following prose',gh.files['list.md'].includes('- [ ] milk\n\nParagraph stays.'));
+ // N37: no "Add a task" box; new tasks are typed in Edit, like any other line.
+ t.check('Preview offers no Add a task box',await p.getByPlaceholder('Add a task').count()===0&&await p.locator('#preview').getByRole('button',{name:/^Add/}).count()===0);
+ t.check('prose after the list untouched',gh.files['list.md'].includes('  - [ ] apples\n\nParagraph stays.'));
  t.check('code example untouched',gh.files['list.md'].includes('```md\n- [ ] example only\n```'));
  await p.evaluate(()=>applyAccess('Read-only repository'));t.check('read only locks all mutations',await p.locator('#preview input[type=checkbox]:enabled').count()===0);
 }
@@ -31,8 +33,8 @@ for(const [label,body] of [
  if(label==='ordered'){
   await p.getByRole('button',{name:'Move down: first',exact:true}).click();await p.waitForFunction(()=>!Object.keys(pinBusy).length);
   t.check('ordered move preserves numbering',gh.files['probe.md']==='1. [ ] second\n2. [ ] first\n');
-  await p.locator('#pin-input').fill('third');await p.locator('#pin-input').press('Enter');await p.waitForFunction(()=>!Object.keys(pinBusy).length);
-  t.check('ordered add remains in same list',gh.files['probe.md']==='1. [ ] second\n2. [ ] first\n3. [ ] third\n');
+  await H.tick(p,'first');await p.waitForFunction(()=>!Object.keys(pinBusy).length);
+  t.check('ordered tick keeps numbering',gh.files['probe.md']==='1. [ ] second\n2. [x] first\n');
  }
  await c.close();
 }

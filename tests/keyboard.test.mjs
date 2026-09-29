@@ -99,7 +99,7 @@ for (const pan of [0, 120]) {
   await ctx.close();
 }
 
-/* ===== pinned tasks in the main area, at real keyboard heights ===== */
+/* ===== a pinned checklist in Preview, at real keyboard heights ===== */
 // What is left above the keyboard on real phones: an iPhone 14 with Safari's
 // form bar (417 of 844), and an iPhone SE (343 of 667).
 for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPhone SE', 667, 667 - 343]]) {
@@ -118,17 +118,21 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   await p.locator('#pin-tabs button').first().click();
   await H.settle(p, 300);
   await H.still(p);                                 // Files has finished sliding away
-  await p.focus('#pin-input');
+  // N37: the "Add a task" box is gone; a task's text is edited in Preview.
+  await H.preview(p, 'todo.md');
+  await p.getByRole('button', { name: 'Edit task: one', exact: true }).click();
+  const field = '.task-edit', save = 'button[aria-label="Save task text"]';
+  await p.focus(field);
   await p.evaluate(k => window.keyboard(k), keyboard);
   await H.settle(p, 250);
   await H.still(p);
-  t.check(`pins sheet, ${label}: the "Add a task" box stays above the keyboard`, (await onScreen(p, '#pin-input')) === 'ok', await onScreen(p, '#pin-input'));
-  t.check(`pins sheet, ${label}: and its Add button`, (await onScreen(p, '#pin-go')) === 'ok', await onScreen(p, '#pin-go'));
+  t.check(`pinned checklist, ${label}: a task being edited stays above the keyboard`, (await onScreen(p, field)) === 'ok', await onScreen(p, field));
+  t.check(`pinned checklist, ${label}: and its Save button`, (await onScreen(p, save)) === 'ok', await onScreen(p, save));
   await p.evaluate(()=>{window.keyboard(0);document.querySelector('#backlinks').open=true;});
   await p.waitForFunction(()=>document.querySelector('#backlinks-status').textContent.includes('linking notes'));
-  await p.focus('#pin-input');await p.evaluate(k=>window.keyboard(k),keyboard);await H.still(p);
-  t.check(`pins sheet, ${label}: expanded backlinks collapse for the keyboard`,!await p.locator('#backlinks').evaluate(el=>el.open));
-  t.check(`pins sheet, ${label}: task capture remains tappable after collapse`,await onScreen(p,'#pin-input')==='ok'&&await onScreen(p,'#pin-go')==='ok');
+  await p.focus(field);await p.evaluate(k=>window.keyboard(k),keyboard);await H.still(p);
+  t.check(`pinned checklist, ${label}: expanded backlinks collapse for the keyboard`,!await p.locator('#backlinks').evaluate(el=>el.open));
+  t.check(`pinned checklist, ${label}: the task field remains tappable after collapse`,await onScreen(p,field)==='ok'&&await onScreen(p,save)==='ok');
   await ctx.close();
 }
 

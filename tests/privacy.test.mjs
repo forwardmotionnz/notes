@@ -107,8 +107,8 @@ for (const remember of [true, false]) {
   const p = await H.page(ctx);
   await H.signIn(p, { remember });
   await H.settle(p, 500);
-  await p.fill('#pin-input', 'a task');
-  await p.click('#pin-go');
+  await H.preview(p, 'todo.md');
+  await H.tick(p, 'one');
   await H.settle(p, 600);
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'hello\nunsaved words\n');               // a draft

@@ -117,11 +117,11 @@ async function ready(pins) {
 
 {
   const { gh, ctx, p } = await ready('Daily Notes/2026-09-24.md');
-  await p.fill('#pin-input', 'get the guard lip straightened');
-  await p.click('#pin-go');
+  await H.preview(p, 'Daily Notes/2026-09-24.md');
+  await H.tick(p, 'ring the panelbeater');
   await H.settle(p, 400);
-  t.check('a nested daily note works as the pinned todo',
-    gh.files['Daily Notes/2026-09-24.md'].endsWith('- [ ] get the guard lip straightened\n'));
+  t.check('a nested daily note works as a pinned checklist',
+    gh.files['Daily Notes/2026-09-24.md'] === '# 2026-09-24\n\n- [x] ring the panelbeater\n');
   await ctx.close();
 }
 

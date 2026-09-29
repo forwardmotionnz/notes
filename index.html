@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-CVwrqvynPog6m+fMQbXczmqUGm73DDeixFKNfgGlvEw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-iDm/nQrCV/v3qVzzlc5DhEWwH2YEhQ0IdJjVdmULyfY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -83,18 +83,12 @@ body.side-hidden .side-note{display:inline;}
 .cm-s-default .cm-comment{color:var(--fg-soft);}
 #placeholder{flex:1;display:flex;align-items:center;justify-content:center;color:var(--fg-soft);font-size:14px;padding:20px;text-align:center;}
 #pins{flex:1;min-width:0;min-height:0;display:none;flex-direction:column;}
-body.task-view #pins{display:flex;}
-body.task-view #editor-pane{display:none;}
 #pin-tabs{display:flex;flex-direction:column;padding:0 8px;gap:2px;}
 #pin-tabs button{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:none;}
 #pin-tabs button.active{background:var(--bg);color:var(--accent);}
 #pin-help{font-size:12px;color:var(--fg-soft);padding:0 12px;}
 #pinned-files{border-bottom:1px solid var(--line);max-height:35%;overflow:auto;flex:none;}
-#task-tools{display:flex;align-items:center;gap:12px;padding:8px;border-bottom:1px solid var(--line);}
-#task-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
 #btn-pin{padding:2px 5px;flex:none;}
-#pin-add{padding:8px;display:flex;gap:6px;}
-#pin-add textarea{font-size:13.5px;resize:none;}
 #pin-list{flex:1;overflow:auto;padding:0 8px 40px;-webkit-overflow-scrolling:touch;}
 .task{display:flex;align-items:flex-start;gap:8px;padding:5px 4px;border-radius:var(--radius);font-size:13.5px;}
 .task:hover{background:var(--bg-sunk);}
@@ -147,7 +141,7 @@ select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1
 #who-login{font-weight:600;font-size:15px;color:var(--fg);}
 .who-sub{font-size:12px;color:var(--fg-soft);}
 .only-narrow{display:none;}
-@media (max-width:820px){input, textarea, select, #filter, #pin-add textarea, #editor-pane .CodeMirror, .fallback-editor{font-size:16px;}
+@media (max-width:820px){input, textarea, select, #filter, #editor-pane .CodeMirror, .fallback-editor{font-size:16px;}
 .only-narrow{display:inline-block;}
 #editor-pane .CodeMirror, .fallback-editor{font-size:16px;}
 #sidebar{position:absolute;z-index:20;top:0;bottom:0;left:0;width:min(80vw, 300px);transform:translateX(-102%);transition:transform .18s ease;box-shadow:0 0 40px rgba(0,0,0,.25);}
@@ -169,14 +163,10 @@ header button{padding:5px 7px;}
 body.preview-view #editor-pane{display:none;}
 #preview #pins{display:block;}
 #preview #pin-list{padding:0;overflow:visible;}
-#preview #task-tools{display:none;}
 #preview .task{flex-wrap:wrap;color:var(--fg);font-size:inherit;}
 #preview .task label{color:var(--fg);}
-#preview .list-add input,#preview .list-add textarea{flex:1;min-width:0;}
-#preview .list-add button{flex:none;white-space:nowrap;}
 #preview .task-tools{display:flex;gap:2px;}
 #preview .task-tools button{padding:2px 5px;font-size:12px;}
-#preview .list-add{display:flex;gap:6px;margin:8px 0;}
 #preview .task-edit{font-size:inherit;}
 #preview .task label{margin:0;}
 #preview li:has(> .task){list-style:none;}
@@ -242,7 +232,6 @@ body.preview-view #editor-pane{display:none;}
 	<header>
 		<button class="plain" id="btn-tree" title="Show or hide the file list" aria-label="Files" aria-controls="sidebar" aria-expanded="true">&#9776;</button>
 		<button class="plain" id="btn-switcher" title="Open a note (Ctrl/Cmd+K)" aria-label="Open a note">Find</button>
-		<button class="plain" id="btn-back" aria-label="Previous note" disabled>←</button><button class="plain" id="btn-forward" aria-label="Next note" disabled>→</button>
 		<div id="crumb">no file open</div>
 		<span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
 		<span id="readonly" title="">read-only</span>
@@ -254,7 +243,6 @@ body.preview-view #editor-pane{display:none;}
 		<button id="btn-copy" hidden title="Save your version as a new note beside it, and load the version on GitHub">Save as copy</button>
 		<button id="btn-save" class="primary" disabled>Save</button>
 		<button id="btn-preview" aria-pressed="false">Preview</button>
-		<button class="plain" id="btn-tasks" hidden>Tasks</button>
 		<button class="plain" id="btn-settings" title="Settings">&#9881;</button>
 	</header>
 	<details id="domain-notice" hidden><summary>Notes is now Padgit. Save your notes before the planned address change.</summary><p>The planned address is <span id="domain-target"></span>. Save all notes and copy out any unsaved drafts before the move. Sign-ins and local drafts do not move between addresses. Keep using this address until the move is announced.</p></details>
@@ -287,11 +275,6 @@ body.preview-view #editor-pane{display:none;}
 		</section>
 		<article id="preview" hidden tabindex="0" aria-label="Note preview">
 		<aside id="pins">
-			<div id="task-tools"><span id="task-title"></span><button id="btn-source">Edit note</button></div>
-			<div id="pin-add">
-				<textarea id="pin-input" rows="1" placeholder="Add a task" autocomplete="off"></textarea>
-				<button id="pin-go" class="primary">Add</button>
-			</div>
 			<div id="pin-undo" hidden><span></span><button type="button">Undo</button></div>
 			<div id="pin-list"></div>
 		</aside></article>
@@ -1354,8 +1337,6 @@ function applyAccess(reason) {
 	document.body.classList.toggle("read-only", !!reason);
 	$("readonly").title = reason;
 	editorLock();
-	$("pin-input").disabled = !!reason;
-	$("pin-go").disabled = !!reason;
 	if (reason) hideUndo();
 	if (was !== reason) renderPins();
 	if (reason && reason !== was) flash(reason, true);
@@ -1406,7 +1387,6 @@ function refreshTree() {
 		scanPins();
 		treeState = "ok";
 		renderTree();
-		if (activePin() && !pinCache[activePin()]) renderPins();
 		flash(loadNote);
 		loadNote = "";
 	}).catch(function (err) {
@@ -1947,6 +1927,7 @@ function showDiscard(on, copy) {
 	$("btn-copy").hidden = !copy;
 }
 function setCrumb(path, tag) {
+	renderPinTabs();                     // the pinned shortcut marks the open note
 	/* N165 */
 	$("btn-rename").hidden = $("btn-delete").hidden = !(current && current.sha && current.path === path);
 	var el = $("crumb");
@@ -1999,7 +1980,8 @@ function openFile(path, discarding, navigating) {
 	var ahead = Promise.all([inflight && inflight.key === draftKey(path) ? inflight.done : null, pinBusy[path] ? pinWriting : null]);
 	return ahead.then(function () { if (stillHere()) return readNote(path); }).then(function (r) {
 		if (!r || !stillHere()) return;
-		taskView(false);
+		if (pinUndo && pinUndo.path !== path) hideUndo();   // an Undo belongs to its note
+		previewView(false);
 		ensureEditor();
 		if (discarding) dropDraft(path);
 		var draft = readDraft(path);
@@ -2020,14 +2002,7 @@ function openFile(path, discarding, navigating) {
 		rememberNote(path);
 		persist(UI_KEY, ui);
 		notePinned(path, r.text);
-		if (isPinned(path) && !draft) {
-			ui.pin = pins().indexOf(path);
-			persist(UI_KEY, ui);
-			if (!pinBusy[path]) pinCache[path] = r;
-			renderPinTabs();
-			renderPins();
-			taskView(true);
-		} else taskView(false);
+		renderPinTabs();
 		renderTree();
 		if (!draft) flash("");
 		else if ((draft.sha || null) !== r.sha) {
@@ -2069,8 +2044,6 @@ function noteRoute() {
 }
 function navButtons() {
 	try { sessionStorage.setItem("notes.navigation", JSON.stringify({ id: navSession, end: navEnd })); } catch (e) {}
-	$("btn-back").disabled = navPosition <= 0;
-	$("btn-forward").disabled = navPosition >= navEnd;
 }
 function recordNavigation(path, replace) {
 	var hash = "#note=" + encodeURIComponent(JSON.stringify([cfg.owner, cfg.repo, cfg.branch, path]));
@@ -2093,11 +2066,9 @@ addEventListener("popstate", function (e) {
 	navButtons();
 	if (configured()) openRoute();
 });
-$("btn-back").onclick = function () { if (navPosition > 0) history.back(); };
-$("btn-forward").onclick = function () { if (navPosition < navEnd) history.forward(); };
 /* N60 */
 function rescueDraft(path, draft, reason) {
-	taskView(false);
+	previewView(false);
 	var copy = path.replace(/(\.[^./]*)?$/, function (ext) { return " (unsaved copy)" + ext; });
 	ensureEditor();
 	current = { path: copy, sha: null, saved: "\u0000" };   // new file: always saveable
@@ -2429,7 +2400,7 @@ async function todayNote() {
 	}
 }
 function startNote(path, text) {
-	taskView(false);
+	previewView(false);
 	document.body.classList.remove("tree-open");
 	openSeq++;
 	/* N127 */
@@ -2606,6 +2577,7 @@ function followDelete(path, fromElsewhere) {
 		var d = readDraft(path);
 		if (d && (d.text === draftWritten[draftKey(path)] || d.text === current.saved)) dropDraft(path);
 		current = null;
+		renderPinTabs();
 		if (editor) editor.setValue("");
 		editorLock();
 		showDiscard(false);
@@ -2638,16 +2610,15 @@ function renderPinTabs() {
 	pins().forEach(function (path, i) {
 		var b = document.createElement("button");
 		b.textContent = path.split("/").pop();
-		if (i === ui.pin) b.className = "active";
+		if (current && current.path === path) { b.className = "active"; b.setAttribute("aria-current", "true"); }
 		b.onclick = function () {
-			if (ui.pin !== i) hideUndo();       /* N129 */
 			openFile(path);
 			document.body.classList.remove("tree-open");
 		};
 		host.appendChild(b);
 	});
 }
-var previewSeq = 0, previewIdentity = "", captureTarget = null;
+var previewSeq = 0, previewIdentity = "";
 function imagePath(ref, note, wiki) {
 	var name = wiki ? ref : decodeURIComponent(ref);
 	if (/[:\\\x00-\x1f]/.test(name) || /^\/\//.test(name)) throw new Error("External images are not loaded");
@@ -2688,8 +2659,10 @@ async function previewImages(items, seq, scope, note) {
 	await Promise.all([worker(), worker(), worker(), worker()]);
 }
 function previewView(show, force) {
-	var path = current ? current.path : activePin(), cached = path && pinCache[path];
-	var source = cached && (!current || !dirty()) ? cached.text : editor ? editor.getValue() : "";
+	var path = current ? current.path : null, cached = path && pinCache[path];
+	var source = cached && !dirty() ? cached.text : editor ? editor.getValue() : "";
+	// Before the unchanged-view shortcut: a repository reload empties the cache under a view still shown.
+	if (show && path && !cached && !dirty()) pinCache[path] = { text: source, sha: current.sha, base: current.base };
 	var identity = JSON.stringify([draftKey(""),path,source,readOnly,!!(current && dirty()),!!pinReloading[path]]);
 	if (!force && show && document.body.classList.contains("preview-view") && previewIdentity === identity) return;
 	previewIdentity = show ? identity : "";
@@ -2698,15 +2671,12 @@ function previewView(show, force) {
 	$("preview").hidden = !show;
 	$("btn-preview").setAttribute("aria-pressed", String(show));
 	$("btn-preview").textContent = show ? "Edit" : "Preview";
-	if (!show) { $("pins").appendChild($("pin-add")); $("pin-list").replaceChildren(); if (editor) editor.refresh(); return; }
+	if (!show) { $("pin-list").replaceChildren(); if (editor) editor.refresh(); return; }
+	if (pinUndo && pinUndo.path !== path) hideUndo();   // an Undo belongs to its note
 	var host = $("pin-list");
-	captureTarget = {path:path,scope:draftKey("")};
-	$("task-title").textContent = path || "";
 	var focused = host.contains(document.activeElement), focusName = focused && document.activeElement.getAttribute("aria-label"), scroll = $("preview").scrollTop;
-	$("pins").appendChild($("pin-add"));
 	host.replaceChildren();
 	if (!path) return;
-	if (!cached && current && !dirty()) pinCache[path] = { text: source, sha: current.sha, base: current.base };
 	if (!window.marked || !window.DOMPurify || !DOMPurify.isSupported) {
 		host.textContent = "Preview unavailable: its libraries could not load. Press Edit to keep writing.";
 		return;
@@ -2823,11 +2793,10 @@ function bindChecklist(source, path, marker, count) {
 		return;
 	}
 	var scope = draftKey(""), locked = !!readOnly || !!(current && dirty());
-	$("pin-input").disabled = $("pin-go").disabled = locked;
-	function live() { return scope === draftKey("") && signedIn() && (current ? current.path === path : activePin() === path); }
+	function live() { return scope === draftKey("") && signedIn() && !!current && current.path === path; }
 	function write(next, onFail, recover) {
 		if (!live() || locked || !pinCache[path] || pinCache[path].text !== source) return false;
-		return commitPin(path, next, onFail, null, recover);
+		return commitPin(path, next, onFail, recover);
 	}
 	function button(name, label, action) {
 		var b = document.createElement("button"); b.textContent = label; b.setAttribute("aria-label", name); b.disabled = locked; b.onclick = action; return b;
@@ -2876,7 +2845,7 @@ function bindChecklist(source, path, marker, count) {
 		var up = button("Move up: " + task.text, "↑", function () { move(-1); }), down = button("Move down: " + task.text, "↓", function () { move(1); });
 		var rm = button("Remove task: " + task.text, "×", function () {
 			if (!live() || locked) return;
-			if (pinCache[path].text !== source) { renderPins(); return; }
+			if (!pinCache[path] || pinCache[path].text !== source) { renderPins(); return; }
 			var lines = source.split("\n"), gone = lines.slice(task.index, task.end).map(function (line, i) { return {index: task.index + i, line: line}; });
 			removeTasks(path, gone, "Removed “" + task.text + "”.");
 		}); rm.className = "rm";
@@ -2892,50 +2861,21 @@ function bindChecklist(source, path, marker, count) {
 		}; handle.ondragend = function () { checklistDrag = null; };
 		tools.append(edit, up, down, handle, rm);
 	});
-	var lastRoot = Array.from(lists.keys()).filter(function (list) { return !list.parentElement.closest("li"); }).pop();
-	lists.forEach(function (items, list) {
-		if (list === lastRoot) {
-			var last = items[items.length - 1]; captureTarget.at = last.end; captureTarget.line = last.line; captureTarget.source = source;
-			$("pin-add").className = "list-add"; list.after($("pin-add")); return;
-		}
-		var form = document.createElement("div"), input = document.createElement("input"); form.className = "list-add";
-		input.placeholder = "Add a task"; input.setAttribute("aria-label", "Add a task to this list"); input.disabled = locked;
-		var add = button("Add task to this list", "Add", function () {
-			if (!input.value.trim()) return;
-			var last = items[items.length - 1], lines = source.split("\n"), value = input.value;
-			var marker = /^\s*([-*+]|\d+[.)])/.exec(last.line)[1];
-			if (/^\d/.test(marker)) marker = (parseInt(marker, 10) + 1) + marker.slice(-1);
-			lines.splice(last.end, 0, " ".repeat(last.indent) + marker + " [ ] " + value);
-			write(lines.join("\n"), function () { $("pin-input").value = value; }, true);
-		});
-		input.onkeydown = function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); add.click(); } };
-		form.append(input, add); list.after(form);
-	});
 	var ticked = tasks.filter(function (t) { return t.checked; }).map(function (t) { return { index: t.index, line: t.line }; });
 	if (ticked.length && !locked) { var clear = button("Clear completed tasks", "Clear " + ticked.length + " done", function () { if (live()) removeTasks(path, ticked, "Cleared " + ticked.length + " done tasks."); }); clear.className = "clear-done"; host.append(clear); }
-	if (!source) host.appendChild(emptyNote("Nothing in " + path + " yet. Add a task below."));
-	$("pin-add").hidden = false;
-	if (!lastRoot) { $("pin-add").className = "list-add"; host.after($("pin-add")); }
 	if (locked && current && dirty()) host.appendChild(emptyNote("Save or resolve your changes to edit this checklist. You can keep writing in Edit."));
 }
 var checklistDrag = null;
 $("btn-preview").onclick = async function () {
-	if (!current && activePin()) { await openFile(activePin()); if (current) { taskView(false); editor.focus(); } return; }
 	if (!current || !editor) { flash("Open a note first."); return; }
 	var doc = current, epoch = pinEpoch;
 	var show = !document.body.classList.contains("preview-view");
 	if (!show) await pinWriting;
 	if (current !== doc || epoch !== pinEpoch) return;
 	if (show && !pinBusy[current.path]) pinCache[current.path] = {text: editor.getValue(), sha: current.sha, base: current.base};
-	taskView(false); previewView(show);
+	previewView(show);
 	if (!show) editor.focus();
 };
-function taskView(show) {
-	previewView(show);
-	document.body.classList.toggle("task-view", show);
-	$("btn-tasks").hidden = true;
-	if (!show && editor) editor.refresh();
-}
 /* N75 */
 var pinFound = pathMap(), pinSeen = pathMap(), pinScanning = false, pinAgain = false;   /* N76 */
 var pinLeaving = false;
@@ -3089,11 +3029,8 @@ function withPin(text, on) {
 }
 /* N192 */
 function setPins(fn) {
-	var shown = activePin();
 	fn();
-	ui.pin = Math.max(0, pins().indexOf(shown));
 	renderPinTabs();
-	if (activePin() !== shown) renderPins();
 }
 /* N193 */
 function notePinned(path, text) {
@@ -3155,34 +3092,11 @@ function togglePin() {
 		notePinned(path, next);
 		saveCurrent();
 	}
-	if (!on) hideUndo();
-	ui.pin = Math.max(0, pins().indexOf(path));
 	saveCfg();
 	persist(UI_KEY, ui);
 	setCrumb(path, dirty() ? "(unsaved)" : "");
 	renderPinTabs();
 	renderPins();
-	if (at !== -1) taskView(false);
-	else taskView(document.body.classList.contains("task-view"));
-}
-async function showTasks() {
-	if (!current || !isPinned(current.path)) return;
-	var doc = current, epoch = pinEpoch;
-	if (dirty()) {
-		saveCurrent();
-		if (inflight) await inflight.done;
-		if (current !== doc || epoch !== pinEpoch) return;
-		if (dirty()) { flash("Save or resolve this note's changes before opening Tasks.", true); return; }
-	}
-	ui.pin = pins().indexOf(doc.path);
-	if (!pinBusy[doc.path]) pinCache[doc.path] = {text: editor.getValue(), sha: doc.sha, base: doc.base};
-	renderPinTabs();
-	renderPins();
-	taskView(true);
-}
-function activePin() {
-	var all = pins();
-	return all[ui.pin] || all[0] || null;
 }
 function emptyNote(text) {
 	var e = document.createElement("div");
@@ -3190,35 +3104,9 @@ function emptyNote(text) {
 	e.textContent = text;
 	return e;
 }
-var pinReadSeq = 0;
+/* Redraws the open note's preview after a checklist write. */
 function renderPins() {
-	if (!configured()) return;
-	var path = current && document.body.classList.contains("preview-view") ? current.path : activePin();
-	if (!path) return;
-	if (!pinCache[path] && (!current || current.path !== path)) {
-		var sequence = ++pinReadSeq, epoch = pinEpoch;
-		readNote(path).then(function (r) {
-			if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
-			pinCache[path] = r; renderPins();
-		}).catch(function (e) {
-			if (epoch !== pinEpoch || sequence !== pinReadSeq) return;
-			if (!current && path === activePin() && document.body.classList.contains("preview-view")) {
-				$("pins").appendChild($("pin-add"));
-				$("pin-list").replaceChildren(emptyNote(e.message));
-			}
-			fail(e);
-		});
-		return;
-	}
-	if (document.body.classList.contains("task-view") || document.body.classList.contains("preview-view")) previewView(true);
-}
-
-function toggleTask(path, index, checked) {
-	var cached = pinCache[path];
-	if (!cached) return;
-	var lines = cached.text.split("\n");
-	lines[index] = lines[index].replace(/\[([ xX])\]/, checked ? "[x]" : "[ ]");
-	if (commitPin(path, lines.join("\n")) === false) renderPins();   // not saved: show it as it is
+	if (configured() && current && document.body.classList.contains("preview-view")) previewView(true);
 }
 /* N130 */
 var pinUndo = null; // { path, gone, timer } while offered
@@ -3254,6 +3142,8 @@ function untick(text) { return text.replace(/^(\s*[-*]\s+)\[[xX]\]/gm, "$1[ ]");
 function undoRemove() {
 	var u = pinUndo;
 	if (!u) return;
+	if (!current || current.path !== u.path) { hideUndo(); return; }
+	if (dirty()) { flash("Save or resolve your changes first, then press Undo.", true); return; }
 	var cached = pinCache[u.path];
 	if (!cached) { flash("Still loading that file. Try Undo again in a moment.", true); return; }
 	/* N80 */
@@ -3270,32 +3160,7 @@ function undoRemove() {
 	var ok = commitPin(u.path, lines.join("\n"), function () { showUndo(u); });
 	if (ok !== false) hideUndo();
 }
-function addTask() {
-	var input = $("pin-input");
-	var text = input.value.trim();
-	var path = captureTarget && captureTarget.scope === draftKey("") ? captureTarget.path : null;
-	if (!text || !path) return;
-	var cached = pinCache[path];
-	if (!cached) { flash("Still loading that file.", true); return; }
-	var body = cached.text.replace(/\s*$/, "");
-	var next = (body ? body + "\n" : "") + text.split(/\r?\n/).filter(function (line) {
-		return line.trim();
-	}).map(function (line) { return "- [ ] " + line; }).join("\n") + "\n";
-	if (captureTarget.at != null && captureTarget.source === cached.text) {
-		var lines = cached.text.split("\n"), m = /^(\s*)([-*+]|\d+[.)])/.exec(captureTarget.line), number = parseInt(m[2], 10);
-		var added = text.split(/\r?\n/).filter(function (line) { return line.trim(); }).map(function (line, i) {
-			return m[1] + (isNaN(number) ? m[2] : (number + i + 1) + m[2].slice(-1)) + " [ ] " + line;
-		});
-		lines.splice(captureTarget.at, 0, ...added); next = lines.join("\n");
-	}
-	/* N198 */
-	var ok = commitPin(path, next, function () {
-		input.value = (input.value ? input.value + "\n" : "") + text;
-		input.rows = Math.min(4, input.value.split("\n").length);
-	}, text);
-	if (ok !== false) { input.value = ""; input.rows = 1; }
-}
-function commitPin(path, text, onFail, capture, recover) {
+function commitPin(path, text, onFail, recover) {
 	if (pinReloading[path]) { flash("Reloading the checklist after a failed save. Try again shortly.", true); return false; }
 	if (readOnly) { flash(readOnly, true); return false; }
 	if (accessPending) { flash("Checking whether this repository can be changed...", true); return false; }
@@ -3312,12 +3177,11 @@ function commitPin(path, text, onFail, capture, recover) {
 	renderPins();
 	flash("Saving...");
 	/* N81 */
-	var job = pinNext[path] || { onFail: [], captures: [] };
+	var job = pinNext[path] || { onFail: [] };
 	job.raw = raw;
 	job.text = text;
 	job.recovery = !!recover;
 	if (onFail) job.onFail.push(onFail);
-	if (capture) job.captures.push(capture);
 	pinNext[path] = job;
 	if (!pinBusy[path]) pinWriting = Promise.all([pinWriting, sendPin(path)]);
 }
@@ -3333,7 +3197,7 @@ function sendPin(path) {
 		if (pinEpoch !== epoch) return;      // another repository by now
 		if (pinCache[path]) pinCache[path].sha = r.sha;
 		/* N199 */
-		if (current && current.path === path && !dirty()) {
+		if (current && current.path === path && !dirty() && current.sha === sha) {   // not if the note was saved again meanwhile
 			current.sha = r.sha;
 			current.saved = job.text;
 			current.savedAt = Date.now(); current.saveError = "";
@@ -3556,11 +3420,6 @@ function prepareRepositoryChange() {
 			var cached = pinCache[path];
 			if (!cached) return;
 			var draft = readDraft(path);
-			var captures = (pinActive[path] ? pinActive[path].captures : []).concat(
-				pinNext[path] ? pinNext[path].captures : []);
-			if (draft && captures.length) draft.text += "\n" + captures.map(function (text) {
-				return text.split(/\r?\n/).map(function (line) { return "- [ ] " + line; }).join("\n");
-			}).join("\n") + "\n";
 			try {
 				draftStore().setItem(draftKey(path), JSON.stringify(draft || {
 					text: cached.text, sha: cached.sha, at: Date.now()
@@ -3593,7 +3452,6 @@ function showPointed(changedRepo) {
 	if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
 	pinCache = keep;
 	if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinReloading = pathMap(); pinActive = pathMap(); pinFound = pathMap(); pinSeen = pathMap(); hideUndo(); }
-	ui.pin = 0;
 	if (changedRepo) {
 		files = [];                  /* N206 */
 		applyAccess("");             // until this one's access is known
@@ -3605,7 +3463,7 @@ function showPointed(changedRepo) {
 	}
 	if (current) setCrumb(current.path, dirty() ? "(unsaved)" : "");
 	else $("crumb").textContent = describe();
-	taskView(!current);
+	if (!current) previewView(false);
 	renderPinTabs();
 	renderPins();
 	refreshTree().then(function () { if (changedRepo) openRoute(); });
@@ -3724,26 +3582,8 @@ $("f-signin").onclick     = function () {
 $("settings").addEventListener("cancel", function (e) {
 	if (!configured()) e.preventDefault();
 });
-$("pin-go").onclick       = addTask;
 $("pin-undo").lastChild.onclick = undoRemove;
-$("pin-input").addEventListener("keydown", function (e) {
-	if (e.key === "Enter") { e.preventDefault(); addTask(); }
-});
 $("filter").addEventListener("input", function () { cancelSearch(); renderTree(); });
-$("btn-tasks").onclick = showTasks;
-$("btn-source").onclick = async function () {
-	var path = current ? current.path : activePin(), epoch = pinEpoch;
-	if (!path) return;
-	if (!current || current.path !== path) {
-		var opening = openFile(path), sequence = openSeq;
-		await opening;
-		if (sequence !== openSeq) return;
-	}
-	await pinWriting;
-	if (epoch !== pinEpoch || !current || current.path !== path) return;
-	taskView(false);
-	editor.focus();
-};
 /* N99 */
 function wide() { return !matchMedia("(max-width:820px)").matches; }
 function sideLayout(refresh) {
@@ -3879,7 +3719,7 @@ function closeNoteTab(path) {
 	paths.splice(at,1);ui.openNotes={scope:recentScope(),paths:paths};
 	if(current&&current.path===path){
 		if(paths.length)openFile(paths[Math.min(at,paths.length-1)]).then(function(){if(current&&current.path===path){rememberNote(path);persist(UI_KEY,ui);}});
-		else {openSeq++;current=null;ui.last=null;taskView(false);if(editor)editor.setValue("");editorLock();showDiscard(false);$("crumb").textContent=describe();$("btn-rename").hidden=$("btn-delete").hidden=true;$("btn-save").disabled=true;history.replaceState(null,"",redirectUri());navPosition=navEnd=0;navButtons();}
+		else {openSeq++;current=null;ui.last=null;renderPinTabs();previewView(false);if(editor)editor.setValue("");editorLock();showDiscard(false);$("crumb").textContent=describe();$("btn-rename").hidden=$("btn-delete").hidden=true;$("btn-save").disabled=true;history.replaceState(null,"",redirectUri());navPosition=navEnd=0;navButtons();}
 	}
 	persist(UI_KEY,ui);renderTabs();
 }
@@ -3966,7 +3806,6 @@ window.addEventListener("beforeunload", function (e) {
 });
 /* N216 */
 function start() {
-	taskView(true);
 	document.body.classList.toggle("session-only", sessionOnly);
 	renderPinTabs();
 	if (!signedIn()) {

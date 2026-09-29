@@ -53,8 +53,7 @@ await H.start();
   t.check('PKCE verifier not left behind',
     await p.evaluate(() => sessionStorage.getItem('notes.signin') === null));
 
-  await p.fill('#pin-input', 'signed in with GitHub');
-  await p.click('#pin-go');
+  await H.saveNote(p, 'todo.md', '- [ ] signed in with GitHub\n');
   await H.settle(p, 400);
   t.check('writes go through with the GitHub App token',
     gh.files['todo.md'].includes('- [ ] signed in with GitHub') &&

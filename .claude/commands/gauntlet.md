@@ -253,7 +253,7 @@ has never seen the app. Save them under `tests/screens/` (git-ignored) and
 list the paths in the ledger.
 
 **G-5 Rules.** No build step, no new runtime dependency without a fallback, no
-third-party requests, `index.html` under 200 KB (raised from 150 KB by the owner, 2026-09-27; `tests/size.test.mjs`), and no text in the app that
+third-party requests, `index.html` under 250 KB (raised by the owner from 150 KB, 2026-09-27, and to 250 KB, 2026-09-29; `tests/size.test.mjs`), and no text in the app that
 contradicts the README.
 
 **G-6 Docs.** If behaviour a user would notice changed, the README or

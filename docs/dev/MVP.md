@@ -496,6 +496,11 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
   Both shortcuts leave text intact in real CodeMirror and the fallback;
   quick-switcher is now 19/19 in each engine. This regression is also a
   mutation proof: the previous bubbling listener failed the new test.
+- Combined CI found the existing phone assertion `filename stays legible`
+  failing after Find took header space. The filename now gets its own row
+  on narrow screens, with compact controls below; the move notice is capped
+  at 20% of the visible shell. No assertion changed. App 70/70, keyboard-editor
+  24/24 and Padgit 11/11 passed in both engines; updated phone screenshots viewed.
 - Ctrl/Cmd+K (and a button on phones) opens a box: type part of a name or path and Enter opens the note; recent notes first, then the best matches; arrow keys, Escape. Uses the file list already loaded, so no extra requests.
 
 ### N21: plan: save status and word count

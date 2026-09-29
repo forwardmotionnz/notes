@@ -158,10 +158,11 @@ body.side-hidden #sidebar{display:flex;}
 #scrim{position:absolute;inset:0;z-index:15;background:rgba(0,0,0,.35);display:none;}
 body.tree-open #scrim{display:block;}
 main{position:relative;overflow:hidden;}
-#crumb{font-size:12px;}
+#crumb{font-size:12px;order:-1;flex-basis:100%;}
 #btn-rename .ic, #btn-delete .ic{display:inline;}
 #btn-rename .lbl, #btn-delete .lbl{display:none;}
-header{flex-wrap:wrap;}
+header{flex-wrap:wrap;gap:4px;}
+header button{padding:5px 7px;}
 #status{order:10;flex-basis:100%;white-space:normal;}
 #status:empty{display:none;}
 }
@@ -184,7 +185,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #note-summary[hidden]{display:none;}
 #note-save-time{color:var(--fg-soft);}
 #note-word-count{margin-left:auto;}
-#domain-notice{flex:none;max-height:25%;overflow:auto;padding:7px 12px;background:var(--accent-soft);font-size:12px;}
+#domain-notice{flex:none;max-height:20%;overflow:auto;padding:7px 12px;background:var(--accent-soft);font-size:12px;}
 #app-about{border-top:1px solid var(--line);padding-top:12px;font-size:13px;}
 #app-about summary{cursor:pointer;font-weight:600;}
 #app-about nav{display:flex;flex-wrap:wrap;gap:8px 16px;}

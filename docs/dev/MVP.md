@@ -1,8 +1,20 @@
 # MVP ledger
 
-Iterations: 43 (cap extended by the owner's requests; current batch N16, N33, N26, N27)
+Iterations: 45 (cap extended by the owner's requests; current batch N16, N33, N26, N27)
 
 ## Current handover — 2026-09-29
+
+The requested next four are implemented: N16 image upload (`c8f2e48`),
+N33 open tabs (`0d1c7ce`), N26 shared reader/Recent (`9eb3878`) and N27 tags.
+Each has focused Chromium/WebKit checks, a fresh independent review,
+mutation checks and inspected desktop/phone light/dark screenshots.
+N27 passes 53/53 in both engines, including real CodeMirror and fallback Undo,
+unsafe-YAML refusals, BOM/CRLF/draft preservation, bounded scan and scope races.
+Full CI for all 59 suites in both engines is the remaining merge gate.
+Next by priority after this batch is N17 backlinks. N34's domain/account
+cutover remains owner-only and outside this batch.
+
+### Previous batch handover — 2026-09-29 (merged in PR #19)
 
 The requested four-item batch is N22 note navigation/bookmarks, N23 reading
 width/text size, N32 editable checklists in Preview, then N25 formatting.
@@ -270,7 +282,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N16 | 39 | done | Images: 39/39 both engines, actual paste/drop and real/fallback editor Undo, scopes, size/type, Obsidian folders; review fixes covered reserved paths, pointer drops and busy feedback. Cross-note insertion mutation caught; n16 desktop/phone light/dark screenshots inspected. |
 | N33 | 40 | done | Tabs 17/17 both engines; navigation 14/14, reading 12/12, mobile-new 6/6, privacy 41/41, axe 45/45 both. Review: background deletion persisted, closing a loading tab cancels its read, local-storage failure blocks unsafe closing, failed neighbour read restores tab. Unsafe-close mutation caught. n33 four screenshots inspected. N16 commit `c8f2e48`. Long comments moved to implementation-notes.md with identical executable AST, saving 13 KB. |
 | N26 | 41 | done | Recent previews/history and shared reader; 18/18 Chromium + WebKit, content-search 13/13 and pins-sync 54/54. Review fixes, mutation and screenshots below. |
-| N27 | 42 | todo | UX review 2026-09-28: tags |
+| N27 | 42 | done | Tags, counts, filtering and source edits; 53/53 Chromium + WebKit, independent review fixed, mutation and screenshots below. |
 | N17 | 43 | todo | Owner's request 2026-09-27, 5 of 5 |
 | N28 | 44 | todo | UX review 2026-09-28: outline of headings |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
@@ -1013,3 +1025,10 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - Fresh G-3 review found phone overflow, expired-auth loading stuck and stale-SHA cross-path response reuse. All fixed, with regression assertions. The pending reader keys include paths; only confirmed matching-SHA results enter the shared cache.
 - Focused checks: recent-notes 18/18, content-search 13/13 and pins-sync 54/54 in Chromium and WebKit. Mutation restoring cross-path pending dedup failed as expected (tests/screens/recent-mutation.log). Cache-aware search fixtures explicitly clear cache when exercising network failures/holds; distinct blobs preserve the 300-read bound assertion.
 - Inspected screenshots: tests/screens/n26-{1280,390}-{light,dark}.png. Phone list scrolls within 25vh. Final full suite runs after N27.
+
+### N27 evidence — 2026-09-29
+- Reads simple Obsidian YAML list/scalar tags and inline tags, case-insensitive with nested-parent counts. Tags in Files uses the shared reader for up to 300 notes and labels incomplete results. Chips prefer current text and drafts; add/remove changes only frontmatter, using the editor Undo history and ordinary save/conflict handling.
+- Read-only, scope changes, deleted/renamed notes, hostile-looking keys, hidden/binary files and late reads covered. A saved edit preserves UTF-8 BOM, untouched CRLF lines, other properties and unsaved body text. No new runtime dependency, host or stored index. Obsidian semantics checked at https://obsidian.md/help/tags and https://obsidian.md/help/properties.
+- Independent G-3 review found valid but unsupported YAML root indentation, explicit keys and blank-separated scalar continuation could be damaged. All now refuse the edit, with regression assertions. Duplicate/quoted/spaced tags keys, aliases and complex values also refuse edits; source editing remains available.
+- Focused tags suite 53/53 in Chromium and WebKit. Removing the safe-frontmatter guard makes assertions fail (tests/screens/tags-mutation.log). Existing development-note references shortened, with all detailed explanations retained in docs/dev/implementation-notes.md, to keep the app below 204800 bytes.
+- Inspected tests/screens/n27-{1280,390}-{light,dark}.png and n27-390-{light,dark}-chips.png. Scrolling sidebar sections and note chips stay within phone/desktop bounds. Axe now also scans expanded Tags and Recent.

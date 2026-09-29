@@ -268,6 +268,20 @@ Obsidian would not understand, so both can work on the same repository.
 
 ## Open notes
 
+Expand **Tags** in Files to find Markdown notes by tag. Counts include nested
+tags (`project` includes `project/notes`) and ignore case. Opening the section
+scans up to 300 loaded Markdown notes using the shared reader; skipped or
+unavailable notes are reported. Close and reopen it to refresh.
+
+The open note shows its tags above the editor and Preview. **Add tag** writes
+the `tags` property; the × removes a frontmatter tag. These edits preserve
+other properties and unsaved text and support Undo. Inline `#tags` remain in
+the text: select their chip to find related notes, or edit the source to remove
+them. Tag discovery skips fenced/indented code, inline code, links and comments.
+Simple YAML tag lists and scalar tags are supported. Complex or ambiguous
+frontmatter must be edited in the source; the tag controls explain this without
+rewriting it. No tag index is written into your repository or browser storage.
+
 Expand **Recent** in Files for recently opened notes and repository changes,
 with the first heading, a short preview and a time. Local drafts take precedence.
 The list reads history only when expanded: up to 10 commits, the first 100 files

@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Tags from frontmatter and note text, counted in Files, with tag chips and safe frontmatter editing.
 - Recent notes with titles, previews and opened/changed times; shared, bounded reads for previews, search and pin discovery.
 - Open-note tabs, remembered per repository and folded into a list on phones; closing preserves drafts.
 - Paste, drop or choose images to upload into the vault's attachment folder and link from a note.

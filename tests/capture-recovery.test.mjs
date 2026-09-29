@@ -7,7 +7,8 @@ for (const status of [0,503,429]) {
   await ctx.route('https://api.github.com/**/contents/todo.md',async r=>{
     if(r.request().method()!=='PUT'||!fail)return r.fallback();
     seen();await gate;
-    return status?r.fulfill({status,headers:status===429?{'Retry-After':'1'}:{},body:'{}'}):r.abort();
+    // Keep the rate limit active through failure recovery; reset explicitly below.
+    return status?r.fulfill({status,headers:status===429?{'Retry-After':'60'}:{},body:'{}'}):r.abort();
   });
   for(const text of ['ALPHA','BETA','GAMMA']) {
     await p.fill('#pin-input',text);await p.click('#pin-go');if(text==='ALPHA')await sent;

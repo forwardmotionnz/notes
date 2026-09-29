@@ -36,6 +36,12 @@ origin/path and OAuth redirect checks (11/11). Hostile content checks open
 the pin's Preview and assert sanitised task text and no executable elements,
 instead of expecting raw HTML to be displayed as literal text (28/28). These
 three focused suites pass in both engines; the corrected PR repeats full CI.
+That repeat exposed an error-rendering regression under rate limiting: the
+shared task capture must be detached before replacing Preview contents, or
+its recovered text field disappears. The node is now preserved, and the
+capture-recovery fixture keeps the rate limit active until explicitly reset,
+instead of depending on completing within one second. Capture recovery 6/6,
+checklists 20/20 and large files 20/20 pass in both engines; review is clear.
 
 The original SHOULD list was completed and merged in PR #9. Older handover
 details below are historical, including the pre-merge S3/S4 wording.

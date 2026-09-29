@@ -281,6 +281,7 @@ Wikilinks use the same resolution as opening a link; Markdown paths resolve
 relative to their source note. Reference-style links work too. Code, comments,
 image embeds and external links do not count. Drafts take precedence over
 saved text. Choose a result to open its source.
+On a small screen, Linked from collapses when the keyboard needs the space.
 
 The scan reads up to 300 loaded Markdown notes and reports skipped or
 unavailable files. Refresh Files to pick up repository changes, then reopen

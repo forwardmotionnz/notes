@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Centred reading columns and a remembered note text size for editor and Preview.
 - Note addresses and browser/header back and forward navigation, including bookmarks restored after sign-in.
 - About Padgit in Settings, with the version and links for this deployment.
 - Padgit branding (formerly Notes), plus a notice before the planned move

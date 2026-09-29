@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-GhljECD1j03D2Bez87cKXtLbrMBCQodIX37hNQ6fxWc=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-s/ISx+HfQNORpLy5TxDBTpYMzOfoJJ7xqbuncPaWZxI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -190,6 +190,10 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 #app-about summary{cursor:pointer;font-weight:600;}
 #app-about nav{display:flex;flex-wrap:wrap;gap:8px 16px;}
 #app-about a{color:var(--accent);}
+#editor-pane .CodeMirror,.fallback-editor{width:100%;max-width:800px;align-self:center;}
+#editor-pane .CodeMirror,.fallback-editor,#preview{font-size:var(--note-size,16px);}
+#preview{padding-inline:20px;}
+#preview>*{max-width:760px;margin-left:auto;margin-right:auto;}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
@@ -335,6 +339,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 				</select>
 			</label>
 			<p class="hint" id="theme-hint">Changes at once, in this browser only.</p>
+			<label><span>Note text size</span><select id="f-text-size"><option value="smaller">Smaller</option><option value="normal">Normal</option><option value="larger">Larger</option></select></label>
 			<details id="app-about"><summary>About Padgit</summary>
 				<p>Version <span id="app-version"></span></p>
 				<nav aria-label="About links">
@@ -3553,6 +3558,18 @@ $("f-theme").onchange = function () {
 	applyTheme(t);
 };
 try { applyTheme(localStorage.getItem("notes.theme")); } catch (e) { applyTheme("auto"); }
+function applyTextSize(size) {
+	var sizes = { smaller: 16, normal: 18, larger: 20 };
+	if (!sizes[size]) size = "normal";
+	document.documentElement.style.setProperty("--note-size", sizes[size] + "px");
+	$("f-text-size").value = size;
+	if (editor) { editor.refresh(); editor.scrollIntoView(); }
+}
+$("f-text-size").onchange = function () {
+	try { localStorage.setItem("notes.textSize", this.value); } catch (e) {}
+	applyTextSize(this.value);
+};
+try { applyTextSize(localStorage.getItem("notes.textSize")); } catch (e) { applyTextSize("normal"); }
 /* Quick switcher uses only the loaded tree. Recents belong to this repository
    and branch, and share the existing session-only/sign-out storage rules. */
 var quickScope = "", quickMatches = [], quickIndex = 0;

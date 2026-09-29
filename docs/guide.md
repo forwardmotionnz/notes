@@ -3,6 +3,11 @@
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
 ## Finding and saving notes
+Editor and Preview use a centred reading column on wide screens. Settings →
+**Note text size** changes both at once (Smaller, Normal or Larger), remembers
+the choice in this browser and keeps it after sign-out. Phone text stays at
+least 16 pixels to avoid focus zoom.
+
 Opening a note updates the address. Bookmark or copy it to return after
 sign-in; choose the same repository and branch in Settings. Browser Back and
 Forward, phone back gestures and the header arrows move between notes.

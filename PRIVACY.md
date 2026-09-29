@@ -116,6 +116,7 @@ All of this stays on your device, in the browser's storage for this site:
 | `notes.draft.v1:` followed by the repository, branch and file | the words you have typed but not yet saved in that file, which version they were based on, and when | the change is saved, you press Discard, or you sign out |
 | `notes.theme` | Light or Dark, if you chose one in Settings (nothing for *Same as this device*) | you choose *Same as this device* again; signing out keeps it, as it says nothing about you |
 | `notes.navigation` | a random history identifier and the number of forward steps, in this tab's session storage; no paths or note text | you sign out or the tab closes |
+| `notes.textSize` | Smaller, Normal or Larger note text, stored in this browser like the theme | browser data is cleared; signing out keeps it |
 | `notes.signin` | for a sign-in in progress: a random value that ties GitHub's answer to this sign-in, the proof value sent to the broker, and whether to remember you | you come back from GitHub; if you never do, when the tab closes |
 
 Normally these are in local storage, so you stay signed in on this browser.

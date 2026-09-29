@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 38 (cap extended by the owner's requests; current batch N22, N23, N32, N25)
+Iterations: 39 (cap extended by the owner's requests; current batch N22, N23, N32, N25)
 
 ## Current handover — 2026-09-29
 
@@ -220,7 +220,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N34 | 33 | doing | Padgit branding and pre-move notice prepared; custom-domain sign-in/save 11/11 both engines; axe 41/41 and privacy 41/41 both engines. Review fixes: wait across mocked auth navigation; cap notice height with phone keyboard open. Eight screenshots viewed. Awaiting owner name confirmation and coordinated DNS/Pages/App/broker cutover; see `docs/padgit-migration.md`. No domain/secret/account changes made. |
 | N31 | 34 | done | About 9/9 both engines; version 1.0.0 agrees with changelog, fork links configurable, unsafe links omitted, mutation caught. Independent review clear; 320/390 px keyboard access verified; `tests/screens/n31-{1280,390}-{light,dark}.png` viewed. |
 | N22 | 35 | done | Browser/header history and scoped note bookmarks; navigation tests both engines, switching 33/33 both. Review fixed reload history and failed sign-in retry. Scope-guard mutation caught. Desktop/phone light/dark screenshots `tests/screens/n22-*.png` viewed. |
-| N23 | 36 | todo | UX review 2026-09-28: readable width and text size |
+| N23 | 36 | done | Centred editor/Preview and remembered 16/18/20px sizes. Reading 12/12, keyboard-editor 24/24 and app 70/70 both engines; independent real-CodeMirror review clear. Desktop/phone light/dark screenshots `tests/screens/n23-*.png` viewed. N22 committed as `40fe608`; navigation 14/14 and privacy 41/41 both engines. Privacy test now distinguishes the documented tab-only history metadata; all sign-out assertions retained. |
 | N32 | 37 | todo | Owner's request 2026-09-28: checklists in any note (tick, add, edit, reorder, remove); the Tasks screen folds in |
 | N24 | 37 | moved | Folded into N32 |
 | N25 | 38 | todo | UX review 2026-09-28: formatting toolbar |

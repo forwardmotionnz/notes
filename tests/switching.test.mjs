@@ -160,7 +160,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   await H.clickRow(p, 'inbox.md');
   await type(p, '# Inbox\n\nbefore new');
   p.answer = 'fresh';
-  await p.click('#btn-new');
+  await H.newNote(p, p.answer);
   await H.settle(p, 400);
   t.check('New asks nothing about the file left', p.asked.length === 0);
   t.check('New commits the file left', gh.files['inbox.md'] === '# Inbox\n\nbefore new');

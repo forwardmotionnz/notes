@@ -18,7 +18,7 @@ await H.start();
 
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('first') : d.accept());
-  await p.click('#btn-new');
+  await H.newNote(p, 'first');
   await H.settle(p, 200);
   await H.setEditor(p, '# First\n\nhello\n');
   await H.settle(p, 60);

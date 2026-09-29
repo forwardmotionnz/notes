@@ -154,7 +154,7 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   // A new note with a hostile name.
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept(`${SVG}`) : d.accept());
-  await p.click('#btn-new');
+  await H.newNote(p, `${SVG}`);
   await H.settle(p, 300);
   t.check('a hostile new name is text in the header', (await p.textContent('#crumb .name')) === `${SVG}.md`);
 

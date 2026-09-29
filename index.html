@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-xxI6/BS98qTPbHNJ5n+1yXr5xOyII75hQpVOiLs5+os=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-y+Y95f58rLkRjRS0gukfSEMr+thGNnAT0svZJVnBrA4=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -300,6 +300,7 @@ body:not(.tags-open) #note-tags{display:none;}
 #format-toolbar{align-items:center;gap:2px;min-height:44px;padding:4px 16px;}
 #format-toolbar button{min-height:30px;width:30px;}
 #format-toolbar .sep{flex:none;width:1px;height:18px;background:var(--line);margin:0 6px;}
+.nn-path{margin:4px 0 0 !important;font-size:12.5px;color:var(--fg-soft);overflow-wrap:anywhere;}
 #note-summary{background:var(--bg);color:var(--fg-soft);padding:6px 16px;gap:6px 16px;}
 #note-word-count{font-variant-numeric:tabular-nums;}
 #backlinks summary{cursor:pointer;color:var(--fg-soft);}
@@ -491,6 +492,16 @@ header:has(#btn-discard:not([hidden])) #btn-save:not(:disabled) .to-save{display
 	<div id="quick-results" role="listbox" aria-label="Matching notes"></div>
 	<p id="quick-status" role="status"></p>
 	<button id="quick-close">Close</button>
+</dialog>
+<dialog id="new-note" aria-labelledby="nn-title">
+	<div class="dlg-body">
+		<h2 id="nn-title">New note</h2>
+		<label><span>Name</span><input id="nn-name" autocomplete="off" spellcheck="false"></label>
+		<label><span>Folder</span><select id="nn-folder"></select></label>
+		<label id="nn-new-wrap" hidden><span>New folder</span><input id="nn-new-folder" autocomplete="off" spellcheck="false" placeholder="For example Projects/Garden"></label>
+		<p id="nn-path" class="nn-path" role="status"></p>
+	</div>
+	<div class="dlg-foot"><button type="button" id="nn-cancel">Cancel</button><button type="button" id="nn-go" class="primary">Create</button></div>
 </dialog>
 <dialog id="outline" aria-labelledby="outline-title"><h2 id="outline-title">Headings</h2><div id="outline-list"></div><p id="outline-status" role="status"></p><button id="outline-close">Close</button></dialog>
 <dialog id="settings">
@@ -1709,8 +1720,8 @@ function renderTree() {
 		e.textContent = configured()
 			? (treeState === "loading" ? "Loading..." :
 				 treeState === "failed" ? (treeError || "Could not load the files. Press \u21bb to try again.") :
-				 isEmptyRepo() ? "This repository is empty. Press + to write the first note." :
-				 "No notes here yet. Press + to write one.") :
+				 isEmptyRepo() ? "This repository is empty. Choose New note to write the first note." :
+				 "No notes here yet. Choose New note to write one.") :
 			(signedIn() ? "Choose a repository in settings." : "Sign in to see your notes.");
 		host.appendChild(e);
 		return;
@@ -2086,7 +2097,7 @@ function openLink(target) {
 	}
 	if (files.truncated) {
 		flash(name + " is not in the part of this large repository's list that loaded, so it " +
-					"cannot be created from a link. Use + to create or open it.", true);
+					"cannot be created from a link. Use New note to create or open it.", true);
 		return;
 	}
 	if (readOnly) { flash("There is no note called " + name + ". " + readOnly, true); return; }
@@ -2523,13 +2534,53 @@ function saveCopy() {
 		refreshTree();                         // so the next try sees it
 	});
 }
+/* New note: a name and a folder, defaulting to the folder of the open note. */
+var NEW_FOLDER = "\u0000new";
+function folderList() {
+	var seen = pathMap();
+	files.forEach(function (f) {
+		if (f.type !== "blob" || isHidden(f.path)) return;
+		var parts = f.path.split("/");
+		for (var i = 1; i < parts.length; i++) seen[parts.slice(0, i).join("/")] = true;
+	});
+	return Object.keys(seen).sort(function (a, b) { return a.localeCompare(b); });
+}
 function newFile() {
-	var path = prompt("New note path", suggestPath());
-	if (!path) return;
-	path = path.replace(/^\/+/, "").trim();
-	if (!path) return;
+	var sel = $("nn-folder"), folders = folderList(), here = current ? current.path.replace(/\/?[^/]*$/, "") : "";
+	sel.replaceChildren();
+	function option(value, text) { var o = document.createElement("option"); o.value = value; o.textContent = text; sel.appendChild(o); }   // folder names: text
+	option("", "Top level");
+	folders.forEach(function (f) { option(f, f); });
+	option(NEW_FOLDER, "New folder\u2026");
+	sel.value = folders.indexOf(here) !== -1 ? here : "";
+	$("nn-name").value = suggestPath().replace(/\.md$/, "");
+	$("nn-new-folder").value = ""; $("nn-new-wrap").hidden = true;
+	newNoteCheck();
+	$("new-note").showModal();
+	$("nn-name").select();
+}
+function newNotePath() {
+	var name = $("nn-name").value.trim().replace(/^\/+/, "");
+	var folder = $("nn-folder").value === NEW_FOLDER ? $("nn-new-folder").value.trim() : $("nn-folder").value;
+	if (!name) return "";
+	var path = ((folder ? folder.replace(/^\/+|\/+$/g, "") + "/" : "") + name).replace(/\/{2,}/g, "/");
 	/* N178 */
 	if (!/\.[a-z0-9]+$/i.test(path) || !isTextFile(path)) path += ".md";
+	return path;
+}
+function newNoteCheck() {
+	var path = newNotePath(), exists = !!path && (!!readDraft(path) || files.some(function (f) { return f.path === path; }));
+	$("nn-new-wrap").hidden = $("nn-folder").value !== NEW_FOLDER;
+	$("nn-path").textContent = !path ? "Type a name for the note." :
+		isHidden(path) ? "Names and folders starting with a dot are hidden here. Choose another." :
+		exists ? path + " already exists. Open it instead." : "Will be saved as " + path;   // text, never markup
+	$("nn-go").disabled = !path || isHidden(path);
+	$("nn-go").textContent = exists ? "Open" : "Create";
+}
+function newNoteGo() {
+	var path = newNotePath();
+	if (!path || isHidden(path)) return;
+	$("new-note").close();
 	startNote(path);
 }
 /* N126 */
@@ -3855,6 +3906,13 @@ $("btn-tags").onclick = function () {
 $("btn-rename").onclick   = renameCurrent;
 $("btn-delete").onclick   = deleteCurrent;
 $("btn-new").onclick      = newFile;
+["nn-name", "nn-new-folder"].forEach(function (id) {
+	$(id).addEventListener("input", newNoteCheck);
+	$(id).addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); newNoteGo(); } });
+});
+$("nn-folder").addEventListener("change", function () { newNoteCheck(); if (this.value === NEW_FOLDER) $("nn-new-folder").focus(); });
+$("nn-go").onclick = newNoteGo;
+$("nn-cancel").onclick = function () { $("new-note").close(); };
 $("btn-today").onclick    = todayNote;
 $("btn-refresh").onclick  = refreshTree;
 $("fr-check").onclick     = checkRepos;

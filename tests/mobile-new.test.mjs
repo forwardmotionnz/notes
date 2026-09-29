@@ -6,7 +6,7 @@ for (const noCdn of [false,true]) {
   const ctx=await H.context(H.fakeGitHub({empty:true,files:{}}),{noCdn,viewport:{width:390,height:844}});
   const p=await H.page(ctx); await H.signIn(p); await p.click('#btn-tree');
   p.removeAllListeners('dialog'); p.on('dialog',d=>d.accept('Hello.md'));
-  await p.click('#btn-new'); await p.waitForFunction(()=>current?.path==='Hello.md'); await H.still(p);
+  await H.newNote(p, 'Hello.md'); await p.waitForFunction(()=>current?.path==='Hello.md'); await H.still(p);
   const label=noCdn?'plain editor':'editor';
   t.check(`${label}: New closes the file drawer`,await p.evaluate(()=>!document.body.classList.contains('tree-open')));
   t.check(`${label}: the note can be reached without a scrim`,await p.evaluate(()=>{

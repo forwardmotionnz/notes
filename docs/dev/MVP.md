@@ -283,7 +283,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N33 | 40 | done | Tabs 17/17 both engines; navigation 14/14, reading 12/12, mobile-new 6/6, privacy 41/41, axe 45/45 both. Review: background deletion persisted, closing a loading tab cancels its read, local-storage failure blocks unsafe closing, failed neighbour read restores tab. Unsafe-close mutation caught. n33 four screenshots inspected. N16 commit `c8f2e48`. Long comments moved to implementation-notes.md with identical executable AST, saving 13 KB. |
 | N26 | 41 | done | Recent previews/history and shared reader; 18/18 Chromium + WebKit, content-search 13/13 and pins-sync 54/54. Review fixes, mutation and screenshots below. |
 | N27 | 42 | done | Tags, counts, filtering and source edits; 53/53 Chromium + WebKit, independent review fixed, mutation and screenshots below. |
-| N17 | 43 | todo | Owner's request 2026-09-27, 5 of 5 |
+| N17 | 43 | done | Linked from with bounded shared reads, draft priority and Markdown/wiki resolution. 13/13 both engines; wikilinks 47/47, review/mutation/screens below. |
 | N28 | 44 | todo | UX review 2026-09-28: outline of headings |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
@@ -1032,3 +1032,9 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - Independent G-3 review found valid but unsupported YAML root indentation, explicit keys and blank-separated scalar continuation could be damaged. All now refuse the edit, with regression assertions. Duplicate/quoted/spaced tags keys, aliases and complex values also refuse edits; source editing remains available.
 - Focused tags suite 53/53 in Chromium and WebKit. Removing the safe-frontmatter guard makes assertions fail (tests/screens/tags-mutation.log). Existing development-note references shortened, with all detailed explanations retained in docs/dev/implementation-notes.md, to keep the app below 204800 bytes.
 - Inspected tests/screens/n27-{1280,390}-{light,dark}.png and n27-390-{light,dark}-chips.png. Scrolling sidebar sections and note chips stay within phone/desktop bounds. Axe now also scans expanded Tags and Recent.
+
+### N17 evidence — 2026-09-29
+- On-demand Linked from panel below the open note, four shared reads at a time / at most 300 Markdown files. Reports skipped, failed and truncated listings; local drafts win, changing note/repository cancels publication, sign-out clears results, missing Markdown CDN has a visible fallback. Does not write or persist an index.
+- Fresh G-3 review found formatted and URL wikilink aliases split across parser tokens and were omitted. Fixed by tokenising opaque references through the existing Markdown parser; code, escaped links, comments and embeds still do not count. Regression tests cover these aliases and Obsidian comments outside code.
+- Backlinks 13/13 and existing wikilinks 47/47 pass in Chromium and WebKit. Removing the target-match filter causes expected failures (tests/screens/backlinks-mutation.log). Screens tests/screens/n17-{1280,390}-{light,dark}.png inspected.
+- Longer comments appended to implementation-notes.md with executable AST equality verified; numbered source comments point there. Existing notes retained. No new dependency/build step; final size/full CI checked with N28.

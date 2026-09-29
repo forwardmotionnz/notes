@@ -268,6 +268,17 @@ Obsidian would not understand, so both can work on the same repository.
 
 ## Open notes
 
+Expand **Linked from** under a Markdown note to see notes that link to it.
+Wikilinks use the same resolution as opening a link; Markdown paths resolve
+relative to their source note. Reference-style links work too. Code, comments,
+image embeds and external links do not count. Drafts take precedence over
+saved text. Choose a result to open its source.
+
+The scan reads up to 300 loaded Markdown notes and reports skipped or
+unavailable files. Refresh Files to pick up repository changes, then reopen
+Linked from. If the Markdown library fails to load, the section explains why
+it is unavailable; editing remains available.
+
 Expand **Tags** in Files to find Markdown notes by tag. Counts include nested
 tags (`project` includes `project/notes`) and ignore case. Opening the section
 scans up to 300 loaded Markdown notes using the shared reader; skipped or

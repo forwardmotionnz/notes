@@ -659,3 +659,155 @@ An organisation member asked for the app; an owner must approve it.
 
 Nothing here says whether they wanted to be remembered on this
  computer, so start from the choice that leaves nothing behind.
+
+## N105
+
+unreadable: treated as not set up
+ Tests and forks can override without editing the file.
+
+## N106
+
+Keyed by repository and branch as well as path: the same path in another
+ repository is another file.
+
+## N107
+
+Another tab on the same file may have written the draft since; its
+ text is not ours to throw away.
+
+## N108
+
+Storage full or blocked: say so once, so nobody relies on a copy
+ that is not there.
+
+## N109
+
+On changing mode, drafts follow the settings into the other store and no
+ copy is left behind in the one being left.
+
+## N110
+
+Another tab may already have refreshed. Refresh tokens are single-use, so
+	 using ours after that would fail. Adopt theirs.
+
+## N111
+
+Safari storage may arrive after the refresh lock; allow its newer
+ token to arrive even while this tab holds the lock.
+
+## N112
+
+409 means empty, or unavailable (still being created, for one); only
+ GitHub's own words tell them apart.
+
+## N113
+
+A file the app will not open, so must never write: too large, stored in
+ Git LFS, or not UTF-8.
+
+## N114
+
+A Git LFS pointer stands in for a file stored elsewhere; saving over it
+ would replace that file with this text.
+
+## N115
+
+No branch exists yet in an empty repository; left out, GitHub uses the
+ default one and creates it with this commit.
+
+## N116
+
+No answer at all: the move may have landed. It did if the
+ new path now holds this version and the old one is gone.
+
+## N117
+
+why this repository cannot be changed, or ""
+ The editor takes typing only when there is a note for it to go into.
+
+## N118
+
+shown in the list when it failed for a reason worth keeping          // "loading" | "failed" | "ok": what an empty tree means
+
+## N119
+
+A badge in the header, not a toast: the status line is transient and
+ gets cleared by whatever happens next.
+
+## N120
+
+CodeMirror reports setValue (opening a file, a restored draft) as a
+ change too; only typing counts towards an autosave.
+
+## N121
+
+The link target under `at`, without its alias, heading or block, or null.
+ A link never spans lines.
+
+## N122
+
+Unsaved text for a file that can no longer be opened here (it grew
+ past 1 MB elsewhere, say) must not become unreachable.
+
+## N123
+
+Past 1 MB GitHub's API would not hand the note back, so it could not be
+ opened here again: keep it as a draft instead.
+
+## N124
+
+Only text this tab typed after it; another tab's draft never saw
+ this commit and must still meet the conflict check.
+
+## N125
+
+A save refused as the note changed on GitHub: merge once, against a known start.
+
+## N126
+
+Small Moment-compatible subset; unknown tokens never silently change paths.
+ https://obsidian.md/help/plugins/daily-notes
+
+## N127
+
+A note already there, or one typed but never committed: open it, never
+ replace its draft with a fresh template.
+
+## N128
+
+GitHub asks for writes to files one after another: wait for any save or
+ pinned task still on its way.
+
+## N129
+
+it would undo in a list no longer shown
+ Header actions and tasks must still target the same file while loading.
+
+## N130
+
+Remove task lines in one commit, then offer Undo rather than ask first.
+ `gone`: [{ index, line }] as drawn, in order.
+
+## N131
+
+The file changed since the rows were drawn: remove nothing, never the wrong line.
+
+## N132
+
+The repository in use is always there to keep, so pins and "Forget
+ me" can be saved before a long list has arrived.
+
+## N133
+
+First sign-in with the app on a single private repository: nothing
+ to choose. A public one is only ever chosen on purpose.
+
+## N134
+
+The dialog opened on "looking", where Sign out was all there was to
+ focus; Enter must not sign anyone out by accident.
+
+## N135
+
+A new note that was never committed is not in the tree, but its draft
+ is still worth reopening.

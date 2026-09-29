@@ -297,9 +297,9 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N28 | 44 | done | Heading outline with source/Preview jumps, nested headings and pagination. 36/36 both engines; axe 57/57; review/mutation/screens below. |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
-| N36 | 29a | todo | Owner's review 2026-09-29: remove the back and forward buttons |
-| N37 | 29b | todo | Owner's review 2026-09-29: one kind of note (the Tasks screen, "Add a task" and pinned-only logic go) |
-| N38 | 29c | todo | Owner's review 2026-09-29: visual redesign (mock-up for approval first) |
+| N36 | 44a | todo | Owner's review 2026-09-29: remove the back and forward buttons |
+| N37 | 44b | todo | Owner's review 2026-09-29: one kind of note (the Tasks screen, "Add a task" and pinned-only logic go) |
+| N38 | 44c | todo | Owner's review 2026-09-29: visual redesign (mock-up for approval first) |
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 
 ### N10: plan

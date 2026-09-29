@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-eJ+KnZMmykyZ46QJh/ZxMdRulDHuNAcSyNeJpNc8yqg=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-sJ+4ninsWbt5tpzhdE3kd9XrUStufW6q574SwjGZihI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -223,6 +223,9 @@ header{position:relative;min-height:52px;gap:4px;padding:6px 10px;padding-top:ma
 #btn-save .saved{display:none;}
 #btn-save:disabled .to-save{display:none;}
 #btn-save:disabled .saved{display:inline;}
+#btn-save .saving, #btn-save.busy .saved{display:none;}
+#btn-save.busy .saving{display:inline;}
+#btn-save.busy .dot{background:none;border:1.5px solid currentColor;}
 body:not(.has-note) #btn-save, body:not(.has-note) #btn-preview{visibility:hidden;}
 #btn-save:not(:disabled){background:var(--accent-soft);color:var(--accent);font-weight:600;}
 #btn-save:not(:disabled) .dot{background:none;border:1.5px solid currentColor;}
@@ -318,7 +321,9 @@ header svg.i{width:20px;height:20px;}
 .seg .lbl{display:none;}
 .seg>span{padding:0 9px;height:30px;}
 #btn-save{padding:0 8px;}
-#btn-save .saved{display:none !important;}
+#btn-save .saved, #btn-save .saving{display:none !important;}
+header:has(#btn-discard:not([hidden])) #crumb, header:has(#btn-copy:not([hidden])) #crumb{order:-1;flex-basis:100%;}
+header:has(#btn-discard:not([hidden])) #btn-save:not(:disabled) .to-save{display:none;}
 #btn-save:disabled{width:24px;padding:0;}
 .menu{right:6px;min-width:230px;}
 .menu button{min-height:42px;font-size:15px;}
@@ -427,7 +432,7 @@ header svg.i{width:20px;height:20px;}
 		<span id="status"></span>
 		<button id="btn-discard" hidden title="Throw away your unsaved changes and load the version on GitHub">Discard</button>
 		<button id="btn-copy" hidden title="Save your version as a new note beside it, and load the version on GitHub">Save as copy</button>
-		<button id="btn-save" aria-label="Save" title="Save now (Ctrl/Cmd+S); notes also save when you pause" disabled><i class="dot" aria-hidden="true"></i><span class="to-save">Save</span><span class="saved" aria-hidden="true">Saved</span></button>
+		<button id="btn-save" aria-label="Save" title="Save now (Ctrl/Cmd+S); notes also save when you pause" disabled><i class="dot" aria-hidden="true"></i><span class="to-save">Save</span><span class="saved" aria-hidden="true">Saved</span><span class="saving" aria-hidden="true">Saving…</span></button>
 		<button id="btn-preview" class="seg" aria-pressed="false" aria-label="Preview" title="Switch between editing and the formatted preview"><span class="seg-e"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg><span class="lbl">Edit</span></span><span class="seg-p"><svg class="i" aria-hidden="true"><use href="#i-eye"/></svg><span class="lbl">Preview</span></span></button>
 		<button class="plain ib" id="btn-more" aria-label="Note actions" title="Note actions" aria-haspopup="menu" aria-expanded="false" aria-controls="note-menu" hidden><svg class="i" aria-hidden="true"><use href="#i-more"/></svg></button>
 		<div id="note-menu" class="menu" role="menu" aria-label="Note actions" hidden>
@@ -2342,7 +2347,7 @@ function saveCurrent(auto) {
 	var base = doc.sha;
 	flash("Saving...");
 	$("btn-save").disabled = true;
-	saving = true;
+	saving = true; $("btn-save").classList.add("busy");
 	doc.pending = text;
 	doc.saveError = "";
 	updateNoteSummary();
@@ -2418,7 +2423,7 @@ function saveCurrent(auto) {
 		doc.merged = false;
 		fail(err);
 	}).then(function () {
-		saving = false;
+		saving = false; $("btn-save").classList.remove("busy");
 		inflight = null;
 		doc.pending = null;
 		updateNoteSummary();
@@ -2886,7 +2891,7 @@ function previewView(show, force) {
 	host.replaceChildren();
 	if (!path) return;
 	if (!window.marked || !window.DOMPurify || !DOMPurify.isSupported) {
-		host.textContent = "Preview unavailable: its libraries could not load. Press Edit to keep writing.";
+		host.textContent = "Preview unavailable: its libraries could not load. Switch to Edit (the pencil) to keep writing.";
 		return;
 	}
 	try {
@@ -2946,7 +2951,7 @@ function previewView(show, force) {
 		bindChecklist(source, path, taskMarker, taskNumber);
 		$("preview").scrollTop = scroll;
 		if (focused) { var target = Array.from(host.querySelectorAll("[aria-label]")).find(function (el) { return el.getAttribute("aria-label") === focusName; }); (target || $("preview")).focus({preventScroll:true}); }
-	} catch (err) { host.textContent = "Preview unavailable for this note. Press Edit to keep writing."; }
+	} catch (err) { host.textContent = "Preview unavailable for this note. Switch to Edit (the pencil) to keep writing."; }
 }
 /* N38: simple properties show as chips; anything else stays the raw text. Values are text, never markup. */
 function propertyChips(raw) {
@@ -2954,7 +2959,7 @@ function propertyChips(raw) {
 	raw.split("\n").forEach(function (line) {
 		if (!line.trim()) return;
 		var m = /^([A-Za-z0-9_][\w -]*):[ \t]*(.*)$/.exec(line), item = /^\s+-\s+(.*)$/.exec(line);
-		if (m) { var v = m[2].trim(); cur = { key: m[1].trim(), vals: /^\[.*\]$/.test(v) ? v.slice(1, -1).split(",") : v ? [v] : [] }; props.push(cur); }
+		if (m) { var v = m[2].trim(); cur = { line: line, key: m[1].trim(), vals: /^\[.*\]$/.test(v) ? v.slice(1, -1).split(",") : v ? [v] : [] }; props.push(cur); }
 		else if (item && cur) cur.vals.push(item[1]);
 		else ok = false;
 	});
@@ -2969,7 +2974,7 @@ function propertyChips(raw) {
 	}
 	props.forEach(function (p) {
 		var key = p.key.toLowerCase(), vals = p.vals.map(function (v) { return v.trim().replace(/^(["'])(.*)\1$/, "$2"); }).filter(Boolean);
-		if (key === "pinned" && vals.length === 1 && /^(true|yes)$/i.test(vals[0])) chip("Pinned", "star", true);
+		if (/^pinned:[ \t]*(true|yes)[ \t]*$/i.test(p.line)) chip("Pinned", "star", true);   // exactly what makes a note pinned
 		else if ((key === "tags" || key === "tag") && vals.length) vals.forEach(function (v) { chip(v.replace(/^#/, ""), "tag"); });
 		else chip(p.key + (vals.length ? ": " + vals.join(", ") : ""));
 	});
@@ -3097,6 +3102,7 @@ function bindChecklist(source, path, marker, count) {
 		var more = button("Task actions: " + task.text, "", function (e) { e.stopPropagation(); taskMenu(more, menu, menu.hidden); }), menu = document.createElement("div");
 		more.appendChild(icon("more")); more.className = "task-more"; more.setAttribute("aria-haspopup", "menu"); more.setAttribute("aria-expanded", "false");
 		menu.className = "menu task-menu"; menu.setAttribute("role", "menu"); menu.hidden = true;
+		menu.addEventListener("focusout", function (e) { if (e.relatedTarget && !menu.contains(e.relatedTarget) && e.relatedTarget !== more) taskMenu(more, menu, false); });
 		[edit, up, down, rm].forEach(function (b) { b.setAttribute("role", "menuitem"); });
 		up.prepend(icon("up")); down.prepend(icon("down")); edit.prepend(icon("pencil")); rm.prepend(icon("trash"));
 		menu.append(edit, up, down, rm);
@@ -3110,11 +3116,11 @@ function bindChecklist(source, path, marker, count) {
 	});
 	var ticked = tasks.filter(function (t) { return t.checked; }).map(function (t) { return { index: t.index, line: t.line }; });
 	if (ticked.length && !locked) { var clear = button("Clear completed tasks", "Clear " + ticked.length + " done", function () { if (live()) removeTasks(path, ticked, "Cleared " + ticked.length + " done tasks."); }); clear.className = "clear-done"; clear.prepend(icon("task")); host.append(clear); }
-	if (locked && current && dirty()) host.appendChild(emptyNote("Save or resolve your changes to edit this checklist. You can keep writing in Edit."));
+	if (locked && current && dirty()) host.appendChild(emptyNote("Save or resolve your changes to edit this checklist. You can keep writing in Edit (the pencil)."));
 }
 var checklistDrag = null;
 function taskMenu(button, menu, open) {
-	document.querySelectorAll(".task-menu").forEach(function (m) { if (m !== menu && !m.hidden) { m.hidden = true; m.parentElement.querySelector(".task-more").setAttribute("aria-expanded", "false"); } });
+	if (open) document.querySelectorAll(".task-menu").forEach(function (m) { if (m !== menu && !m.hidden) { m.hidden = true; m.parentElement.querySelector(".task-more").setAttribute("aria-expanded", "false"); } });
 	menu.hidden = !open; button.setAttribute("aria-expanded", String(open));
 	if (open) menu.firstChild.focus();
 }
@@ -3829,15 +3835,17 @@ function noteMenuSync() {
 }
 new MutationObserver(noteMenuSync).observe($("note-menu"), { attributes: true, subtree: true, attributeFilter: ["hidden"] });
 $("btn-more").onclick = function (e) { e.stopPropagation(); noteMenu($("note-menu").hidden); };
-$("note-menu").addEventListener("click", function (e) { if (e.target.closest("[role^=menuitem]")) noteMenu(false); });
+$("note-menu").addEventListener("click", function (e) { if (e.target.closest("[role^=menuitem]")) { noteMenu(false); $("btn-more").focus(); } }, true);   // capture: before the action opens a dialog
+// 4: a menu closes when focus leaves it
+$("note-menu").addEventListener("focusout", function (e) { if (!this.contains(e.relatedTarget) && e.relatedTarget !== $("btn-more") && e.relatedTarget) noteMenu(false); });
 $("note-menu").addEventListener("keydown", function (e) {
 	var items = Array.from(this.querySelectorAll("[role^=menuitem]:not([hidden])")), at = items.indexOf(document.activeElement);
 	if (e.key === "Escape") { e.preventDefault(); noteMenu(false); $("btn-more").focus(); }
 	else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus(); }
 });
-document.addEventListener("click", function (e) {
-	if (!$("note-menu").hidden && !e.target.closest("#note-menu")) noteMenu(false);
-	document.querySelectorAll(".task-menu:not([hidden])").forEach(function (m) { if (!m.contains(e.target)) taskMenu(m.parentElement.querySelector(".task-more"), m, false); });
+document.addEventListener("pointerdown", function (e) {   // pointerdown: iOS sends no click for a tap on plain text
+	if (!$("note-menu").hidden && !e.target.closest("#note-menu, #btn-more")) noteMenu(false);
+	document.querySelectorAll(".task-menu:not([hidden])").forEach(function (m) { var more = m.parentElement.querySelector(".task-more"); if (!m.contains(e.target) && !more.contains(e.target)) taskMenu(more, m, false); });
 });
 $("btn-tags").onclick = function () {
 	var open = !document.body.classList.contains("tags-open");
@@ -3987,10 +3995,12 @@ function tabPaths() {
 function renderTabs() {
 	var paths=tabPaths(),host=$("note-tabs"),list=host.querySelector("div");list.replaceChildren();host.hidden=!paths.length;host.open=true;
 	host.querySelector("summary").textContent="Open notes ("+paths.length+")";
+	var label=function(p){return p.split("/").pop().replace(/\.(md|markdown)$/i,"");},twins=function(p){return paths.filter(function(q){return label(q)===label(p);}).length>1;};
 	paths.forEach(function(path){var row=document.createElement("span"),open=document.createElement("button"),close=document.createElement("button");
-		open.textContent=path.split("/").pop().replace(/\.(md|markdown)$/i,"");open.title=path;row.className=current&&current.path===path?"on":"";open.setAttribute("aria-pressed",String(!!current&&current.path===path));open.onclick=function(){openFile(path);};
+		open.textContent=twins(path)?path.replace(/\.(md|markdown)$/i,""):label(path);   // same name twice: show the folders tooopen.title=path;row.className=current&&current.path===path?"on":"";open.setAttribute("aria-pressed",String(!!current&&current.path===path));open.onclick=function(){openFile(path);};
 		close.appendChild(icon("x"));close.className="plain";close.setAttribute("aria-label","Close "+path);close.title="Close";close.onclick=function(){closeNoteTab(path);};row.append(open,close);list.append(row);
 	});
+	var on=list.querySelector(".on");if(on&&(on.offsetLeft<list.scrollLeft||on.offsetLeft+on.offsetWidth>list.scrollLeft+list.clientWidth))list.scrollLeft=Math.max(0,on.offsetLeft-12);
 }
 function closeNoteTab(path) {
 	if(moving)return;

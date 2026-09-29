@@ -70,4 +70,53 @@ for (const width of [1280, 390]) {
   t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));
   await c.close();
 }
+/* ===== review of N38 ===== */
+{
+  const gh = H.fakeGitHub({ files: { 'a/todo.md': '- [ ] a\n', 'b/todo.md': '- [ ] b\n', 'q.md': '---\npinned: "true"\n---\nq\n', 'n.md': 'one\n' } });
+  const c = await H.context(gh, { viewport: { width: 1280, height: 800 } }), p = await H.page(c); p.setDefaultTimeout(5000);
+  await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
+  await p.evaluate(() => openFile('n.md')); await p.waitForFunction(() => current?.path === 'n.md');
+  // a save in flight never says Saved
+  let release; const gate = new Promise(r => release = r);
+  await p.route('**/contents/n.md', async r => { if (r.request().method() === 'PUT') await gate; return r.fallback(); });
+  await H.setEditor(p, 'two\n'); await p.click('#btn-save'); await p.waitForFunction(() => saving);
+  t.check('a save on its way says Saving, not Saved', (await p.locator('#btn-save').innerText()).trim() === 'Saving…');
+  release(); await p.waitForFunction(() => !saving && !dirty());
+  t.check('and Saved once GitHub has it', (await p.locator('#btn-save').innerText()).trim() === 'Saved');
+  // focus comes back to ⋯ after a menu action's dialog
+  await p.focus('#btn-more'); await p.keyboard.press('Enter'); await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter');
+  await p.waitForFunction(() => document.getElementById('outline').open); await p.keyboard.press('Escape');
+  t.check('closing Outline returns focus to ⋯', await p.evaluate(() => !document.getElementById('outline').open && document.activeElement.id === 'btn-more'));
+  // tabbing out closes the menu
+  await p.click('#btn-more'); await p.focus('#btn-delete'); await p.keyboard.press('Tab');
+  t.check('tabbing out of the menu closes it', await p.locator('#note-menu').isHidden() && await p.getAttribute('#btn-more', 'aria-expanded') === 'false');
+  // tabs with the same name show their folders
+  await p.evaluate(() => openFile('a/todo.md')); await p.waitForFunction(() => current?.path === 'a/todo.md');
+  await p.evaluate(() => openFile('b/todo.md')); await p.waitForFunction(() => current?.path === 'b/todo.md');
+  const tabs = await p.locator('#note-tabs span button:first-child').allInnerTexts();
+  t.check('two notes with one name are told apart', tabs.includes('a/todo') && tabs.includes('b/todo') && tabs.includes('n'), JSON.stringify(tabs));
+  await H.preview(p);
+  await p.locator('#pin-list .task-more').click(); await p.focus('#pin-list .task-menu [role=menuitem] >> nth=3'); await p.keyboard.press('Tab');
+  t.check('tabbing out of a task menu closes it', await p.locator('#pin-list .task-menu:not([hidden])').count() === 0);
+  await p.locator('#pin-list .task-more').click(); await p.locator('#pin-list .task-text').dispatchEvent('pointerdown');
+  t.check('a tap on plain text closes a task menu', await p.locator('#pin-list .task-menu:not([hidden])').count() === 0);
+  // the Pinned chip says only what the app's pin check says
+  await p.evaluate(() => openFile('q.md')); await p.waitForFunction(() => current?.path === 'q.md'); await H.preview(p);
+  t.check('a quoted "true" is not shown as Pinned', !(await p.locator('#preview .props').innerText()).includes('Pinned') && !(await p.evaluate(() => isPinned('q.md'))));
+  await c.close();
+}
+{
+  // on a phone the note's name stays readable during a conflict
+  const gh = H.fakeGitHub({ files: { 'a rather long note name.md': 'one\n' } });
+  const c = await H.context(gh, { viewport: { width: 390, height: 800 } }), p = await H.page(c); p.setDefaultTimeout(5000);
+  await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
+  await p.evaluate(() => openFile('a rather long note name.md')); await p.waitForFunction(() => !!current);
+  gh.files['a rather long note name.md'] = 'theirs\n'; gh.touch();
+  await H.setEditor(p, 'mine\n'); await p.click('#btn-save'); await p.waitForFunction(() => !saving);
+  await p.waitForSelector('#btn-copy:not([hidden])');
+  const w = await p.evaluate(() => document.querySelector('#crumb .name').getBoundingClientRect().width);
+  t.check('phone conflict: the note name keeps its own line', w > 150, String(w));
+  t.check('phone conflict: nothing wider than the screen', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  await c.close();
+}
 await H.stop(); t.finish();

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-hIr3AoVIuXtgGlOxDCSpCR/0RyqGtqGVDLiWoKtfm/w=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-l5wm1eku0BtXNvVbgJXtLdsvk6yCSr8ZuRvIW6HENCI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -208,6 +208,9 @@ body.preview-view #editor-pane{display:none;}
 #editor-pane .CodeMirror,.fallback-editor,#preview{font-size:var(--note-size,16px);}
 #preview{padding-inline:20px;}
 #preview>*{max-width:760px;margin-left:auto;margin-right:auto;}
+#format-toolbar{display:flex;flex:none;gap:3px;overflow-x:auto;max-width:100%;width:800px;align-self:center;padding:4px 8px;border-bottom:1px solid var(--line);}
+#format-toolbar[hidden]{display:none;}
+#format-toolbar button{flex:none;min-height:32px;white-space:nowrap;}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
 </head>
@@ -250,6 +253,7 @@ body.preview-view #editor-pane{display:none;}
 		</aside>
 		<div id="sidebar-resize" role="separator" aria-orientation="vertical" aria-controls="sidebar" aria-label="Resize the file list" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Drag to resize; double-click to reset"></div>
 		<section id="editor-pane">
+			<div id="format-toolbar" role="group" aria-label="Markdown formatting" hidden></div>
 			<div id="placeholder">Open a file, or press + to create one.<span class="side-note"> ☰ shows the file list.</span></div>
 		</section>
 		<article id="preview" hidden tabindex="0" aria-label="Note preview">
@@ -1391,6 +1395,8 @@ var readOnly = "";            // why this repository cannot be changed, or ""
 // The editor takes typing only when there is a note for it to go into.
 function editorLock() {
 	if (editor && editor.setOption) editor.setOption("readOnly", !!readOnly || moving || !current);
+	$("format-toolbar").hidden = !current;
+	$("format-toolbar").querySelectorAll("button").forEach(function (b) { b.disabled = !!readOnly || moving || !current; });
 	updateNoteSummary();
 }
 function applyAccess(reason) {
@@ -1704,6 +1710,76 @@ function textareaEditor(host) {
 		caret: function () { return ta.selectionStart; }
 	};
 }
+// Formatting edits source text through each editor's normal edit history.
+function formatNote(kind) {
+	if (!current || !editor || readOnly || moving || pinBusy[current.path] || current.leaving || $("settings").open || document.body.classList.contains("preview-view")) return;
+	var text = editor.getValue(), ta = editor.caret && editor.getWrapperElement();
+	var a = ta ? ta.selectionStart : editor.indexFromPos(editor.getCursor("from")), b = ta ? ta.selectionEnd : editor.indexFromPos(editor.getCursor("to"));
+	var selected = text.slice(a,b), replacement, start, end;
+	var prefix = {heading:"# ",bullet:"- ",number:"1. ",task:"- [ ] ",quote:"> "}[kind];
+	if (prefix) {
+		a = a ? text.lastIndexOf("\n", a - 1) + 1 : 0;
+		var edge = b > a && text[b - 1] === "\n" ? b - 1 : b;
+		b = text.indexOf("\n", edge); if (b < 0) b = text.length;
+		var lines = text.slice(a,b).split("\n"), re = {heading:/^(\s*)#{1,6} /,bullet:/^(\s*)[-*+] /,number:/^(\s*)\d+[.)] /,task:/^(\s*)[-*+] \[[ xX]\] /,quote:/^(\s*)> ?/}[kind];
+		var remove = lines.every(function (line) { return re.test(line); });
+		replacement = lines.map(function (line,i) { return remove ? line.replace(re,"$1") : re.test(line) ? line : line.replace(/^(\s*)/, function (all) { return all + (kind === "number" ? (i+1)+". " : prefix); }); }).join("\n");
+		start = a; end = a + replacement.length;
+	} else if (kind === "link") {
+		selected = selected || "link text";
+		selected = selected.replace(/[\\\[\]]/g, "\\$&");
+		replacement = "[" + selected + "](https://)";
+		start = a + selected.length + 3; end = start + 8;
+	} else {
+		if (kind !== "code" && selected) {
+			var leading = /^\s*/.exec(selected)[0].length, trailing = /\s*$/.exec(selected)[0].length;
+			a += leading; b = Math.max(a,b-trailing); selected = text.slice(a,b);
+		}
+		var marker = kind === "bold" ? "**" : kind === "italic" ? "*" : "`";
+		if (kind === "code") {
+			var wrapped = /^(`+)([\s\S]*?)\1$/.exec(selected);
+			if (wrapped && !wrapped[2].includes(wrapped[1])) { replacement = wrapped[2].replace(/^\n|\n$/g, ""); if (/^ .* $/.test(replacement) && replacement.trim()) replacement = replacement.slice(1,-1); start = a; end = a + replacement.length; }
+			if (!wrapped && selected.includes("\n")) {
+				a = a ? text.lastIndexOf("\n",a-1)+1 : 0;
+				b = text.indexOf("\n",b > a && text[b-1] === "\n" ? b-1 : b); if (b < 0) b = text.length;
+				selected = text.slice(a,b);
+			}
+			var runs = selected.match(/`+/g) || []; marker = "`".repeat(runs.reduce(function (longest, r) { return Math.max(longest, r.length + 1); }, 1));
+			if (replacement == null && selected.includes("\n")) {
+				marker = marker.length < 3 ? "```" : marker;
+				replacement = marker + "\n" + selected + "\n" + marker; start = a + marker.length + 1; end = start + selected.length;
+			}
+		}
+		if (replacement == null) {
+			if (selected.length >= marker.length * 2 && selected.startsWith(marker) && selected.endsWith(marker)) { replacement = selected.slice(marker.length,-marker.length); start = a; end = a + replacement.length; }
+			else if (text.slice(Math.max(0,a-marker.length),a) === marker && text.slice(b,b+marker.length) === marker) { a -= marker.length; b += marker.length; replacement = selected; start = a; end = a + replacement.length; }
+			else { selected = selected || (kind === "code" ? "code" : "text"); var pad = kind === "code" && (/^`|`$/.test(selected) || (/^ .* $/.test(selected) && selected.trim())) ? " " : ""; replacement = marker + pad + selected + pad + marker; start = a + marker.length + pad.length; end = start + selected.length; }
+		}
+	}
+	editor.focus();
+	if (ta) {
+		ta.setSelectionRange(a,b);
+		// insertText preserves native Undo; setRangeText is the supported fallback.
+		// https://developer.mozilla.org/en-US/docs/Web/API/Document/execCommand
+		var inserted = false;
+		try { inserted = document.execCommand("insertText", false, replacement); } catch (e) {}
+		if (!inserted) ta.setRangeText(replacement,a,b,"end");
+		ta.setSelectionRange(start,end); ta.dispatchEvent(new Event("input", {bubbles:true}));
+	} else {
+		editor.operation(function () { editor.replaceRange(replacement,editor.posFromIndex(a),editor.posFromIndex(b),"+format"); editor.setSelection(editor.posFromIndex(start),editor.posFromIndex(end)); });
+	}
+	current.touched = true; syncDraft(); scheduleAutosave();
+}
+[["bold","Bold","B"],["italic","Italic","I"],["heading","Heading","H"],["bullet","Bulleted list","•"],["number","Numbered list","1."],["task","Checklist","☑"],["link","Link","Link"],["quote","Quote","❯"],["code","Code","Code"]].forEach(function (item) {
+	var b = document.createElement("button"); b.textContent = item[2]; b.title = item[1]; b.setAttribute("aria-label",item[1]);
+	b.onmousedown = function (e) { e.preventDefault(); };
+	b.onclick = function () { formatNote(item[0]); }; $("format-toolbar").appendChild(b);
+});
+document.addEventListener("keydown",function(e){
+	if (e.isComposing || e.keyCode === 229 || e.altKey || !(e.ctrlKey || e.metaKey) || !editor || !editor.getWrapperElement().contains(e.target)) return;
+	var key = e.key.toLowerCase(), kind = key === "b" ? "bold" : key === "i" ? "italic" : key === "k" && e.shiftKey ? "link" : "";
+	if (kind) { e.preventDefault(); e.stopPropagation(); formatNote(kind); }
+},true);
 function ensureEditor() {
 	if (editor) return editor;
 	var ph = $("placeholder");
@@ -3774,7 +3850,7 @@ $("quick-query").onkeydown = function (e) {
 };
 // Capture before CodeMirror's macOS Ctrl-K binding can delete a line.
 document.addEventListener("keydown", function (e) {
-	if (!e.isComposing && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
+	if (!e.isComposing && !e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
 }, true);
 document.addEventListener("keydown", function (e) {
 	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {

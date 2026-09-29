@@ -1,16 +1,32 @@
 # MVP ledger
 
-Iterations: 40 (cap extended by the owner's requests; current batch N22, N23, N32, N25)
+Iterations: 41 (cap extended by the owner's requests; current batch N22, N23, N32, N25)
 
 ## Current handover — 2026-09-29
 
-The requested four-item batch is N20 quick switcher, N21 persistent save
-status/word count, N34 Padgit/domain preparation, then N31 About. N20 and N21
-are committed as `58278fa` and `2d9edb9`; N34 preparation is `45b3e4c`.
-N31 completes the batch's app work. The final combined PR runs the complete
-two-engine suite once before merge. The owner's package-lock.json edit stays
-untouched. N34 stays doing until its owner-only name/domain/account cutover;
-the old URL is intentionally still the working Try it link.
+The requested four-item batch is N22 note navigation/bookmarks, N23 reading
+width/text size, N32 editable checklists in Preview, then N25 formatting.
+The first three are committed as `40fe608`, `22359a0`, and `15a9c9d`.
+All four are implemented and independently reviewed. The final combined PR
+runs all 55 suites in both engines before merge. The owner's package-lock.json
+edit stays untouched. Next by priority is N16, adding images to a note.
+N34 stays doing until its owner-only name/domain/account cutover; the old URL
+is intentionally still the working Try it link.
+
+Focused checks cover real CodeMirror and its plain-text fallback. N25 passes
+52/52 in each engine, including native Undo, selection boundaries, literal
+backticks/brackets, initial blank lines, draft recovery and read-only mode.
+Related keyboard-editor 24/24, quick-switcher 19/19 and axe 45/45 pass in both
+engines. Desktop/phone light/dark screenshots were inspected for every item.
+Mutations of navigation scope, checklist read-only/subtree handling and
+formatting selection replacement all caused the intended assertions to fail.
+
+N32's old Tasks tests now exercise the retained transition helper or visible
+Preview/Edit controls; source-save and race assertions remain intact. Two
+release-races calls previously awaited an intentionally held request, causing
+a test deadlock; they now launch the operation without awaiting that gate.
+The complete release-races suite passes 14/14 in both engines. Development
+used focused suites rather than repeated full runs.
 
 The original SHOULD list was completed and merged in PR #9. Older handover
 details below are historical, including the pre-merge S3/S4 wording.
@@ -223,7 +239,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N23 | 36 | done | Centred editor/Preview and remembered 16/18/20px sizes. Reading 12/12, keyboard-editor 24/24 and app 70/70 both engines; independent real-CodeMirror review clear. Desktop/phone light/dark screenshots `tests/screens/n23-*.png` viewed. N22 committed as `40fe608`; navigation 14/14 and privacy 41/41 both engines. Privacy test now distinguishes the documented tab-only history metadata; all sign-out assertions retained. |
 | N32 | 37 | done | Shared Preview checklists; checklists 20/20, app 70/70, release-races 14/14, tasks 52/52, preview 15/15, images 15/15 both engines; axe 45/45. Independent review clear after source-map, loose subtree, formatting, conflict refresh, ordered-list and Cancel fixes. Read-only/subtree mutations caught; `tests/screens/n32-*.png` viewed. N23 commit `22359a0`. |
 | N24 | 37 | moved | Folded into N32 |
-| N25 | 38 | todo | UX review 2026-09-28: formatting toolbar |
+| N25 | 38 | done | Formatting toolbar and scoped shortcuts; formatting 52/52 both engines, keyboard-editor 24/24, quick-switcher 19/19, axe 45/45; review fixes covered by rendered-Markdown assertions; selection mutation caught; four screenshots inspected. N32 commit `15a9c9d`. |
 | N16 | 39 | todo | Owner's request 2026-09-27, 4 of 5 |
 | N33 | 40 | todo | Owner's request 2026-09-28: tabs |
 | N26 | 41 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |

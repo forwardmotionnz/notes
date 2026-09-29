@@ -3,6 +3,12 @@
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
 ## Finding and saving notes
+The editor's formatting bar inserts or toggles Markdown around selected text
+or lines: bold, italic, heading, bulleted/numbered/task lists, links, quotes and
+code. With no selection, inline actions select a placeholder to replace.
+Ctrl/Cmd+B and I format text; Ctrl/Cmd+Shift+K inserts a link. Ctrl/Cmd+K
+continues to open the note switcher. Undo works in both editors.
+
 Editor and Preview use a centred reading column on wide screens. Settings →
 **Note text size** changes both at once (Smaller, Normal or Larger), remembers
 the choice in this browser and keeps it after sign-out. Phone text stays at

@@ -297,7 +297,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N28 | 44 | done | Heading outline with source/Preview jumps, nested headings and pagination. 36/36 both engines; axe 57/57; review/mutation/screens below. |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
-| N36 | 44a | todo | Owner's review 2026-09-29: remove the back and forward buttons |
+| N36 | 44a | done | The header's ← → buttons removed; `tests/navigation.test.mjs` 14/14 now drives the browser's own back and forward (both ways, after a reload and from the middle of history) and checks the header has no arrows. Full suite 61/61 Chromium. Commit in the log |
 | N37 | 44b | todo | Owner's review 2026-09-29: one kind of note (the Tasks screen, "Add a task" and pinned-only logic go) |
 | N38 | 44c | todo | Owner's review 2026-09-29: visual redesign (mock-up for approval first) |
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
@@ -1073,3 +1073,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - Outline 36/36, Preview 15/15, axe 57/57 and size checks pass in both engines. Related tags 53/53 and pins-sync 54/54 also pass after the frontmatter fix. One initial combined focused run reported an outline WebKit failure; isolated and subsequent combined checks passed with all assertions retained. Full CI remains the combined release validation.
 - Removing the source-change guard causes the intended assertion to fail (tests/screens/outline-mutation.log). Inspected tests/screens/n28-{1280,390}-{light,dark}.png. Remaining longer source comments moved to the existing implementation notes with AST equivalence checked, preserving the single-file size limit without runtime dependencies or a build.
 - Full CI on a3de4bb: all 61 WebKit suites passed; Chromium caught the backlinks summary covering task capture at the iPhone SE keyboard height. Fixed viewport resize handling to scroll the focused Preview field into view and collapse expanded backlinks when the keyboard leaves under 450px. Existing keyboard assertions retained; expanded-panel checks added. Keyboard now 33/33 in both engines, with editor resize/scroll-count assertions unchanged. The corrected PR runs full CI again before merge.
+- 2026-09-29 · N36 · done · (the commit "N36: remove the header's back and forward buttons")

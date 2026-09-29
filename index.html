@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-CVwrqvynPog6m+fMQbXczmqUGm73DDeixFKNfgGlvEw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-4ETanrmy2A1qgpWW3tD347IPRTAKd6qthyL8OYFyWnY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -242,7 +242,6 @@ body.preview-view #editor-pane{display:none;}
 	<header>
 		<button class="plain" id="btn-tree" title="Show or hide the file list" aria-label="Files" aria-controls="sidebar" aria-expanded="true">&#9776;</button>
 		<button class="plain" id="btn-switcher" title="Open a note (Ctrl/Cmd+K)" aria-label="Open a note">Find</button>
-		<button class="plain" id="btn-back" aria-label="Previous note" disabled>←</button><button class="plain" id="btn-forward" aria-label="Next note" disabled>→</button>
 		<div id="crumb">no file open</div>
 		<span id="degraded" title="CodeMirror did not load, so syntax highlighting is off. Editing and saving work normally.">plain</span>
 		<span id="readonly" title="">read-only</span>
@@ -2069,8 +2068,6 @@ function noteRoute() {
 }
 function navButtons() {
 	try { sessionStorage.setItem("notes.navigation", JSON.stringify({ id: navSession, end: navEnd })); } catch (e) {}
-	$("btn-back").disabled = navPosition <= 0;
-	$("btn-forward").disabled = navPosition >= navEnd;
 }
 function recordNavigation(path, replace) {
 	var hash = "#note=" + encodeURIComponent(JSON.stringify([cfg.owner, cfg.repo, cfg.branch, path]));
@@ -2093,8 +2090,6 @@ addEventListener("popstate", function (e) {
 	navButtons();
 	if (configured()) openRoute();
 });
-$("btn-back").onclick = function () { if (navPosition > 0) history.back(); };
-$("btn-forward").onclick = function () { if (navPosition < navEnd) history.forward(); };
 /* N60 */
 function rescueDraft(path, draft, reason) {
 	taskView(false);

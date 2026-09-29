@@ -16,7 +16,7 @@ least 16 pixels to avoid focus zoom.
 
 Opening a note updates the address. Bookmark or copy it to return after
 sign-in; choose the same repository and branch in Settings. Browser Back and
-Forward, phone back gestures and the header arrows move between notes.
+Forward (or Alt+← and Alt+→) and phone back gestures move between notes.
 Leaving still saves edits or keeps their draft. Filenames are in the address
 fragment (not sent to the static host), and may remain in browser history.
 

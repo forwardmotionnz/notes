@@ -8,8 +8,8 @@ The requested four-item batch is N22 note navigation/bookmarks, N23 reading
 width/text size, N32 editable checklists in Preview, then N25 formatting.
 The first three are committed as `40fe608`, `22359a0`, and `15a9c9d`.
 All four are implemented and independently reviewed. The final combined PR
-runs all 55 suites in both engines before merge. The owner's package-lock.json
-edit stays untouched. Next by priority is N16, adding images to a note.
+runs all 55 suites in both engines before merge. Next by priority is N16,
+adding images to a note.
 N34 stays doing until its owner-only name/domain/account cutover; the old URL
 is intentionally still the working Try it link.
 
@@ -42,6 +42,14 @@ its recovered text field disappears. The node is now preserved, and the
 capture-recovery fixture keeps the rate limit active until explicitly reset,
 instead of depending on completing within one second. Capture recovery 6/6,
 checklists 20/20 and large files 20/20 pass in both engines; review is clear.
+
+Linux WebKit 1.56 repeatedly crashed on the navigation reload test. Playwright
+documents the matching regression and its 1.57 fix in
+[upstream issue 37766](https://github.com/microsoft/playwright/issues/37766).
+The test dependency is upgraded to 1.57.0, retaining every reload assertion.
+Before updating the lockfile, comparison with Git confirmed the pre-existing
+local difference was line endings only; its original bytes are backed up in
+the ignored `tests/screens/package-lock-before-browser-update.json`.
 
 The original SHOULD list was completed and merged in PR #9. Older handover
 details below are historical, including the pre-merge S3/S4 wording.
@@ -552,7 +560,7 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 - Ticking tasks in Preview is now part of N32, which also adds, edits, reorders and removes them.
 
 ### N25: plan: formatting toolbar
-- A small toolbar for the editor (bold, italic, heading, bulleted, numbered and task lists, link, quote, code), most useful on phones: each inserts or toggles the Markdown itself around the selection, so the note stays plain text. Keyboard shortcuts for the same (Ctrl/Cmd+B, I, K).
+- A small toolbar for the editor (bold, italic, heading, bulleted, numbered and task lists, link, quote, code), most useful on phones: each inserts or toggles the Markdown itself around the selection, so the note stays plain text. Ctrl/Cmd+B and I format text; Ctrl/Cmd+Shift+K inserts links, keeping Ctrl/Cmd+K for the quick switcher.
 
 ### N26: plan: recent notes with previews (with the shared note reader)
 - First the shared note reader from the clean-up assessment: one bounded, cancellable reader, with results kept by blob sha, used by search, the pin scan and what follows. Then a "Recent" section in Files: notes opened recently on this device, and notes changed recently in the repository, each with its title (first heading), a short preview and when it changed.

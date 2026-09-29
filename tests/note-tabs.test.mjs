@@ -1,0 +1,30 @@
+import * as H from './harness.mjs';
+const t=H.suite('note-tabs');await H.start();
+const gh=H.fakeGitHub({files:Object.fromEntries(Array.from({length:15},(_,i)=>['n'+i+'.md','note '+i]))}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);
+const exists=await p.locator('#note-tabs').count();t.check('open notes strip exists',exists===1);
+if(exists){
+ await p.evaluate(()=>openFile('n0.md'));await p.evaluate(()=>openFile('n1.md'));await p.evaluate(()=>openFile('n0.md'));
+ const paths=()=>p.evaluate(()=>tabPaths());t.check('opening an existing tab never duplicates it',JSON.stringify(await paths())===JSON.stringify(['n0.md','n1.md']));
+ await p.reload();await p.waitForFunction(()=>current?.path==='n0.md');t.check('tabs survive reload scoped to repository',JSON.stringify(await paths())===JSON.stringify(['n0.md','n1.md']));
+ await p.evaluate(()=>{window.realRead=readNote;readNote=p=>p==='n1.md'?new Promise(resolve=>window.releaseTab=()=>realRead(p).then(resolve)):realRead(p);openFile('n1.md');});await p.waitForFunction(()=>!!window.releaseTab);
+ await p.getByRole('button',{name:'Close n1.md',exact:true}).click();await p.evaluate(async()=>{await releaseTab();readNote=realRead;});
+ t.check('closing a loading tab cancels its delayed activation',await p.evaluate(()=>current.path==='n0.md'&&!tabPaths().includes('n1.md')));
+ await p.evaluate(()=>openFile('n1.md'));await p.evaluate(()=>openFile('n0.md'));
+ await H.setEditor(p,'unsaved words');await p.evaluate(()=>{current.conflict=true;});await p.getByRole('button',{name:'Close n0.md',exact:true}).click();await p.waitForFunction(()=>current?.path==='n1.md');
+ t.check('closing retains an unsaved draft',await p.evaluate(()=>readDraft('n0.md')?.text==='unsaved words'));
+ t.check('closing active chooses neighbouring tab',JSON.stringify(await paths())===JSON.stringify(['n1.md']));
+ await p.evaluate(()=>openFile('n0.md'));t.check('reopening restores unsaved words',await H.editorValue(p)==='unsaved words');
+ await p.evaluate(()=>{window.originalDraftSet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k.startsWith('notes.draft.'))throw Error('full');return originalDraftSet.call(this,k,v);};});await H.setEditor(p,'words without local storage');
+ await p.getByRole('button',{name:'Close n0.md',exact:true}).click();t.check('storage failure keeps unsaved editor open',await H.editorValue(p)==='words without local storage'&&(await paths()).includes('n0.md'));
+ await p.evaluate(()=>{Storage.prototype.setItem=originalDraftSet;syncDraft();});
+ await p.getByRole('button',{name:'Close n1.md',exact:true}).click();t.check('closing background keeps current note',await p.evaluate(()=>current.path)==='n0.md');
+ await p.getByRole('button',{name:'Close n0.md',exact:true}).click();t.check('closing last leaves no active editor',await p.evaluate(()=>current===null&&ui.last===null));
+ await p.reload();await p.waitForFunction(()=>treeState==='ok');t.check('closed last note stays closed after reload',await p.evaluate(()=>current===null));
+ for(let i=0;i<15;i++)await p.evaluate(i=>openFile('n'+i+'.md'),i);t.check('tab count is bounded',(await paths()).length===12);
+ await p.evaluate(()=>followDelete('n3.md',true));t.check('background deletion is persisted',await p.evaluate(()=>!JSON.parse(localStorage.getItem(UI_KEY)).openNotes.paths.includes('n3.md')));
+ await p.evaluate(()=>{followMove('n14.md','renamed.md');});t.check('rename updates open tab path',(await paths()).includes('renamed.md')&&!(await paths()).includes('n14.md'));
+ await p.setViewportSize({width:390,height:820});await p.evaluate(()=>renderTabs());t.check('phone tabs fold into a list',await p.locator('#note-tabs summary').isVisible()&&!await p.locator('#note-tabs').evaluate(e=>e.open));
+ await p.locator('#note-tabs summary').click();t.check('phone list can be opened',await p.locator('#note-tabs button').first().isVisible());
+ await p.evaluate(()=>{cfg.repo='another';renderTabs();});t.check('another repository cannot see previous tabs',(await paths()).length===0);
+}
+await c.close();await H.stop();t.finish();

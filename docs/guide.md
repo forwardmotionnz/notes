@@ -266,13 +266,51 @@ Obsidian would not understand, so both can work on the same repository.
 - A text file that is not UTF-8 (an old Windows or Latin-1 file) is not
   opened: shown here it would be garbled, and saved it would be destroyed.
 
+## Open notes
+
+Expand **Tags** in Files to find Markdown notes by tag. Counts include nested
+tags (`project` includes `project/notes`) and ignore case. Opening the section
+scans up to 300 loaded Markdown notes using the shared reader; skipped or
+unavailable notes are reported. Close and reopen it to refresh.
+
+The open note shows its tags above the editor and Preview. **Add tag** writes
+the `tags` property; the × removes a frontmatter tag. These edits preserve
+other properties and unsaved text and support Undo. Inline `#tags` remain in
+the text: select their chip to find related notes, or edit the source to remove
+them. Tag discovery skips fenced/indented code, inline code, links and comments.
+Simple YAML tag lists and scalar tags are supported. Complex or ambiguous
+frontmatter must be edited in the source; the tag controls explain this without
+rewriting it. No tag index is written into your repository or browser storage.
+
+Expand **Recent** in Files for recently opened notes and repository changes,
+with the first heading, a short preview and a time. Local drafts take precedence.
+The list reads history only when expanded: up to 10 commits, the first 100 files
+in each commit and 20 notes. It is a bounded view, not a complete activity log.
+Close and reopen it to refresh. Missing history or previews are labelled.
+
+Open notes have tabs above the editor and Preview. Reopening a note selects
+its tab. Use **×** to close a tab; unsaved text stays in its draft. The last
+12 open tabs are remembered for this browser's current repository and branch.
+On phones, expand **Open notes** to choose or close one. Closing the last tab
+leaves the editor empty; it does not delete a file.
+
+## Adding images
+
+Use **Image** above the editor, paste an image, or drop one into the text.
+PNG, JPEG, GIF and WebP files up to 1 MB are supported, one at a time.
+Padgit reads the vault's `.obsidian/app.json` attachment folder setting;
+without one it puts the image beside the note. Each upload creates a unique
+attachment and inserts an ordinary Markdown link after GitHub confirms it.
+Undo removes the link, leaving the attachment in the repository. If you switch
+notes during upload, the status names the saved attachment so you can link it
+from the original note. Failed uploads leave your note text unchanged.
+
 ## What it deliberately does not do
 
 No offline queue, no graph view, no plugins, no real-time collaboration and
 no line-by-line merge tool: a conflict is merged when the changes are on
 different lines, and otherwise kept both ways (see above). Each of those is
-a common reason a notes app becomes unmaintainable. Backlinks and adding
-images to a note are planned.
+a common reason a notes app becomes unmaintainable. Backlinks are planned.
 
 ## Accessibility
 

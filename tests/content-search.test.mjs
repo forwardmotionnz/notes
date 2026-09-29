@@ -1,7 +1,7 @@
 import * as H from './harness.mjs';
 const t=H.suite('content-search');await H.start();
 const gh=H.fakeGitHub({files:{'alpha.md':'Hidden needle in content','needle.md':'path match','draft.md':'old text','no.md':'unrelated','.hidden.md':'needle','photo.png':'needle','broken.md':'needle'}});
-const ctx=await H.context(gh),p=await H.page(ctx);await H.signIn(p);p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length);
+const ctx=await H.context(gh),p=await H.page(ctx);await H.signIn(p);p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length&&!pinScanning);await p.evaluate(()=>resetNoteReads());
 const present=await p.locator('#btn-search').count();t.check('explicit content search offered',present===1);
 if(present){
  await p.evaluate(()=>openFile('draft.md'));await H.setEditor(p,'unsaved NEEDLE');
@@ -17,6 +17,7 @@ if(present){
  t.check('opening a result keeps other content results available',(await H.rows(p)).includes('alpha.md')&&(await H.rows(p)).includes('draft.md'));
  await p.unroute('**/contents/broken.md?*');
  let release,entered;const gate=new Promise(r=>release=r),requested=new Promise(r=>entered=r);
+ await p.evaluate(()=>resetNoteReads()); // Exercise the held network response, not a cached blob.
  await p.route('**/contents/no.md?*',async r=>{entered();await gate;await r.fallback();});
  await p.click('#btn-search');await requested;await p.fill('#filter','unrelated');release();
  await p.waitForFunction(()=>!searchRunning);await H.settle(p,200);
@@ -27,7 +28,7 @@ if(present){
 await ctx.close();
 {
  const gh=H.fakeGitHub({files:{'a.md':'needle','b.md':'needle'}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);
- p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length);await p.fill('#filter','needle');
+ p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length&&!pinScanning);await p.evaluate(()=>resetNoteReads());await p.fill('#filter','needle');
  await p.evaluate(()=>{readFile=async function(){cfg.token='';cfg.refresh='';throw signedOutError();};});
  await p.click('#btn-search');await p.waitForFunction(()=>!searchRunning);
  t.check('expired sign-in ends search and offers sign-in',await H.dialogOpen(p)&&!(await p.textContent('#search-status')).includes('Searching'));
@@ -35,7 +36,7 @@ await ctx.close();
 }
 {
  const gh=H.fakeGitHub({files:{'a.md':'private needle'}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);
- await p.waitForFunction(()=>treeState==='ok'&&files.length);await p.fill('#filter','needle');
+ await p.waitForFunction(()=>treeState==='ok'&&files.length&&!pinScanning);await p.evaluate(()=>resetNoteReads());await p.fill('#filter','needle');
  let release,entered;const gate=new Promise(r=>release=r),requested=new Promise(r=>entered=r);
  await p.route('**/contents/a.md?*',async r=>{entered();await gate;await r.fallback();});
  await p.click('#btn-search');await requested;
@@ -44,10 +45,10 @@ await ctx.close();
  await c.close();
 }
 {
- const files=Object.fromEntries(Array.from({length:305},(_,i)=>['n'+i+'.md','needle']));
+ const files=Object.fromEntries(Array.from({length:305},(_,i)=>['n'+i+'.md','needle '+i])); // Distinct blobs: deduplication must not reduce this 300-read bound check.
  const gh=H.fakeGitHub({files}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(10000);
  // Since N15 each note is also read once to find pins: counted here, that would not be search.
- await p.waitForFunction(()=>treeState==='ok'&&files.length===305&&!pinScanning);await p.fill('#filter','needle');
+ await p.waitForFunction(()=>treeState==='ok'&&files.length===305&&!pinScanning);await p.evaluate(()=>resetNoteReads());await p.fill('#filter','needle');
  let active=0,max=0,reads=0;
  await p.route('**/contents/n*.md?*',async r=>{reads++;active++;max=Math.max(max,active);await new Promise(r=>setTimeout(r,10));await r.fallback();active--;});
  await p.click('#btn-search');await p.waitForFunction(()=>!searchRunning);

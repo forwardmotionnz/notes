@@ -19,6 +19,7 @@ for(const width of [1280,390])for(const theme of ['light','dark']){
  t.check(`${width} ${theme}: the editor scanned is CodeMirror`,await p.locator('.CodeMirror').count()===1);await scan('editor');
  await p.click('#btn-preview');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));await scan('preview');
  if(width===390)await p.click('#btn-tree');await p.fill('#filter','paragraph');await p.click('#btn-search');await p.waitForFunction(()=>!searchRunning);await scan('files/search');
+ await c.route('https://api.github.com/**/commits**',r=>r.fulfill({json:[]}));await p.evaluate(()=>{document.querySelector('#tags-panel').open=true;document.querySelector('#recent-notes').open=true;});await p.waitForFunction(()=>!recentLoading&&document.querySelector('#tags-status').textContent.includes('loaded Markdown'));await scan('files/tags/recent');
  if(width===390)await p.click('#btn-tree');
  await p.click('#btn-switcher');await scan('quick switcher');await p.click('#quick-close');
  await p.evaluate(()=>{document.querySelector('#domain-target').textContent='https://padgit.com/';document.querySelector('#domain-notice').hidden=false;document.querySelector('#domain-notice').open=true;});await scan('move notice');

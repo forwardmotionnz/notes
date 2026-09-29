@@ -311,6 +311,60 @@ const undoShown = p => p.isVisible('#pin-undo');
   await ctx.close();
 }
 
+/* ===== N37 review: Undo stays with its note ===== */
+{
+  const { gh, ctx, p } = await ready();
+  await removeBtn(p, 0).click();
+  await H.settle(p, 1500);
+  t.check('a new note: setup', await undoShown(p));
+  const before = gh.files['todo.md'];
+  p.removeAllListeners('dialog');
+  p.on('dialog', d => d.type() === 'prompt' ? d.accept('fresh') : d.accept());
+  await p.click('#btn-new');
+  await p.waitForFunction(() => current?.path === 'fresh.md');
+  await H.preview(p);
+  t.check('a new note: the Undo is not offered there', !(await undoShown(p)) && await p.evaluate(() => pinUndo === null));
+  t.check('a new note: and the list is untouched', gh.files['todo.md'] === before);
+  await ctx.close();
+}
+{
+  // Undo is a checklist write: like the others, it waits for unsaved typing.
+  const { gh, ctx, p } = await ready();
+  await p.evaluate(() => { AUTOSAVE_MS = 60000; });
+  await removeBtn(p, 0).click();
+  await H.settle(p, 1500);
+  const removed = gh.files['todo.md'], commits = gh.commits.length;
+  await p.click('#btn-preview');
+  await H.setEditor(p, removed + 'UNSAVED LINE\n');
+  await H.preview(p);
+  await p.click('#pin-undo button');
+  await H.settle(p, 1000);
+  t.check('unsaved typing: Undo sends nothing', gh.commits.length === commits && gh.files['todo.md'] === removed,
+    JSON.stringify(gh.files['todo.md']));
+  t.check('unsaved typing: and says why', /Save or resolve/.test(await H.status(p)), await H.status(p));
+  t.check('unsaved typing: the typing is kept', await p.evaluate(() => dirty() && editor.getValue().includes('UNSAVED LINE')));
+  await ctx.close();
+}
+{
+  // A tick's reply that arrives after the note was saved again never rolls
+  // the editor back to the tick's older version.
+  const { gh, ctx, p } = await ready({ gh: { files: { 'todo.md': TODO, 'a.md': '# A\n\n- [ ] one\n- [ ] two\n' } } });
+  await H.preview(p, 'a.md');
+  await p.evaluate(() => { const f = window.fetch; let first = true; window.fetch = async function (u, o) {
+    const put = o && o.method === 'PUT' && String(u).includes('a.md') && first; if (put) first = false;
+    const r = await f.apply(this, arguments); if (put) await new Promise(s => setTimeout(s, 1500)); return r; }; });
+  await H.tick(p, 'one');
+  await p.click('#btn-pin');
+  await p.waitForTimeout(3000);
+  await p.waitForFunction(() => !Object.keys(pinBusy).length && !saving);
+  await H.settle(p, 500);
+  t.check('late tick reply: GitHub has the tick and the pin', gh.files['a.md'].includes('[x] one') && /pinned: true/.test(gh.files['a.md']),
+    JSON.stringify(gh.files['a.md']));
+  t.check('late tick reply: the note shows what GitHub has', await p.evaluate(() => editor.getValue()) === gh.files['a.md'] && !(await p.evaluate(() => dirty())),
+    JSON.stringify(await p.evaluate(() => editor.getValue())));
+  await ctx.close();
+}
+
 /* ===== review: no Undo once the repository cannot be changed ===== */
 {
   const { gh, ctx, p } = await ready();

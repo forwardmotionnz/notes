@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-/EkYHJmEmwesmbuazutOPHUwXBsZ4VQYNiiBA1WO/+E=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-iDm/nQrCV/v3qVzzlc5DhEWwH2YEhQ0IdJjVdmULyfY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -1927,6 +1927,7 @@ function showDiscard(on, copy) {
 	$("btn-copy").hidden = !copy;
 }
 function setCrumb(path, tag) {
+	renderPinTabs();                     // the pinned shortcut marks the open note
 	/* N165 */
 	$("btn-rename").hidden = $("btn-delete").hidden = !(current && current.sha && current.path === path);
 	var el = $("crumb");
@@ -2576,6 +2577,7 @@ function followDelete(path, fromElsewhere) {
 		var d = readDraft(path);
 		if (d && (d.text === draftWritten[draftKey(path)] || d.text === current.saved)) dropDraft(path);
 		current = null;
+		renderPinTabs();
 		if (editor) editor.setValue("");
 		editorLock();
 		showDiscard(false);
@@ -2670,6 +2672,7 @@ function previewView(show, force) {
 	$("btn-preview").setAttribute("aria-pressed", String(show));
 	$("btn-preview").textContent = show ? "Edit" : "Preview";
 	if (!show) { $("pin-list").replaceChildren(); if (editor) editor.refresh(); return; }
+	if (pinUndo && pinUndo.path !== path) hideUndo();   // an Undo belongs to its note
 	var host = $("pin-list");
 	var focused = host.contains(document.activeElement), focusName = focused && document.activeElement.getAttribute("aria-label"), scroll = $("preview").scrollTop;
 	host.replaceChildren();
@@ -3139,6 +3142,8 @@ function untick(text) { return text.replace(/^(\s*[-*]\s+)\[[xX]\]/gm, "$1[ ]");
 function undoRemove() {
 	var u = pinUndo;
 	if (!u) return;
+	if (!current || current.path !== u.path) { hideUndo(); return; }
+	if (dirty()) { flash("Save or resolve your changes first, then press Undo.", true); return; }
 	var cached = pinCache[u.path];
 	if (!cached) { flash("Still loading that file. Try Undo again in a moment.", true); return; }
 	/* N80 */
@@ -3192,7 +3197,7 @@ function sendPin(path) {
 		if (pinEpoch !== epoch) return;      // another repository by now
 		if (pinCache[path]) pinCache[path].sha = r.sha;
 		/* N199 */
-		if (current && current.path === path && !dirty()) {
+		if (current && current.path === path && !dirty() && current.sha === sha) {   // not if the note was saved again meanwhile
 			current.sha = r.sha;
 			current.saved = job.text;
 			current.savedAt = Date.now(); current.saveError = "";
@@ -3714,7 +3719,7 @@ function closeNoteTab(path) {
 	paths.splice(at,1);ui.openNotes={scope:recentScope(),paths:paths};
 	if(current&&current.path===path){
 		if(paths.length)openFile(paths[Math.min(at,paths.length-1)]).then(function(){if(current&&current.path===path){rememberNote(path);persist(UI_KEY,ui);}});
-		else {openSeq++;current=null;ui.last=null;previewView(false);if(editor)editor.setValue("");editorLock();showDiscard(false);$("crumb").textContent=describe();$("btn-rename").hidden=$("btn-delete").hidden=true;$("btn-save").disabled=true;history.replaceState(null,"",redirectUri());navPosition=navEnd=0;navButtons();}
+		else {openSeq++;current=null;ui.last=null;renderPinTabs();previewView(false);if(editor)editor.setValue("");editorLock();showDiscard(false);$("crumb").textContent=describe();$("btn-rename").hidden=$("btn-delete").hidden=true;$("btn-save").disabled=true;history.replaceState(null,"",redirectUri());navPosition=navEnd=0;navButtons();}
 	}
 	persist(UI_KEY,ui);renderTabs();
 }

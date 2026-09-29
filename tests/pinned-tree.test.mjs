@@ -34,6 +34,20 @@ for (const width of [1280,390]) {
  await ctx.close();
 }
 {
+ // N37 review: the shortcut is marked only while its note is open.
+ const gh=H.fakeGitHub({files:{'todo.md':'- [ ] A\n'}});
+ const ctx=await H.context(gh),p=await H.page(ctx);await H.signIn(p);p.setDefaultTimeout(5000);
+ await H.setPins(p,'todo.md');await p.locator('#pin-tabs button').first().click();await p.waitForFunction(()=>current?.path==='todo.md');
+ t.check('open pinned note: its shortcut is marked',await p.locator('#pin-tabs button.active[aria-current="true"]').count()===1);
+ await p.evaluate(()=>closeNoteTab('todo.md'));await p.waitForFunction(()=>current===null);
+ t.check('closed: no shortcut is marked',await p.locator('#pin-tabs button.active, #pin-tabs button[aria-current]').count()===0);
+ p.removeAllListeners('dialog');p.on('dialog',d=>d.type()==='prompt'?d.accept('fresh'):d.accept());
+ await p.locator('#pin-tabs button').first().click();await p.waitForFunction(()=>current?.path==='todo.md');
+ await p.click('#btn-new');await p.waitForFunction(()=>current?.path==='fresh.md');
+ t.check('a new note: the shortcut is no longer marked',await p.locator('#pin-tabs button.active, #pin-tabs button[aria-current]').count()===0);
+ await ctx.close();
+}
+{
  const gh=H.fakeGitHub({files:{'todo.md':'- [ ] A\n','other.md':'- [ ] B\n'}});
  const ctx=await H.context(gh),p=await H.page(ctx);await H.signIn(p);p.setDefaultTimeout(5000);
  await H.setPins(p,'todo.md, other.md');

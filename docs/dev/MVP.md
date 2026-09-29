@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 41 (cap extended by the owner's requests; current batch N22, N23, N32, N25)
+Iterations: 42 (cap extended by the owner's requests; current batch N16, N33, N26, N27)
 
 ## Current handover — 2026-09-29
 
@@ -267,7 +267,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N32 | 37 | done | Shared Preview checklists; checklists 20/20, app 70/70, release-races 14/14, tasks 52/52, preview 15/15, images 15/15 both engines; axe 45/45. Independent review clear after source-map, loose subtree, formatting, conflict refresh, ordered-list and Cancel fixes. Read-only/subtree mutations caught; `tests/screens/n32-*.png` viewed. N23 commit `22359a0`. |
 | N24 | 37 | moved | Folded into N32 |
 | N25 | 38 | done | Formatting toolbar and scoped shortcuts; formatting 52/52 both engines, keyboard-editor 24/24, quick-switcher 19/19, axe 45/45; review fixes covered by rendered-Markdown assertions; selection mutation caught; four screenshots inspected. N32 commit `15a9c9d`. |
-| N16 | 39 | todo | Owner's request 2026-09-27, 4 of 5 |
+| N16 | 39 | done | Images: 39/39 both engines, actual paste/drop and real/fallback editor Undo, scopes, size/type, Obsidian folders; review fixes covered reserved paths, pointer drops and busy feedback. Cross-note insertion mutation caught; n16 desktop/phone light/dark screenshots inspected. |
 | N33 | 40 | todo | Owner's request 2026-09-28: tabs |
 | N26 | 41 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |
 | N27 | 42 | todo | UX review 2026-09-28: tags |

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-d/zTELEmhqlFaqr7gcyx5lklDlM3VJjF/r5V5tGuYpM=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-G2k3biUWDvXhMnJ8qg68keuX0YaJHpyeOBmwV173bm0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -1167,6 +1167,14 @@ function readImage(path) {
 		return "data:image/" + mime + ";base64," + b64;
 	});
 }
+function createImage(path, content) {
+	var body = {message:"Add " + path,content:content,branch:cfg.branch};
+	if (repoEmpty) delete body.branch;
+	return request(repoPath() + "/contents/" + encodePath(path), {method:"PUT",body:body}).then(function (r) {
+		if (!r || !r.content || !r.content.sha) throw incompleteReply();
+		return r.content.sha;
+	});
+}
 function writeFile(path, text, sha) {
 	var body = {
 		message: (sha ? "Update " : "Create ") + path,
@@ -1711,6 +1719,67 @@ function textareaEditor(host) {
 	};
 }
 // Formatting edits source text through each editor's normal edit history.
+var imageUploading = false;
+function imageFolder(setting, note) {
+	var parent = note.includes("/") ? note.slice(0,note.lastIndexOf("/")) : "";
+	if (setting == null || setting === ".") return parent;
+	if (typeof setting !== "string") throw new Error("Invalid Obsidian attachment folder.");
+	if (setting === "/" || setting === "") return "";
+	var folder = setting.startsWith("./") ? (parent ? parent + "/" : "") + setting.slice(2) : setting;
+	dailyPath(folder); return folder;
+}
+async function uploadImage(file, dropAt) {
+	if (imageUploading) { flash("An image is still uploading. Try the next image when it finishes.",true); return; }
+	if (!current || !editor || readOnly || moving || current.leaving || document.body.classList.contains("preview-view")) return;
+	var doc = current, path = doc.path, scope = draftKey(""), before = editor.getValue();
+	var at = dropAt == null ? editor.caret ? editor.caret() : editor.indexFromPos(editor.getCursor("from")) : dropAt;
+	function here() { return current === doc && doc.path === path && !doc.leaving && scope === draftKey("") && signedIn() && !readOnly; }
+	imageUploading = true; var destination = "";
+	try {
+		if (!file || !file.size || file.size > MAX_BYTES) throw new Error("Choose an image up to 1 MB.");
+		var bytes = new Uint8Array(await file.arrayBuffer()), bin = "";
+		for (var i=0;i<bytes.length;i+=32768) bin += String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
+		var ext = bin.slice(0,8) === "\x89PNG\r\n\x1a\n" ? "png" : bin.slice(0,3) === "\xff\xd8\xff" ? "jpg" : /^GIF8[79]a/.test(bin) ? "gif" : bin.slice(0,4) === "RIFF" && bin.slice(8,12) === "WEBP" ? "webp" : "";
+		if (!ext) throw new Error("Choose a PNG, JPEG, GIF or WebP image.");
+		var config = await readFile(".obsidian/app.json"), settings = config.sha ? JSON.parse(config.text) : {};
+		if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new Error("Invalid Obsidian attachment settings.");
+		var folder = imageFolder(settings.attachmentFolderPath,path);
+		destination = (folder ? folder + "/" : "") + "image-" + randomString(12) + "." + ext;
+		if (!here()) return;
+		flash("Uploading image…");
+		await createImage(destination,btoa(bin));
+		if (!here()) { flash("Image saved as " + destination + ". Open " + path + " to add its link."); return; }
+		var parent = path.split("/"); parent.pop(); var target = destination.split("/");
+		while (parent.length && target.length && parent[0] === target[0]) { parent.shift(); target.shift(); }
+		var link = "![Image](" + "../".repeat(parent.length) + target.map(function(s){return encodeURIComponent(s).replace(/[!'()*]/g,function(c){return "%"+c.charCodeAt(0).toString(16);});}).join("/") + ")";
+		var now = editor.getValue(), prefix=0,suffix=0;
+		while(prefix<before.length && prefix<now.length && before[prefix]===now[prefix]) prefix++;
+		while(suffix<before.length-prefix && suffix<now.length-prefix && before[before.length-1-suffix]===now[now.length-1-suffix]) suffix++;
+		if(at>prefix) at = at>=before.length-suffix ? at+now.length-before.length : prefix;
+		at = Math.max(0,Math.min(at,now.length));
+		if (editor.caret) { var ta=editor.getWrapperElement();ta.focus();ta.setSelectionRange(at,at); if(!document.execCommand("insertText",false,link))ta.setRangeText(link,at,at,"end");ta.dispatchEvent(new Event("input",{bubbles:true})); }
+		else editor.replaceRange(link,editor.posFromIndex(at),editor.posFromIndex(at),"+image");
+		current.touched=true;syncDraft();scheduleAutosave();flash("Image saved and linked.");
+	} catch (e) { if(scope===draftKey("")) fail(e); }
+	finally { imageUploading=false; }
+}
+function imageDropOffset(e) {
+	if(!editor.caret)return clickOffset(e);
+	var ta=editor.getWrapperElement(), box=ta.getBoundingClientRect(), mirror=document.createElement("div"), css=getComputedStyle(ta);
+	mirror.style.cssText="position:fixed;z-index:9999;white-space:pre-wrap;overflow:auto;box-sizing:border-box;";
+	["font","lineHeight","letterSpacing","padding","tabSize","textIndent","textAlign","wordBreak","overflowWrap"].forEach(function(k){mirror.style[k]=css[k];});
+	mirror.style.left=(box.left+ta.clientLeft)+"px";mirror.style.top=(box.top+ta.clientTop)+"px";mirror.style.width=ta.clientWidth+"px";mirror.style.height=ta.clientHeight+"px";
+	mirror.textContent=ta.value;document.body.appendChild(mirror);mirror.scrollTop=ta.scrollTop;mirror.scrollLeft=ta.scrollLeft;
+	var range=document.caretRangeFromPoint&&document.caretRangeFromPoint(e.clientX,e.clientY), at=range&&range.startContainer===mirror.firstChild?range.startOffset:ta.selectionStart;
+	mirror.remove();return at;
+}
+function imageEvent(e) {
+	var transfer=e.clipboardData||e.dataTransfer, picked=transfer&&Array.from(transfer.files||[]);
+	if(!picked||!picked.length)return;
+	e.preventDefault();e.stopPropagation();
+	if(picked.length!==1){flash("Add one image at a time.",true);return;}
+	uploadImage(picked[0],e.type==="drop"?imageDropOffset(e):undefined);
+}
 function formatNote(kind) {
 	if (!current || !editor || readOnly || moving || pinBusy[current.path] || current.leaving || $("settings").open || document.body.classList.contains("preview-view")) return;
 	var text = editor.getValue(), ta = editor.caret && editor.getWrapperElement();
@@ -1775,6 +1844,11 @@ function formatNote(kind) {
 	b.onmousedown = function (e) { e.preventDefault(); };
 	b.onclick = function () { formatNote(item[0]); }; $("format-toolbar").appendChild(b);
 });
+var imagePicker=document.createElement("input"), imageButton=document.createElement("button");
+imagePicker.type="file";imagePicker.accept="image/png,image/jpeg,image/gif,image/webp";imagePicker.hidden=true;
+imagePicker.onchange=function(){var file=this.files[0];this.value="";if(file)uploadImage(file);};
+imageButton.textContent="Image";imageButton.setAttribute("aria-label","Add image");imageButton.onclick=function(){imagePicker.click();};
+$("format-toolbar").append(imageButton,imagePicker);
 document.addEventListener("keydown",function(e){
 	if (e.isComposing || e.keyCode === 229 || e.altKey || !(e.ctrlKey || e.metaKey) || !editor || !editor.getWrapperElement().contains(e.target)) return;
 	var key = e.key.toLowerCase(), kind = key === "b" ? "bold" : key === "i" ? "italic" : key === "k" && e.shiftKey ? "link" : "";
@@ -1824,7 +1898,10 @@ function ensureEditor() {
 			scheduleAutosave();
 		}
 	});
-	followLinks(editor.getWrapperElement());
+	var imageHost=editor.getWrapperElement();
+	imageHost.addEventListener("paste",imageEvent,true);imageHost.addEventListener("drop",imageEvent,true);
+	imageHost.addEventListener("dragover",function(e){if(e.dataTransfer&&Array.from(e.dataTransfer.types).includes("Files"))e.preventDefault();});
+	followLinks(imageHost);
 	return editor;
 }
 /* WIKILINKS */

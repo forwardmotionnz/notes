@@ -266,13 +266,23 @@ Obsidian would not understand, so both can work on the same repository.
 - A text file that is not UTF-8 (an old Windows or Latin-1 file) is not
   opened: shown here it would be garbled, and saved it would be destroyed.
 
+## Adding images
+
+Use **Image** above the editor, paste an image, or drop one into the text.
+PNG, JPEG, GIF and WebP files up to 1 MB are supported, one at a time.
+Padgit reads the vault's `.obsidian/app.json` attachment folder setting;
+without one it puts the image beside the note. Each upload creates a unique
+attachment and inserts an ordinary Markdown link after GitHub confirms it.
+Undo removes the link, leaving the attachment in the repository. If you switch
+notes during upload, the status names the saved attachment so you can link it
+from the original note. Failed uploads leave your note text unchanged.
+
 ## What it deliberately does not do
 
 No offline queue, no graph view, no plugins, no real-time collaboration and
 no line-by-line merge tool: a conflict is merged when the changes are on
 different lines, and otherwise kept both ways (see above). Each of those is
-a common reason a notes app becomes unmaintainable. Backlinks and adding
-images to a note are planned.
+a common reason a notes app becomes unmaintainable. Backlinks are planned.
 
 ## Accessibility
 

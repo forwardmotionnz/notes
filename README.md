@@ -46,7 +46,7 @@ trust. To run your own copy, see [Running your own copy](docs/self-hosting.md).
   the background loses nothing.
 - **Never overwrites anyone.** If a note changed elsewhere, changes to
   different lines are merged; otherwise you keep both versions.
-- **Checklists in any note.** Tick, add, edit, move and remove tasks in Preview,
+- **Checklists in any note.** Tick, edit, move and remove tasks in Preview,
   with Undo for removal. Pin notes to find them on every device.
 - **Daily notes**, Markdown **preview** with images from the repository,
   **wikilinks**, rename, move and delete.

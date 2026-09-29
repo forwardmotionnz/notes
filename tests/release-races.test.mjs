@@ -19,7 +19,7 @@ async function ready({ multiple = true, remember = true } = {}) {
     await p.selectOption('#f-repo', { label: 'roldaof/alpha' });
     await p.click('#f-save');
   }
-  await p.waitForFunction(() => configured() && !accessPending && pinCache['todo.md']);
+  await p.waitForFunction(() => configured() && !accessPending && treeState === 'ok');
   return { gh, ctx, p };
 }
 
@@ -50,10 +50,11 @@ try {
   // check alone therefore cannot protect a delete sent to the wrong repo.
   {
     const { gh, ctx, p } = await ready();
-    await H.clickRow(p, 'inbox.md');
+    await H.preview(p, 'todo.md');
     const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
-    await p.evaluate(()=>{document.querySelector('#pin-input').value='task in flight';addTask();});
+    await H.tick(p, 'one');
     await hold.started;
+    await H.clickRow(p, 'inbox.md');
     await p.click('#btn-delete');
     await p.waitForFunction(() => moving);
     await pickBeta(p);
@@ -92,20 +93,17 @@ try {
     await ctx.close();
   }
 
+  // N37 retired reading a pinned list with no note open (the late read this
+  // block used to hold). What remains: alpha's checklist never stays on show.
   {
     const { ctx, p } = await ready();
-    const hold = await gate(p, 'https://api.github.com/repos/roldaof/alpha/contents/todo.md?*', 'GET',
-      route => route.fulfill({ status: 200, contentType: 'application/json',
-        body: JSON.stringify({ sha: 'alpha-old', content: Buffer.from('- [ ] ALPHA ONLY\n').toString('base64'), encoding: 'base64' }) }));
-    await p.evaluate(() => { delete pinCache['todo.md']; renderPins(); });
-    await hold.started;
+    await H.preview(p, 'todo.md');
     await pickBeta(p);
-    await p.waitForFunction(() => cfg.repo === 'beta' && pinCache['todo.md'] && !accessPending);
-    hold.release();
+    await p.waitForFunction(() => cfg.repo === 'beta' && !accessPending && treeState === 'ok');
     await H.settle(p, 500);
-    t.check('a late pinned read from alpha cannot replace beta tasks',
-      await p.evaluate(() => pinCache['todo.md'].text === '- [ ] one\n' &&
-        !document.querySelector('#pin-list').textContent.includes('ALPHA ONLY')));
+    t.check('a checklist from alpha is not left showing under beta',
+      await p.evaluate(() => current === null && !document.body.classList.contains('preview-view') &&
+        !document.querySelector('#pin-list').textContent && !pinCache['todo.md']));
     await ctx.close();
   }
 
@@ -146,33 +144,35 @@ try {
   {
     const { gh, ctx, p } = await ready();
     const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
-    for (const text of ['FIRST CAPTURE', 'SECOND CAPTURE', 'THIRD CAPTURE']) {
-      await p.fill('#pin-input', text);
-      await p.click('#pin-go');
-      if (text === 'FIRST CAPTURE') await hold.started;
-    }
+    // N37: queued checklist edits in Preview (the capture box is gone).
+    await H.preview(p, 'todo.md');
+    const edit = async (from, to) => { await p.getByRole('button', { name: 'Edit task: ' + from, exact: true }).click(); await p.locator('.task-edit').fill(to); await p.locator('.task-edit').press('Enter'); };
+    await edit('one', 'FIRST EDIT');
+    await hold.started;
+    await H.tick(p, 'FIRST EDIT');
+    await edit('FIRST EDIT', 'THIRD EDIT');
     await pickBeta(p);
     hold.release();
     await H.settle(p, 600);
     const recovery = await p.evaluate(() => JSON.stringify(Object.fromEntries(
       Object.entries({ ...localStorage, ...sessionStorage }).filter(([key]) => key !== 'notes.config.v2' && key !== 'notes.ui.v1'))));
-    t.check('switching repository preserves every queued capture in commits or recovery storage',
-      ['FIRST CAPTURE', 'SECOND CAPTURE', 'THIRD CAPTURE'].every(text => gh.files['todo.md'].includes(text) || recovery.includes(text)),
+    t.check('switching repository preserves the latest queued checklist edit in commits or recovery storage',
+      gh.files['todo.md'].includes('[x] THIRD EDIT') || recovery.includes('[x] THIRD EDIT'),
       JSON.stringify({ committed: gh.files['todo.md'], recovery }));
     await ctx.close();
   }
   {
     const { ctx, p } = await ready();
+    // A checklist save still in flight while another note is being edited.
+    await H.preview(p, 'todo.md');
+    const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
+    await H.tick(p, 'one');
+    await hold.started;
     await H.clickRow(p, 'inbox.md');
     await p.evaluate(() => { AUTOSAVE_MS = 60000; });
     await p.route('https://api.github.com/**/contents/inbox.md', route =>
       route.request().method() === 'PUT' ? route.abort() : route.fallback());
     await H.setEditor(p, 'COMBINED SETTINGS DRAFT');
-    const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
-    // A delayed task handler can outlive switching to source. Exercise the
-    // same save path without making the now-hidden checklist visible.
-    await p.evaluate(()=>{document.querySelector('#pin-input').value='PENDING DURING MODE CHANGE';addTask();});
-    await hold.started;
     // Existing editor drafts fit, but preserving the pending task does not.
     // Migration must not strand the editor draft in the unselected store.
     await p.evaluate(() => {
@@ -205,28 +205,21 @@ try {
     await ctx.close();
   }
 
+  // N37 retired merging queued captures into a dirty editor's draft: with no
+  // capture box, a checklist write and unsaved typing in the same note cannot
+  // overlap, because Edit waits for the checklist save to finish.
   {
-    const { ctx, p } = await ready();
-    await H.clickRow(p, 'todo.md');
-    await p.evaluate(() => { AUTOSAVE_MS = 60000; });
-    await H.setEditor(p, '- [ ] one\nEDITOR WORDS TO PRESERVE\n');
+    const { gh, ctx, p } = await ready();
+    await H.preview(p, 'todo.md');
     const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
-    for (const text of ['CAPTURE WITH DIRTY EDITOR', 'QUEUED WITH DIRTY EDITOR']) {
-      await p.evaluate(text=>{document.querySelector('#pin-input').value=text;addTask();},text);
-      if (text === 'CAPTURE WITH DIRTY EDITOR') await hold.started;
-    }
-    await pickBeta(p);
+    await H.tick(p, 'one');
+    await hold.started;
+    await p.click('#btn-preview');
+    await H.settle(p, 300);
+    t.check('Edit waits for a checklist save in flight', await p.evaluate(() => document.body.classList.contains('preview-view')));
     hold.release();
-    await p.waitForFunction(() => !saving);
-    await H.settle(p, 500);
-    const recovered = await p.evaluate(() => ({
-      old: JSON.parse(localStorage.getItem('notes.draft.v1:roldaof/alpha@main:todo.md')),
-      other: localStorage.getItem('notes.draft.v1:roldaof/beta@main:todo.md'),
-    }));
-    t.check('pending capture recovery preserves the existing editor draft and every capture',
-      !!recovered.old && ['EDITOR WORDS TO PRESERVE', 'CAPTURE WITH DIRTY EDITOR', 'QUEUED WITH DIRTY EDITOR']
-        .every(text => recovered.old.text.includes(text)), JSON.stringify(recovered));
-    t.check('dirty editor and pending capture recovery stay in the original repository', recovered.other === null);
+    await p.waitForFunction(() => !document.body.classList.contains('preview-view') && Object.keys(pinBusy).length === 0);
+    t.check('and then opens the saved text', await H.editorValue(p) === '- [x] one\n' && gh.files['todo.md'] === '- [x] one\n', await H.editorValue(p));
     await ctx.close();
   }
 } finally {

@@ -298,7 +298,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
 | N36 | 44a | done | The header's ← → buttons removed; `tests/navigation.test.mjs` 14/14 now drives the browser's own back and forward (both ways, after a reload and from the middle of history) and checks the header has no arrows. Full suite 61/61 Chromium. Commit in the log |
-| N37 | 44b | todo | Owner's review 2026-09-29: one kind of note (the Tasks screen, "Add a task" and pinned-only logic go) |
+| N37 | 44b | doing | Built: Tasks screen, "Add a task" boxes, Edit note / Tasks switch and pinned-only logic removed; a pin opens like any note; Preview checklists keep tick, edit, move, drag, remove, Clear done and Undo. 18 suites that drove the Tasks screen now drive Preview (reasons below). Full suite 61/61 Chromium. G-2: withdrawing Undo on opening another note (tasks: "another note: the Undo is withdrawn") and refilling the checklist cache before Preview's unchanged-view shortcut (tasks: "another list: setup") each fail when reverted. Screenshots `tests/screens/n37-*.png`. Awaiting G-1 repeats and G-3 |
 | N38 | 44c | todo | Owner's review 2026-09-29: visual redesign (mock-up for approval first) |
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 
@@ -656,6 +656,12 @@ The owner found the app's look clunky (text buttons, glyphs as icons, three stac
 
 ### N37: plan: one kind of note
 - The separate Tasks screen, the "Add a task" box, pinned-only task lists (N8/N9's pinned writing and Undo bar where nothing else uses them) and the Edit note / Tasks switch go. A pinned note is a shortcut at the top of Files and opens like any other note; checklists are edited in Preview (N32) and started with the toolbar's checklist button (N25). Nothing a person could do with a task is lost: tick, add, edit, reorder and remove all remain, in every note. Tests for the removed screen are retired with it, each replaced by the same check against Preview checklists where the ability remains.
+
+### N37: tests changed with the Tasks screen
+- Tests that typed into the "Add a task" box only to make a write happen (auth, auth-renewal, privacy, vault, delete, access, eol) now tick, edit or save the same note instead; what they check is unchanged.
+- Tests of the capture box itself (capture-recovery, app's capture checks, empty, large, keyboard, release-races) check the same guarantee for Preview edits: failed edits are kept as drafts, over-limit edits are refused and stay in the field, the edit field stays above a phone keyboard, queued edits survive a repository change.
+- Tests of the Tasks screen and its switch (pinned-tree, pins-sync, hostile, tasks) now open the pinned note like any note and use Preview. Retired with no equivalent: merging queued captures into a dirty editor's draft (it can no longer happen, because Edit waits for a checklist save in flight; release-races checks that instead) and reading a pinned list with no note open (replaced by: alpha's checklist is not left showing under beta).
+- Found while doing this: after Settings were saved, Remove in Preview did nothing, because the cache was emptied under a view that was still shown. Fixed; tasks' "another list: setup" catches it.
 
 ### N38: plan: visual redesign
 - A design pass over the whole app, not piecemeal tweaks: one inline SVG icon set (openly licensed, no extra requests); a small family of buttons (icon, subtle, primary) with one size and radius; a calm header (file list, the note's title, save status, an Edit/Preview switch, and a ⋯ menu for Rename, Delete, Outline and Tags); tabs that look like tabs; one icon toolbar; sidebar sections (Pinned, Recent, Tags, Files) with consistent rows, icons and counts; a type scale and spacing tuned for reading; both themes; phones.

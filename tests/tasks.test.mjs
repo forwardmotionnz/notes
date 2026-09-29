@@ -15,7 +15,8 @@ async function ready(opts = {}) {
   p.removeAllListeners('dialog');
   p.on('dialog', d => { p.asked.push(d.message()); d.accept(); });
   await H.signIn(p);
-  if (!opts.gh || !opts.gh.repos) await p.waitForSelector('#pin-list .task');   // several: none chosen yet
+  // N37: checklists are worked in Preview (several repositories: none chosen yet).
+  if (!opts.gh || !opts.gh.repos) { await H.preview(p, 'todo.md'); await p.waitForSelector('#pin-list .task'); }
   return { gh, ctx, p };
 }
 const tasks = p => p.$$eval('#pin-list .task span', e => e.map(s => s.textContent));
@@ -148,6 +149,7 @@ const undoShown = p => p.isVisible('#pin-undo');
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/alpha' });
   await p.click('#f-save');
+  await H.preview(p, 'todo.md');
   await p.waitForSelector('#pin-list .task .rm');
   await removeBtn(p, 0).click();
   await H.settle(p, 600);
@@ -163,7 +165,6 @@ const undoShown = p => p.isVisible('#pin-undo');
 /* ===== review: Undo never puts a line back in the wrong place ===== */
 {
   const { gh, ctx, p } = await ready();
-  await H.clickRow(p, 'todo.md');
   await removeBtn(p, 0).click();
   await H.settle(p, 1500);
   const removed = gh.files['todo.md'];
@@ -172,7 +173,7 @@ const undoShown = p => p.isVisible('#pin-undo');
   await p.click('#btn-save');
   await H.settle(p, 1500);
   const edited = gh.files['todo.md'];
-  await p.evaluate(()=>showTasks());
+  await H.preview(p);
   t.check('lines added above since: setup', edited.startsWith('NEW LINE\n') && await undoShown(p));
   const before = gh.commits.length;
   await p.click('#pin-undo button');
@@ -202,15 +203,15 @@ const undoShown = p => p.isVisible('#pin-undo');
   // each heading); a section added above must still stop the Undo.
   const SECTIONS = '## A\n\n- [ ] a1\n## B\n\n- [ ] b1\n## C\n\n- [ ] c1\n';
   const { gh, ctx, p } = await ready({ gh: { files: { 'todo.md': SECTIONS } } });
-  await H.clickRow(p, 'todo.md');
   await removeBtn(p, 1).click();
   await H.settle(p, 1500);
+  await p.click('#btn-preview');
   await H.setEditor(p, '## Z\n\n- [ ] z\n' + gh.files['todo.md']);
   await H.settle(p, 60);
   await p.click('#btn-save');
   await H.settle(p, 1500);
   const edited = gh.files['todo.md'];
-  await p.evaluate(()=>showTasks());
+  await H.preview(p);
   await p.click('#pin-undo button');
   await H.settle(p, 1500);
   t.check('a section added above: nothing put back', gh.files['todo.md'] === edited, JSON.stringify(gh.files['todo.md']));
@@ -218,16 +219,18 @@ const undoShown = p => p.isVisible('#pin-undo');
   await ctx.close();
 }
 {
-  // A task captured since goes at the end: Undo still puts the line back, and keeps it.
+  // A task added at the end since (N37: typed in Edit): Undo still puts the line back, and keeps it.
   const { gh, ctx, p } = await ready();
   await removeBtn(p, 0).click();
   await H.settle(p, 1500);
-  await p.fill('#pin-input', 'new one');
-  await p.press('#pin-input', 'Enter');
+  await p.click('#btn-preview');
+  await H.setEditor(p, gh.files['todo.md'] + '- [ ] new one\n');
+  await p.click('#btn-save');
   await H.settle(p, 1500);
+  await H.preview(p);
   await p.click('#pin-undo button');
   await H.settle(p, 1500);
-  t.check('a capture meanwhile: Undo still restores, keeping it', gh.files['todo.md'] === TODO + '- [ ] new one\n',
+  t.check('a task added meanwhile: Undo still restores, keeping it', gh.files['todo.md'] === TODO + '- [ ] new one\n',
     JSON.stringify(gh.files['todo.md']));
   await ctx.close();
 }
@@ -275,7 +278,6 @@ const undoShown = p => p.isVisible('#pin-undo');
 /* ===== review: Undo follows a rename ===== */
 {
   const { gh, ctx, p } = await ready();
-  await H.clickRow(p, 'todo.md');
   await removeBtn(p, 0).click();
   await H.settle(p, 1500);
   p.removeAllListeners('dialog');
@@ -290,7 +292,7 @@ const undoShown = p => p.isVisible('#pin-undo');
   await ctx.close();
 }
 
-/* ===== review: Undo goes when another pinned list is shown ===== */
+/* ===== review: Undo goes when another note is opened ===== */
 {
   const { ctx, p } = await ready();
   await p.click('#btn-settings');
@@ -298,11 +300,14 @@ const undoShown = p => p.isVisible('#pin-undo');
   await H.setPins(p, 'todo.md, inbox.md');
   await p.click('#f-save');
   await H.settle(p, 1500);
+  await H.preview(p, 'todo.md');
   await removeBtn(p, 0).click();
   await H.settle(p, 1500);
   t.check('another list: setup', await undoShown(p));
   await p.locator('#pin-tabs button').nth(1).click();
-  t.check('another list: the Undo is withdrawn', !(await undoShown(p)));
+  await p.waitForFunction(() => current?.path === 'inbox.md');
+  await H.preview(p);
+  t.check('another note: the Undo is withdrawn', !(await undoShown(p)) && await p.evaluate(() => pinUndo === null));
   await ctx.close();
 }
 

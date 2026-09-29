@@ -30,12 +30,12 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
   await H.setPins(p, 'big.md');
   await p.click('#f-save');
   await H.settle(p, 500);
-  t.check('pinned, it shows the reason instead of an empty list', /1 MB/.test(await p.textContent('#pin-list')),
-    await p.textContent('#pin-list'));
-  await p.fill('#pin-input', 'a task');
-  await p.press('#pin-input', 'Enter');
+  await H.clickRow(p, 'inbox.md');
+  await p.locator('#pin-tabs button', { hasText: 'big.md' }).click();
   await H.settle(p, 500);
-  t.check('and no task can be added over it', gh.files['big.md'] === BIG && gh.commits.length === 0,
+  t.check('pinned, opening it shows the reason', /1 MB/.test(await H.status(p)) && (await p.evaluate(() => current?.path)) !== 'big.md',
+    await H.status(p));
+  t.check('and nothing is written over it', gh.files['big.md'] === BIG && gh.commits.length === 0,
     String(gh.commits.length));
   await ctx.close();
 }
@@ -126,18 +126,20 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
 
 /* ===== a task never pushes a pinned file past 1 MB ===== */
 {
-  const NEAR = '# Near\n' + 'z'.repeat(1024 * 1024 - 20) + '\n';   // just under the limit
+  const NEAR = '- [ ] one\n\n' + 'z'.repeat(1024 * 1024 - 20) + '\n';   // just under the limit
   const gh = H.fakeGitHub({ files: { 'todo.md': NEAR } });
   const ctx = await H.context(gh);
   const p = await H.page(ctx);
   await H.signIn(p);
   await H.settle(p, 400);
-  await p.fill('#pin-input', 'one task too many');
-  await p.press('#pin-input', 'Enter');
+  await H.preview(p, 'todo.md');
+  await p.getByRole('button', { name: 'Edit task: one', exact: true }).click();
+  await p.locator('.task-edit').fill('one task too many');
+  await p.locator('.task-edit').press('Enter');
   await H.settle(p, 500);
   t.check('a task that would take the file past 1 MB is refused', gh.files['todo.md'] === NEAR &&
     gh.commits.length === 0 && /1 MB/.test(await H.status(p)), await H.status(p));
-  t.check('and the task text stays in the box', (await p.inputValue('#pin-input')) === 'one task too many');
+  t.check('and the task text stays in the box', (await p.inputValue('.task-edit')) === 'one task too many');
   await ctx.close();
 }
 

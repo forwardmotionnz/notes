@@ -627,14 +627,34 @@ export const editorValue = p => p.evaluate(
 export const still = p => p.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'),
   null, { timeout: 5000 }).catch(() => {});
 export const setEditor = (p, v) => p.evaluate(v => {
-  if (typeof taskView === 'function') taskView(false);
+  if (document.body.classList.contains('preview-view')) previewView(false);
   const ta = document.querySelector('#cm-stub, .fallback-editor');
   ta.value = v; ta.dispatchEvent(new Event('input', { bubbles: true }));
 }, v);
+// N37: checklists are ticked, edited and removed in Preview. Opens a note
+// (unless it is open already) and switches to Preview.
+export const preview = async (p, path) => {
+  if (path) {
+    if (await p.evaluate(path => current?.path !== path, path)) await p.evaluate(path => openFile(path), path);
+    await p.waitForFunction(path => current?.path === path, path);
+  }
+  if (!await p.evaluate(() => document.body.classList.contains('preview-view'))) await p.click('#btn-preview');
+  await p.waitForFunction(() => document.body.classList.contains('preview-view'));
+};
+// Opens a note, replaces its text and presses Save (for suites that only
+// need a write to happen, now that there is no "Add a task" box).
+export const saveNote = async (p, path, text) => {
+  if (await p.evaluate(path => current?.path !== path, path)) await p.evaluate(path => openFile(path), path);
+  await p.waitForFunction(path => current?.path === path, path);
+  await setEditor(p, text);
+  await p.click('#btn-save');
+};
+// Ticks or unticks the Preview checkbox whose task text is `name`.
+export const tick = (p, name) => p.getByRole('checkbox', { name, exact: true }).click();
 // Fixture setup for persisted pin lists; pin/unpin UI is covered by pinned-tree.
 export const setPins = (p, pins) => p.evaluate(pins => {
   cfg.pins = pins.split(',').map(p=>p.trim().replace(/^\/+/, '')).filter(Boolean);
-  ui.pin = 0; saveCfg(); persist(UI_KEY,ui); renderPinTabs(); renderPins();
+  saveCfg(); persist(UI_KEY,ui); renderPinTabs(); renderPins();
 }, pins);
 export const status = p => p.evaluate(() => document.getElementById('status').textContent);
 export const dialogOpen = p => p.evaluate(() => document.getElementById('settings').open);

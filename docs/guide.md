@@ -52,7 +52,7 @@ there.
 ## A brand new, empty repository
 
 A repository with no commits works: the file list says it is empty, and the
-first note you save (or the first task you add) creates its main branch. If
+first note you save creates its main branch. If
 the repository's main branch is later renamed, or your first push from
 elsewhere creates a differently named one, the app follows it and says so.
 
@@ -81,8 +81,7 @@ invalid settings show an explanation and leave the current note alone.
   copy it back. If it changed elsewhere since you opened it, it is not
   deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
 - Pin or unpin the open note using the star beside its name. Pinned files
-  appear at the top of Files and open in Preview, with the same checklist
-  controls as any note. **Edit** opens the Markdown source. A pin is saved in the note itself, as the property
+  appear at the top of Files as shortcuts and open like any other note. A pin is saved in the note itself, as the property
   `pinned: true` at its top (Obsidian shows it as a property; other editors
   keep it), so it shows on every device; pinning saves the note, unsaved
   edits included, and unpinning removes only that line. Each browser reads
@@ -91,11 +90,12 @@ invalid settings show an explanation and leave the current note alone.
   or in a read-only repository), and pins made before this change, stay
   pinned in this browser only; unpinning one and pinning it again moves it
   into the note.
-- Any note's Preview has live checklists with an Add box after each list.
-  Edit a task's text, drag its handle or use ↑/↓ to reorder siblings; moving
+- Any note's Preview has live checklists. Add a task in Edit, as a `- [ ]`
+  line or with the toolbar's checklist button; in Preview, tick it, edit its
+  text, drag its handle or use ↑/↓ to reorder siblings; moving
   or removing a parent includes its nested tasks and continuation paragraphs.
   Ticks and
-  captures go to GitHub one at a time; clicks made while one is on its way
+  edits go to GitHub one at a time; clicks made while one is on its way
   share the next commit. × removes a task (always shown on a phone, on
   hover on a computer) and **Clear done** removes every ticked one, each
   in one commit, with a few seconds to press **Undo**
@@ -183,12 +183,11 @@ is marked as a conflict, and **Save as copy** saves your version as
 "name (my copy).md" beside it while the note shows theirs, or **Discard**
 loads theirs and drops yours. No conflict markers are written into notes.
 
-If a task save fails, every queued capture returns to the Add a task box,
-alongside any newer typing. After the wait shown for a rate limit, refresh
-the file list, then add again; each recovered line becomes a separate task.
-Changing repositories while tasks are saving keeps their pending text as a
-draft in the original repository. Return there and open the pinned file to
-recover it; copy the text before discarding if it reports a conflict.
+If a checklist save fails, the list goes back to what GitHub has; a task
+text edit that could not be saved is kept as a draft of the note, and returns
+when you reopen it. Changing repositories while a checklist is saving keeps
+its pending text as a draft in the original repository. Return there and
+open the note to recover it; copy the text before discarding if it reports a conflict.
 If browser storage is full, changing between remembered and session-only
 mode stops and explains why, keeping the drafts in their original storage.
 

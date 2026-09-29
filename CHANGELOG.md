@@ -17,9 +17,9 @@ in the [development ledger](docs/dev/MVP.md)).
 - Open-note tabs, remembered per repository and folded into a list on phones; closing preserves drafts.
 - Paste, drop or choose images to upload into the vault's attachment folder and link from a note.
 - Markdown formatting toolbar, selection-aware shortcuts and Undo in both editors.
-- Editable checklists in Preview for any note, with inline text edits, nested reordering, per-list capture and removal Undo. Pinned notes use the same Preview.
+- Editable checklists in Preview for any note, with inline text edits, nested reordering and removal Undo. New tasks are typed in Edit (or with the toolbar's checklist button), like any other line.
 - Centred reading columns and a remembered note text size for editor and Preview.
-- Note addresses and browser/header back and forward navigation, including bookmarks restored after sign-in.
+- Note addresses and browser back and forward navigation, including bookmarks restored after sign-in.
 - About Padgit in Settings, with the version and links for this deployment.
 - Padgit branding (formerly Notes), plus a notice before the planned move
   to padgit.com. The domain cutover still needs the owner's coordinated
@@ -68,9 +68,11 @@ in the [development ledger](docs/dev/MVP.md)).
   preserves editing with a visible notice. Repository images are supported.
 
 - Pin/unpin beside the note name and a Pinned section at the top of Files.
-  Pinned notes open as a checklist in the main area, with Edit note and Tasks
-  controls to switch views. Pins remain local to this browser. This replaces
-  the right-hand panel, phone bottom sheet and Settings pins field.
+  A pinned note is a shortcut: it opens like any other note. (Earlier it
+  opened a separate Tasks screen with an "Add a task" box; both are gone, as
+  are the header's ← and → buttons, in favour of the browser's own Back and
+  Forward.) This replaces the right-hand panel, phone bottom sheet and
+  Settings pins field.
 
 - Today opens or prepares the day's note, using the vault's Obsidian daily-note
   folder, date format and template where configured. Nothing is created until

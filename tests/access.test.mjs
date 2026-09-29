@@ -26,8 +26,9 @@ async function readOnlyCase(name, extra, reason) {
   await p.keyboard.press('Control+s');
   await p.waitForTimeout(2600);
   t.check(`${name}: Save is off`, (await p.isDisabled('#btn-save')) || !(await p.isVisible('#btn-save')));
-  t.check(`${name}: the pinned capture is off`, await p.isDisabled('#pin-input') &&
-    await p.evaluate(() => [...document.querySelectorAll('#pin-list input')].every(b => b.disabled)));
+  await H.preview(p, 'todo.md');
+  t.check(`${name}: the Preview checklist is off`,
+    await p.evaluate(() => { const b = [...document.querySelectorAll('#pin-list input')]; return b.length === 2 && b.every(b => b.disabled); }));
   t.check(`${name}: no task can be removed`,
     await p.evaluate(() => [...document.querySelectorAll('#pin-list button')].every(b => b.disabled || b.hidden)));
   t.check(`${name}: nothing was ever sent`, gh.commits.length === 0 && !gh.log.refusedWrites,
@@ -76,9 +77,9 @@ await readOnlyCase('no write permission', { permissions: { admin: false, maintai
   });
   const p = await H.page(ctx);
   await H.signIn(p);
+  await H.preview(p, 'todo.md');
   await p.waitForSelector('#pin-list .task');
-  await p.fill('#pin-input', 'too early').catch(() => {});
-  await p.press('#pin-input', 'Enter').catch(() => {});
+  await p.locator('#pin-list input[type=checkbox]').first().click({ timeout: 1000 }).catch(() => {});
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, 'typed too early\n');
   await H.settle(p, 60);

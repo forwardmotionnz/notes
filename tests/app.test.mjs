@@ -138,23 +138,22 @@ async function setPins(p, pins) {
   const { gh, ctx, p } = await ready({ pins: 'todo.md, inbox.md' });
   const tabs = await p.$$eval('#pin-tabs button', e => e.map(b => b.textContent));
   t.check('a tab per pinned file', JSON.stringify(tabs) === '["todo.md","inbox.md"]', JSON.stringify(tabs));
+  await H.preview(p, 'todo.md');
   const tasks = await p.$$eval('#pin-list .task span', e => e.map(s => s.textContent));
   t.check('checkbox per task', JSON.stringify(tasks) === '["ring the panelbeater","swap the spare"]');
   await p.locator('#pin-list .task input').nth(0).click();
   await H.settle(p, 350);
   t.check('ticking rewrites only that line',
     gh.files['todo.md'] === '# Today\n\n- [x] ring the panelbeater\n- [x] swap the spare\n');
-  await p.fill('#pin-input', 'book the wof');
-  await p.press('#pin-input', 'Enter');
-  await H.settle(p, 350);
-  t.check('quick capture appends', gh.files['todo.md'].endsWith('- [ ] book the wof\n'));
-  t.check('capture input cleared', (await p.inputValue('#pin-input')) === '');
+  // N37: no capture box; the checklist is the note's own Markdown.
+  t.check('no Add a task box', await p.getByPlaceholder('Add a task').count() === 0);
   await ctx.close();
 }
 
 /* ===== rapid toggles ===== */
 {
   const { gh, ctx, p } = await ready({ gh: { files: { 'todo.md': '- [ ] one\n- [ ] two\n- [ ] three\n' } } });
+  await H.preview(p, 'todo.md');
   for (let i = 0; i < 3; i++) await p.locator('#pin-list .task input').nth(i).click();
   await H.settle(p, 900);
   const n = (gh.files['todo.md'].match(/\[x\]/g) || []).length;
@@ -186,8 +185,14 @@ function holdCommits() {
 }
 const THREE = () => ({ gh: { files: { 'todo.md': '- [ ] one\n- [ ] two\n- [ ] three\n' } } });
 const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked));
+const editTask = async (p, from, to) => {
+  await p.getByRole('button', { name: 'Edit task: ' + from, exact: true }).click();
+  await p.locator('.task-edit').fill(to);
+  await p.locator('.task-edit').press('Enter');
+};
 {
   const { gh, ctx, p } = await ready(THREE());
+  await H.preview(p, 'todo.md');
   let release;
   const gate = new Promise(resolve => { release = resolve; });
   const seen = await slowPuts(ctx, p, gate);
@@ -208,6 +213,7 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
 }
 {
   const { gh, ctx, p } = await ready(THREE());
+  await H.preview(p, 'todo.md');
   const held = holdCommits();
   const seen = await slowPuts(ctx, p, held.done);
   const box = p.locator('#pin-list .task input').nth(1);
@@ -223,30 +229,30 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
 }
 {
   const { gh, ctx, p } = await ready(THREE());
+  await H.preview(p, 'todo.md');
   const held = holdCommits();
   const seen = await slowPuts(ctx, p, held.done);
   await p.locator('#pin-list .task input').nth(0).click();
-  await p.fill('#pin-input', 'four');
-  await p.press('#pin-input', 'Enter');
+  await editTask(p, 'two', 'four');
   held.release();
   await H.settle(p, 4000);
-  t.check('slow GitHub: a tick and a quick capture both land',
-    gh.files['todo.md'] === '- [x] one\n- [ ] two\n- [ ] three\n- [ ] four\n', JSON.stringify(gh.files['todo.md']));
-  t.check('slow GitHub: capture not refused', seen.every(s => s === 200), JSON.stringify(seen));
+  t.check('slow GitHub: a tick and a quick edit both land',
+    gh.files['todo.md'] === '- [x] one\n- [ ] four\n- [ ] three\n', JSON.stringify(gh.files['todo.md']));
+  t.check('slow GitHub: edit not refused', seen.every(s => s === 200), JSON.stringify(seen));
   await ctx.close();
 }
 {
   // The first commit fails: what was waiting behind it is not sent on a
   // guess, the list goes back to what GitHub has, and the error is shown.
   const { gh, ctx, p } = await ready(THREE());
+  await H.preview(p, 'todo.md');
   let release;
   const gate = new Promise(resolve => { release = resolve; });
   const seen = await slowPuts(ctx, p, gate, i => i === 0 && (r => r.fulfill({ status: 502,
     contentType: 'application/json', body: '{"message":"Server Error"}' })));
   await p.locator('#pin-list .task input').nth(0).click();
   await p.locator('#pin-list .task input').nth(1).click();
-  await p.fill('#pin-input', 'four');
-  await p.press('#pin-input', 'Enter');
+  await editTask(p, 'three', 'four');
   release();
   await H.settle(p, 4000);
   t.check('failed commit: nothing sent after it', JSON.stringify(seen) === '[502]', JSON.stringify(seen));
@@ -255,12 +261,13 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
     JSON.stringify(await boxes(p)));
   t.check('failed commit: the error is shown', (await p.getAttribute('#status', 'class')) === 'err',
     await p.textContent('#status'));
-  t.check('failed commit: the waiting capture goes back in the box', (await p.inputValue('#pin-input')) === 'four');
+  t.check('failed commit: the waiting text edit is kept as a draft', (await p.evaluate(() => localStorage.getItem(draftKey('todo.md'))) || '').includes('four'));
   await ctx.close();
 }
 {
   // A change made elsewhere is still a conflict: the queue never writes over it.
   const { gh, ctx, p } = await ready(THREE());
+  await H.preview(p, 'todo.md');
   const held = holdCommits();
   await slowPuts(ctx, p, held.done);
   gh.files['todo.md'] = '- [ ] one\n- [ ] two\n- [ ] three\n- [ ] from the phone\n';
@@ -287,6 +294,7 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   await p.selectOption('#f-repo', { label: 'roldaof/alpha' });
   await p.click('#f-save');
   await H.settle(p, 500);
+  await H.preview(p, 'todo.md');
   const seen = [];
   p.on('response', r => { if (r.request().method() === 'PUT') seen.push(r.url().split('/repos/')[1].split('/')[1] + ' ' + r.status()); });
   // alpha is another repository: answered as GitHub would, with alpha's new version
@@ -306,6 +314,8 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   await p.waitForSelector('#f-save:not([disabled])');
   await p.selectOption('#f-repo', { label: 'roldaof/beta' });
   await p.click('#f-save');
+  await p.waitForFunction(() => cfg.repo === 'beta' && treeState === 'ok');
+  await H.preview(p, 'todo.md');
   await p.waitForFunction(() => document.querySelectorAll('#pin-list .task input:not(:checked)').length === 3);
   await p.locator('#pin-list .task input').nth(1).click();
   await p.locator('#pin-list .task input').nth(2).click();
@@ -320,25 +330,25 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   // Review: saving settings (same repository) while a commit is on its way
   // dropped what waited behind it, and the next tick was a conflict again.
   const { gh, ctx, p } = await ready(THREE());
+  await H.preview(p, 'todo.md');
   const held = holdCommits();
   const seen = await slowPuts(ctx, p, held.done);
   await p.locator('#pin-list .task input').nth(0).click();
-  await p.fill('#pin-input', 'milk');
-  await p.press('#pin-input', 'Enter');
+  await editTask(p, 'two', 'milk');
   await p.click('#btn-settings');
   await p.waitForSelector('#f-save:not([disabled])');
   await p.click('#f-save');
-  const kept = await p.waitForFunction(() => document.querySelectorAll('#pin-list .task input').length === 4,
+  const kept = await p.waitForFunction(() => document.querySelector('#pin-list').textContent.includes('milk') && document.querySelectorAll('#pin-list .task input:checked').length === 1,
     null, { timeout: 3000 }).then(() => true, () => false);
   t.check('settings saved mid-commit: the list keeps what is being written', kept);
   await p.locator('#pin-list .task input').nth(1).click();
   held.release();
   await H.settle(p, 5000);
   t.check('settings saved mid-commit: nothing lost',
-    gh.files['todo.md'] === '- [x] one\n- [x] two\n- [ ] three\n- [ ] milk\n', JSON.stringify(gh.files['todo.md']));
+    gh.files['todo.md'] === '- [x] one\n- [x] milk\n- [ ] three\n', JSON.stringify(gh.files['todo.md']));
   t.check('settings saved mid-commit: nothing refused', seen.every(s => s === 200), JSON.stringify(seen));
   t.check('settings saved mid-commit: the list shows it all',
-    JSON.stringify(await boxes(p)) === '[true,true,false,false]', JSON.stringify(await boxes(p)));
+    JSON.stringify(await boxes(p)) === '[true,true,false]', JSON.stringify(await boxes(p)));
   await ctx.close();
 }
 {
@@ -346,7 +356,7 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   // later one failing does not leave it a version behind, conflicting with
   // the person's own tick on the next save.
   const { gh, ctx, p } = await ready(THREE());
-  await H.clickRow(p, 'todo.md');
+  await H.preview(p, 'todo.md');
   const held = holdCommits();
   await slowPuts(ctx, p, held.done, i => i === 1 && (r => r.fulfill({ status: 502,
     contentType: 'application/json', body: '{"message":"Server Error"}' })));
@@ -370,12 +380,13 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
 /* ===== pinned file that does not exist yet ===== */
 {
   const { gh, ctx, p } = await ready({ pins: 'scratch.md' });
-  t.check('missing pin invites a first task',
-    (await p.textContent('#pin-list')).toLowerCase().includes('nothing in'));
-  await p.fill('#pin-input', 'first');
-  await p.click('#pin-go');
+  // N37: a missing pinned note opens as a new note, like + would.
+  await p.locator('#pin-tabs button', { hasText: 'scratch.md' }).click();
+  await p.waitForFunction(() => current?.path === 'scratch.md');
+  t.check('missing pin opens as an empty note', (await H.editorValue(p)) === '' && !('scratch.md' in gh.files), await p.textContent('#crumb'));
+  await H.saveNote(p, 'scratch.md', '- [ ] first\n');
   await H.settle(p, 400);
-  t.check('capture creates the file', gh.files['scratch.md'] === '- [ ] first\n');
+  t.check('saving creates the file', gh.files['scratch.md'] === '- [ ] first\n');
   await ctx.close();
 }
 
@@ -420,11 +431,10 @@ const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked))
   t.check('filename stays legible', crumb.text === 'inbox.md' && !crumb.cut);
   await p.click('#btn-tree');
   await p.locator('#pin-tabs button').first().click();
-  await p.waitForFunction(()=>document.body.classList.contains('task-view'));
-  await p.focus('#pin-input');
-  t.check('pinned checklist opens in the main area with reachable capture', await p.evaluate(
-    () => document.getElementById('pins').getBoundingClientRect().top < innerHeight - 10 &&
-          document.activeElement.id === 'pin-input' && !document.body.classList.contains('tree-open')));
+  await p.waitForFunction(()=>current?.path==='todo.md');
+  t.check('a pinned note opens in the main area like any note', await p.evaluate(
+    () => document.getElementById('editor-pane').getBoundingClientRect().top < innerHeight - 10 &&
+          !document.body.classList.contains('tree-open')));
   t.check('no horizontal overflow', await p.evaluate(
     () => document.documentElement.scrollWidth <= innerWidth + 1));
   await ctx.close();

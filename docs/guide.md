@@ -329,7 +329,7 @@ from the original note. Failed uploads leave your note text unchanged.
 No offline queue, no graph view, no plugins, no real-time collaboration and
 no line-by-line merge tool: a conflict is merged when the changes are on
 different lines, and otherwise kept both ways (see above). Each of those is
-a common reason a notes app becomes unmaintainable. Backlinks are planned.
+a common reason a notes app becomes unmaintainable.
 
 ## Accessibility
 

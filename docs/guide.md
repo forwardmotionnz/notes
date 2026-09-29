@@ -268,6 +268,12 @@ Obsidian would not understand, so both can work on the same repository.
 
 ## Open notes
 
+Expand **Recent** in Files for recently opened notes and repository changes,
+with the first heading, a short preview and a time. Local drafts take precedence.
+The list reads history only when expanded: up to 10 commits, the first 100 files
+in each commit and 20 notes. It is a bounded view, not a complete activity log.
+Close and reopen it to refresh. Missing history or previews are labelled.
+
 Open notes have tabs above the editor and Preview. Reopening a note selects
 its tab. Use **×** to close a tab; unsaved text stays in its draft. The last
 12 open tabs are remembered for this browser's current repository and branch.

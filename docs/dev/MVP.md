@@ -269,7 +269,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N25 | 38 | done | Formatting toolbar and scoped shortcuts; formatting 52/52 both engines, keyboard-editor 24/24, quick-switcher 19/19, axe 45/45; review fixes covered by rendered-Markdown assertions; selection mutation caught; four screenshots inspected. N32 commit `15a9c9d`. |
 | N16 | 39 | done | Images: 39/39 both engines, actual paste/drop and real/fallback editor Undo, scopes, size/type, Obsidian folders; review fixes covered reserved paths, pointer drops and busy feedback. Cross-note insertion mutation caught; n16 desktop/phone light/dark screenshots inspected. |
 | N33 | 40 | done | Tabs 17/17 both engines; navigation 14/14, reading 12/12, mobile-new 6/6, privacy 41/41, axe 45/45 both. Review: background deletion persisted, closing a loading tab cancels its read, local-storage failure blocks unsafe closing, failed neighbour read restores tab. Unsafe-close mutation caught. n33 four screenshots inspected. N16 commit `c8f2e48`. Long comments moved to implementation-notes.md with identical executable AST, saving 13 KB. |
-| N26 | 41 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |
+| N26 | 41 | done | Recent previews/history and shared reader; 18/18 Chromium + WebKit, content-search 13/13 and pins-sync 54/54. Review fixes, mutation and screenshots below. |
 | N27 | 42 | todo | UX review 2026-09-28: tags |
 | N17 | 43 | todo | Owner's request 2026-09-27, 5 of 5 |
 | N28 | 44 | todo | UX review 2026-09-28: outline of headings |
@@ -1006,3 +1006,10 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-09-27 · N14 · done · f4921b0 and its review fixes (merge a note changed on GitHub; Save as copy when it cannot be merged)
 - 2026-09-27 · N15 · done · 860eab3 and its review fixes (pins follow you between devices); size limit raised to 200 KB (6d1581b); clean-up assessed: none now, a shared note reader as the first step of N17
 - 2026-09-27 · N18, N19 · done · 9798935 and its review fixes (resize and hide the file list; a light/dark choice)
+
+### N26 evidence — 2026-09-29
+- Shared reader: four requests at most, queued cancellation and ignored late results, same-path in-flight deduplication, SHA cache capped at 64 entries / 2 MiB. Scope/auth/write/rename/delete invalidation; editor reads remain fresh.
+- Recent: on-demand history (10 commits, 100 files per commit), first 20 opened/changed notes, local draft priority, missing-history notice. Uses documented GitHub commit endpoints; no added permissions or runtime dependency.
+- Fresh G-3 review found phone overflow, expired-auth loading stuck and stale-SHA cross-path response reuse. All fixed, with regression assertions. The pending reader keys include paths; only confirmed matching-SHA results enter the shared cache.
+- Focused checks: recent-notes 18/18, content-search 13/13 and pins-sync 54/54 in Chromium and WebKit. Mutation restoring cross-path pending dedup failed as expected (tests/screens/recent-mutation.log). Cache-aware search fixtures explicitly clear cache when exercising network failures/holds; distinct blobs preserve the 300-read bound assertion.
+- Inspected screenshots: tests/screens/n26-{1280,390}-{light,dark}.png. Phone list scrolls within 25vh. Final full suite runs after N27.

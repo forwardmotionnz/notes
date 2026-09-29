@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-YtJ4xYlr4UoG9I/Uu1lx1SJ5JtuS4Bqc7bb3JWhaEdw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-RNJjC2+rqpXen+hoX+Hgf9hCnc2DBqdqu/ukE2gyBtc=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -220,6 +220,12 @@ body.preview-view #editor-pane{display:none;}
 #note-tabs span{display:flex;flex:none;max-width:230px;}
 #note-tabs button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:32px;}
 #note-tabs button[aria-pressed=true]{background:var(--accent-soft);font-weight:600;}
+#recent-notes{padding:8px;border-bottom:1px solid var(--line);font-size:13px;}
+#recent-notes summary{cursor:pointer;}
+#recent-list{max-height:25vh;overflow:auto;}
+#recent-list button{display:block;width:100%;text-align:left;margin-top:5px;overflow-wrap:anywhere;}
+#recent-list small{display:block;color:var(--muted);font-weight:normal;}
+#recent-status{color:var(--muted);font-size:12px;}
 @media(max-width:820px){#note-tabs summary{display:list-item;margin-left:18px;}#note-tabs>div{flex-direction:column;}#note-tabs span{max-width:100%;}#note-tabs span button:first-child{flex:1;text-align:left;}}
 </style>
 <script>try{var t=localStorage.getItem("notes.theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=t==="dark"?"#16181c":"#2f6f4f"})}}catch(e){}</script>
@@ -259,6 +265,7 @@ body.preview-view #editor-pane{display:none;}
 				<div id="pin-tabs"></div>
 				<p id="pin-help">Pinned notes say so in their properties, so they show on every device.</p>
 			</section>
+			<details id="recent-notes"><summary>Recent</summary><div id="recent-list"></div><p id="recent-status" role="status"></p></details>
 			<div id="tree"></div>
 		</aside>
 		<div id="sidebar-resize" role="separator" aria-orientation="vertical" aria-controls="sidebar" aria-label="Resize the file list" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Drag to resize; double-click to reset"></div>
@@ -831,6 +838,7 @@ function signedOutError() {
 }
 /* Forget this tab's tokens. Storage is only cleared if it still holds the — implementation-notes.md#n22 */
 function signOutLocally(spent) {
+	resetNoteReads();
 	var stored = load(CFG_KEY, {});
 	if (!stored.refresh || stored.refresh === spent) forgetStored(CFG_KEY);
 	cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
@@ -1095,6 +1103,20 @@ function createImage(path, content) {
 		return r.content.sha;
 	});
 }
+// https://docs.github.com/en/rest/commits/commits — bounded last ten commits.
+async function recentChanges(live) {
+	if(repoEmpty)return [];
+	var base=repoPath(), list=await request(base+"/commits?sha="+encodeURIComponent(cfg.branch)+"&per_page=10"), result=[];
+	if(!Array.isArray(list))throw incompleteReply();
+	for(var commit of list.slice(0,10)){
+		if(!live())break;
+		if(!/^[a-f0-9]{40}$/i.test(commit.sha))throw incompleteReply();
+		var details=await request(base+"/commits/"+commit.sha+"?per_page=100");
+		if(!Array.isArray(details.files))throw incompleteReply();
+		for(var f of details.files.slice(0,100))if(f.status!=="removed"&&typeof f.filename==="string")result.push({path:f.filename,at:Date.parse(commit.commit?.committer?.date)});
+	}
+	return result;
+}
 function writeFile(path, text, sha) {
 	var body = {
 		message: (sha ? "Update " : "Create ") + path,
@@ -1108,6 +1130,7 @@ function writeFile(path, text, sha) {
 	var url = repoPath() + "/contents/" + encodePath(path);
 	return request(url, { method: "PUT", body: body }).then(function (data) {
 		if (!data || !data.content || typeof data.content.sha !== "string" || !data.content.sha) throw incompleteReply();
+		resetNoteReads();
 		return { sha: data.content.sha };
 	});
 }
@@ -1221,6 +1244,34 @@ function readNote(path) {
 		var base = baseOf(r.text);
 		return { text: base.body.replace(/\r\n?/g, "\n"), sha: r.sha, base: base };
 	});
+}
+var noteReadCache=new Map(),noteReadPending=new Map(),noteReadQueue=[],noteReadActive=0,noteReadBytes=0,noteReadEpoch=0;
+function resetNoteReads(){noteReadEpoch++;noteReadCache.clear();noteReadBytes=0;}
+function sharedRead(path,live){
+	live=live||function(){return true;};
+	var scope=recentScope(),epoch=noteReadEpoch,f=files.find(function(f){return f.path===path;}),key=scope+":"+epoch+":"+(f&&f.sha||path);
+	function valid(){return scope===recentScope()&&signedIn()&&live();}
+	return new Promise(function(resolve,reject){
+		if(!valid()){reject({cancelled:true});return;}
+		if(noteReadCache.has(key)){resolve(noteReadCache.get(key));return;}
+		var pendingKey=key+":"+path,job=noteReadPending.get(pendingKey),waiter={valid:valid,resolve:resolve,reject:reject};
+		if(job){job.waiters.push(waiter);return;}
+		job={key:key,pendingKey:pendingKey,path:path,scope:scope,epoch:epoch,sha:f&&f.sha,waiters:[waiter]};noteReadPending.set(pendingKey,job);noteReadQueue.push(job);pumpNoteReads();
+	});
+}
+function pumpNoteReads(){
+	while(noteReadActive<4&&noteReadQueue.length){
+		let job=noteReadQueue.shift();
+		if(!job.waiters.some(function(w){return w.valid();})){noteReadPending.delete(job.pendingKey);job.waiters.forEach(function(w){w.reject({cancelled:true});});continue;}
+		noteReadActive++;
+		readFile(job.path).then(function(r){
+			if(job.scope===recentScope()&&job.epoch===noteReadEpoch&&r.sha&&r.sha===job.sha){
+				var size=r.text.length*2;while(noteReadCache.size&&(noteReadCache.size>=64||noteReadBytes+size>2097152)){var key=noteReadCache.keys().next().value;noteReadBytes-=noteReadCache.get(key).text.length*2;noteReadCache.delete(key);}
+				if(size<=2097152&&!noteReadCache.has(job.key)){noteReadCache.set(job.key,r);noteReadBytes+=size;}
+			}
+			job.waiters.forEach(function(w){w.valid()?w.resolve(r):w.reject({cancelled:true});});
+		},function(e){job.waiters.forEach(function(w){w.reject(e);});}).finally(function(){noteReadActive--;noteReadPending.delete(job.pendingKey);pumpNoteReads();});
+	}
 }
 // The exact text to commit for editor text `text`, given what was read.
 function rawFor(text, base) {
@@ -1428,7 +1479,7 @@ async function searchContents() {
 			var path = scan[next++];
 			try {
 				var draft = readDraft(path);
-				var text = current && current.path === path ? editor.getValue() : draft ? draft.text : (await readFile(path)).text;
+				var text = current && current.path === path ? editor.getValue() : draft ? draft.text : (await sharedRead(path,live)).text;
 				if (!live()) return;
 				// Read the current draft again: typing may have continued during the request.
 				draft = readDraft(path);
@@ -2468,6 +2519,7 @@ function modeOf(path) {
 }
 /* The note at `from` is now at `to`, same content: re-point whatever this — implementation-notes.md#n70 */
 function followMove(from, to) {
+	resetNoteReads();
 	if (current && current.path === from) {
 		var d = readDraft(from);
 		if (d) { try { draftStore().setItem(draftKey(to), JSON.stringify(d)); } catch (e) {} dropDraft(from); }
@@ -2544,6 +2596,7 @@ function deleteCurrent() {
 }
 /* The note at `path` is gone. Here, or in a clean tab, it is simply — implementation-notes.md#n71 */
 function followDelete(path, fromElsewhere) {
+	resetNoteReads();
 	if (current && current.path === path) {
 		if (fromElsewhere && dirty()) {
 			current.sha = null;
@@ -2945,7 +2998,7 @@ async function scanPins() {
 		while (live() && next < todo.length) {
 			var f = todo[next++];
 			try {
-				var r = await readFile(f.path);
+				var r = await sharedRead(f.path,live);
 				if (r.sha) known[r.sha] = pinnedText(r.text) ? 1 : 0;
 				if (live() && r.sha === f.sha) setPins(function () { found(f); });
 			} catch (e) {
@@ -3208,6 +3261,7 @@ function openDialog() {
 	if (!d.open) d.showModal();
 }
 function showSignIn(message, info) {
+	resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-notes").open=false;
 	$("view-signin").hidden = false;
 	$("view-account").hidden = true;
 	$("f-signin").disabled = !deployed();
@@ -3413,6 +3467,7 @@ function pointAt(owner, repo, branch, pins, prepared) {
 	return changedRepo;
 }
 function showPointed(changedRepo) {
+	if(changedRepo){resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-status").textContent="";$("recent-notes").open=false;}
 	renderTabs();
 	// Same repository: a pinned file being written keeps its state and queue.
 	var keep = pathMap();
@@ -3659,6 +3714,29 @@ try { applyTextSize(localStorage.getItem("notes.textSize")); } catch (e) { apply
 /* Quick switcher uses only the loaded tree. Recents belong to this repository — implementation-notes.md#n101 */
 var quickScope = "", quickMatches = [], quickIndex = 0;
 function recentScope() { return JSON.stringify([cfg.owner, cfg.repo, cfg.branch]); }
+var recentSeq=0,recentLoading=false;
+async function loadRecent(){
+	var seq=++recentSeq,scope=recentScope();recentLoading=true;$("recent-list").replaceChildren();$("recent-status").textContent="Loading recent notes…";
+	function live(){return seq===recentSeq&&scope===recentScope()&&signedIn()&&$("recent-notes").open;}
+	try{
+		var recent=ui.recent,opened=recent&&recent.scope===scope?recent.paths||[]:[],changed=[],incomplete=false;
+		try{changed=await recentChanges(live);}catch(e){if(e.signedOut)throw e;incomplete=true;}
+		if(!live())return;
+		var paths=Array.from(new Set(opened.concat(changed.map(function(r){return r.path;})))).filter(function(p){return !isHidden(p)&&isTextFile(p)&&(readDraft(p)||files.some(function(f){return f.path===p&&f.type==="blob"&&f.size<=MAX_BYTES;}));}).slice(0,20),next=0;
+		var rows=paths.map(function(path){var b=document.createElement("button");b.textContent=path;b.onclick=function(){openFile(path);};$("recent-list").appendChild(b);return b;});
+		async function worker(){while(live()&&next<paths.length){var i=next++,path=paths[i];try{
+			var draft=readDraft(path),text=current&&current.path===path?editor.getValue():draft?draft.text:(await sharedRead(path,live)).text;
+			if(!live())return;
+			draft=readDraft(path);if(draft)text=draft.text;if(current&&current.path===path)text=editor.getValue();
+			text=text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');var front=frontOf(text);if(front)text=text.slice(front[0].length);
+			var heading=/^#{1,6}\s+(.+)$/m.exec(text),r=changed.find(function(r){return r.path===path;}),at=r?r.at:recent?.at?.[path];
+			rows[i].textContent=heading?heading[1]:path;var detail=document.createElement("small");detail.textContent=path+" · "+text.replace(/^#{1,6}\s+.*$/gm,"").replace(/\s+/g," ").trim().slice(0,120)+(Number.isFinite(at)?" · "+new Date(at).toLocaleString():"");rows[i].appendChild(detail);
+		}catch(e){if(e.signedOut)throw e;if(live()){incomplete=true;rows[i].textContent=path+" — preview unavailable";}}}}
+		await Promise.all([worker(),worker(),worker(),worker()]);
+		if(live())$("recent-status").textContent=(incomplete?"Some previews or history unavailable. ":"")+(paths.length?"Opened on this device and changes from the last 10 commits; first 20 notes.":"No recent notes in the loaded file list.");
+	}catch(e){if(seq===recentSeq&&scope===recentScope()){ $("recent-status").textContent="Recent notes unavailable.";fail(e);}}finally{if(seq===recentSeq)recentLoading=false;}
+}
+$("recent-notes").ontoggle=function(){if(this.open)loadRecent();else{recentSeq++;recentLoading=false;}};
 function tabPaths() {
 	var saved=ui.openNotes;
 	return saved&&saved.scope===recentScope()&&Array.isArray(saved.paths)?saved.paths.filter(function(p){return typeof p==="string"&&isTextFile(p)&&!isHidden(p)&&!/[\\\x00-\x1f]/.test(p)&&!p.split("/").some(function(x){return !x||x==="."||x==="..";});}).slice(-12):[];
@@ -3688,7 +3766,8 @@ function rememberNote(path) {
 	var opened=tabPaths();if(!opened.includes(path))opened.push(path);ui.openNotes={scope:recentScope(),paths:opened.slice(-12)};renderTabs();
 	var scope = recentScope(), recent = ui.recent;
 	var paths = recent && recent.scope === scope && Array.isArray(recent.paths) ? recent.paths : [];
-	ui.recent = { scope: scope, paths: [path].concat(paths.filter(function (p) { return p !== path; })).slice(0, 30) };
+	paths=[path].concat(paths.filter(function(p){return p!==path;})).slice(0,30);var times=pathMap();paths.forEach(function(p){times[p]=p===path?Date.now():recent&&recent.scope===scope&&recent.at&&recent.at[p];});
+	ui.recent = { scope: scope, paths:paths,at:times };
 }
 function quickRender() {
 	var q = $("quick-query").value.trim().toLowerCase(), recent = ui.recent;

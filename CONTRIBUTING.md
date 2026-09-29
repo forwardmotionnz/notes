@@ -28,7 +28,7 @@ that a change is quick to review and easy to accept.
    still work (with a visible notice) if it fails to load.
 5. **Nothing the app writes needs Padgit to read it.** No app-specific files
    in anyone's repository; a note stays an ordinary Markdown file.
-6. **`index.html` stays under 200 KB** (`tests/size.test.mjs` checks it).
+6. **`index.html` stays under 250 KB** (`tests/size.test.mjs` checks it).
 
 ## Running it locally
 

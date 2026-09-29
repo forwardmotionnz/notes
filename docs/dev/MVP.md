@@ -883,6 +883,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-28: Owner's choices: GitHub Sponsors for support (N31); rename to Padgit at padgit.com (N34, placed before About so 1.0.0 is Padgit).
 - 2026-09-28: GitHub Sponsors moved out of About (N31) into its own item at the end of the list (N35), as the owner asked.
 - 2026-09-29: Owner's review of the built app: N36 remove ← →, N37 one kind of note (Tasks screen and "Add a task" go), N38 visual redesign with a mock-up first. Placed ahead of the remaining items.
+- 2026-09-29: The owner raised the size limit for `index.html` to 250 KB (256,000 bytes) for the redesign (N38).
 
 ## Log
 (one line per iteration: date, item, result, commit)

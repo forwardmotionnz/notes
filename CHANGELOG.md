@@ -10,6 +10,8 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Heading outline with source/Preview navigation, nested headings and paging for long notes; no extra requests.
+- “Linked from” backlinks for the open Markdown note, including wikilinks, Markdown links and local drafts.
 - Tags from frontmatter and note text, counted in Files, with tag chips and safe frontmatter editing.
 - Recent notes with titles, previews and opened/changed times; shared, bounded reads for previews, search and pin discovery.
 - Open-note tabs, remembered per repository and folded into a list on phones; closing preserves drafts.

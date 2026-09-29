@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-myHYbVmtVZxZJeAsfsWh20+eQ8Y+E3L2+ZPdvhqURG0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-CVwrqvynPog6m+fMQbXczmqUGm73DDeixFKNfgGlvEw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -230,6 +230,8 @@ body.preview-view #editor-pane{display:none;}
 #note-tags{padding:4px 8px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;max-height:18vh;overflow:auto;border-bottom:1px solid var(--line);font-size:12px;}#note-tags button{padding:3px 7px;overflow-wrap:anywhere;max-width:100%;}#note-tags input{width:115px;}#note-tags [data-inline]{color:var(--muted);}
 #note-tags[hidden]{display:none;}
 #tag-counts [aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);}
+#backlinks{padding:6px 10px;border-top:1px solid var(--line);font-size:13px;flex-shrink:0;}#backlinks-list{max-height:20vh;overflow:auto;}#backlinks-list button{display:block;margin:4px 0;text-align:left;overflow-wrap:anywhere;max-width:100%;}
+#outline{width:min(90vw,460px);max-height:75vh;padding:16px;}#outline-list{max-height:50vh;overflow:auto;}#outline-list button{display:block;text-align:left;width:100%;overflow-wrap:anywhere;margin:4px 0;}
 #recent-status{color:var(--muted);font-size:12px;}
 @media(max-width:820px){#note-tabs summary{display:list-item;margin-left:18px;}#note-tabs>div{flex-direction:column;}#note-tabs span{max-width:100%;}#note-tabs span button:first-child{flex:1;text-align:left;}}
 </style>
@@ -277,7 +279,7 @@ body.preview-view #editor-pane{display:none;}
 		<div id="sidebar-resize" role="separator" aria-orientation="vertical" aria-controls="sidebar" aria-label="Resize the file list" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Drag to resize; double-click to reset"></div>
 		<section id="note-workspace" aria-label="Open notes">
 		<details id="note-tabs" hidden><summary>Open notes</summary><div role="group" aria-label="Note tabs"></div></details>
-		<div id="note-tags" role="group" aria-label="Note tags" hidden><span id="tag-chips"></span><form id="tag-add"><input id="tag-input" aria-label="New tag" placeholder="Add tag" maxlength="100" autocomplete="off"><button>Add</button></form></div>
+		<div id="note-tags" role="group" aria-label="Note tools" hidden><button id="btn-outline" type="button">Outline</button><span id="tag-chips"></span><form id="tag-add"><input id="tag-input" aria-label="New tag" placeholder="Add tag" maxlength="100" autocomplete="off"><button>Add</button></form></div>
 		<div id="note-content">
 		<section id="editor-pane">
 			<div id="format-toolbar" role="group" aria-label="Markdown formatting" hidden></div>
@@ -293,7 +295,7 @@ body.preview-view #editor-pane{display:none;}
 			<div id="pin-undo" hidden><span></span><button type="button">Undo</button></div>
 			<div id="pin-list"></div>
 		</aside></article>
-		</div></section>
+		</div><details id="backlinks" hidden><summary>Linked from</summary><div id="backlinks-list"></div><p id="backlinks-status" role="status"></p></details></section>
 		<div id="scrim"></div>
 	</main>
 	<footer id="note-summary" hidden aria-label="Note status"><span id="note-save-status" role="status"></span><span id="note-save-time"></span><span id="note-word-count"></span></footer>
@@ -305,6 +307,7 @@ body.preview-view #editor-pane{display:none;}
 	<p id="quick-status" role="status"></p>
 	<button id="quick-close">Close</button>
 </dialog>
+<dialog id="outline" aria-labelledby="outline-title"><h2 id="outline-title">Headings</h2><div id="outline-list"></div><p id="outline-status" role="status"></p><button id="outline-close">Close</button></dialog>
 <dialog id="settings">
 	<!-- Signed out -->
 	<div id="view-signin">
@@ -429,12 +432,11 @@ body.preview-view #editor-pane{display:none;}
 <script>
 "use strict";
 var APP_VERSION = "1.0.0";
-/* DEPLOYMENT  -  read from the data block above the script. */
+/* N136 */
 var DEPLOYMENT = { clientId: "", appSlug: "", broker: "" };
 try {
 	Object.assign(DEPLOYMENT, JSON.parse(document.getElementById("deployment").textContent));
-} catch (e) {}                         // unreadable: treated as not set up
-// Tests and forks can override without editing the file.
+} catch (e) {}                         /* N105 */
 if (window.NOTES_DEPLOYMENT) DEPLOYMENT = Object.assign({}, DEPLOYMENT, window.NOTES_DEPLOYMENT);
 document.getElementById("app-version").textContent = APP_VERSION;
 (function aboutLinks() {
@@ -449,7 +451,7 @@ document.getElementById("app-version").textContent = APP_VERSION;
 	}
 	if (support) link("about-support", support.href);
 })();
-// A notice only: never move a person away from an origin holding their drafts.
+/* N137 */
 if (DEPLOYMENT.migrationFrom === location.origin + location.pathname && DEPLOYMENT.migrationTo) {
 	document.getElementById("domain-target").textContent = DEPLOYMENT.migrationTo;
 	document.getElementById("domain-notice").hidden = false;
@@ -458,7 +460,8 @@ function filledIn() {
 	return !!(DEPLOYMENT.clientId && DEPLOYMENT.appSlug && DEPLOYMENT.broker) &&
 		!/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);
 }
-/* docs/dev/implementation-notes.md#n1 */
+/* Numbered comments refer to docs/dev/implementation-notes.md. */
+/* N1 */
 function brokerAllowed() {
 	var target;
 	try { target = new URL(DEPLOYMENT.broker); } catch (e) { return false; }
@@ -473,12 +476,12 @@ function brokerAllowed() {
 		return !list || list.some(function (src) { return sourceAllows(src, target); });
 	});
 }
-/* docs/dev/implementation-notes.md#n2 */
+/* N2 */
 function sourceAllows(src, target) {
 	src = src.toLowerCase();
 	if (/^[a-z][a-z0-9+.-]*:$/.test(src)) return target.protocol === src;
 	if (src.charAt(0) === "'") return false;
-	// No scheme: the page's own, or its secure upgrade (CSP3, "scheme-part").
+	/* N138 */
 	if (!/^[a-z][a-z0-9+.-]*:\/\//.test(src)) {
 		var upgrade = location.protocol === "http:" && target.protocol === "https:";
 		src = (upgrade ? "https:" : location.protocol) + "//" + src;
@@ -502,14 +505,14 @@ function deployed() {
 var CFG_KEY = "notes.config.v2";
 var UI_KEY  = "notes.ui.v1";
 var AUTH_KEY = "notes.signin";          // state + PKCE verifier, one sign-in
-/* docs/dev/implementation-notes.md#n3 */
+/* N3 */
 var sessionOnly = false;
 var cfg = load(CFG_KEY, {
 	token: "", refresh: "", expires: 0, login: "", avatar: "",
 	owner: "", repo: "", branch: "", pins: ["todo.md"]
 });
 var ui = load(UI_KEY, { open: {}, last: null, pin: 0 });
-/* docs/dev/implementation-notes.md#n4 */
+/* N4 */
 function pathMap(from) { return Object.assign(Object.create(null), from || {}); }
 ui.open = pathMap(ui.open);
 function load(key, fallback) {
@@ -521,7 +524,7 @@ function load(key, fallback) {
 		return raw ? Object.assign({}, fallback, JSON.parse(raw)) : fallback;
 	} catch (e) { return fallback; }
 }
-/* docs/dev/implementation-notes.md#n5 */
+/* N5 */
 function persist(key, val) {
 	var json = JSON.stringify(val);
 	try {
@@ -538,13 +541,12 @@ function forgetStored(key) {
 	try { localStorage.removeItem(key); } catch (e) {}
 	try { sessionStorage.removeItem(key); } catch (e) {}
 }
-/* docs/dev/implementation-notes.md#n6 */
+/* N6 */
 var DRAFT_PREFIX = "notes.draft.v1:";
 var draftWarned = false;
-var draftWritten = {};     // draft key -> last text this tab stored there
+var draftWritten = {};     /* N139 */
 function draftStore() { return sessionOnly ? sessionStorage : localStorage; }
-// Keyed by repository and branch as well as path: the same path in another
-// repository is another file.
+/* N106 */
 function draftKey(path) {
 	return DRAFT_PREFIX + cfg.owner + "/" + cfg.repo + "@" + cfg.branch + ":" + path;
 }
@@ -557,12 +559,11 @@ function readDraft(path) {
 function dropDraft(path) {
 	try { draftStore().removeItem(draftKey(path)); } catch (e) {}
 }
-/* docs/dev/implementation-notes.md#n7 */
+/* N7 */
 function syncDraft() {
 	if (!current || !signedIn()) return;
 	if (!dirty()) {
-		// Another tab on the same file may have written the draft since; its
-		// text is not ours to throw away.
+		/* N107 */
 		var d = readDraft(current.path);
 		if (d && (d.text === draftWritten[draftKey(current.path)] || d.text === current.saved)) {
 			dropDraft(current.path);
@@ -577,8 +578,7 @@ function syncDraft() {
 		}));
 		draftWarned = false;
 	} catch (e) {
-		// Storage full or blocked: say so once, so nobody relies on a copy
-		// that is not there.
+		/* N108 */
 		if (!draftWarned) flash("Could not keep a local copy of your changes. Save soon.", true);
 		draftWarned = true;
 	}
@@ -599,8 +599,7 @@ function forgetDrafts() {
 		draftKeys(store).forEach(function (k) { try { store.removeItem(k); } catch (e) {} });
 	});
 }
-// On changing mode, drafts follow the settings into the other store and no
-// copy is left behind in the one being left.
+/* N109 */
 function moveDrafts(nextSessionOnly) {
 	var from = nextSessionOnly ? localStorage : sessionStorage;
 	var to = nextSessionOnly ? sessionStorage : localStorage;
@@ -629,7 +628,7 @@ function configured() {
 	return !!(cfg.token && cfg.owner && cfg.repo && cfg.branch);
 }
 function saveCfg() { if (signedIn()) persist(CFG_KEY, cfg); }
-/* docs/dev/implementation-notes.md#n8 */
+/* N8 */
 function redirectUri() {
 	return location.origin + location.pathname;
 }
@@ -664,7 +663,7 @@ function signIn(remember) {
 			location.assign("https://github.com/login/oauth/authorize?" + q.toString());
 		});
 }
-/* docs/dev/implementation-notes.md#n9 */
+/* N9 */
 function completeSignIn(params) {
 	var pending = null;
 	try { pending = JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); } catch (e) {}
@@ -672,11 +671,11 @@ function completeSignIn(params) {
 	history.replaceState(null, "", redirectUri());   // the code is single-use; drop it
 	var code = params.get("code");
 	var state = params.get("state");
-	/* docs/dev/implementation-notes.md#n10 */
+	/* N10 */
 	if (!pending && params.get("setup_action")) {
 		return Promise.resolve({ installed: true });
 	}
-	/* docs/dev/implementation-notes.md#n11 */
+	/* N11 */
 	if (!pending) return Promise.resolve({ orphan: true });
 	if (!state || state !== pending.state) {
 		var e = new Error("Sign-in expired or did not start here. Try again.");
@@ -693,12 +692,12 @@ function completeSignIn(params) {
 	});
 }
 var ORPHAN_SIGNIN = "That sign-in did not finish in this tab. Please sign in again.";
-/* docs/dev/implementation-notes.md#n12 */
+/* N12 */
 function showSignInAgain(message, session) {
 	showSignIn(message);
 	$("f-session-in").checked = typeof session === "boolean" ? session : true;
 }
-/* docs/dev/implementation-notes.md#n13 */
+/* N13 */
 function fetchJSON(url, options) {
 	var controller = new AbortController();
 	var timer = setTimeout(function () { controller.abort(); }, 30000);
@@ -745,12 +744,11 @@ function broker(body) {
 function applyTokens(t) {
 	cfg.token = t.access_token;
 	cfg.refresh = t.refresh_token || "";
-	// expires_in is 0 when the GitHub App has token expiry turned off.
+	/* N140 */
 	cfg.expires = t.expires_in ? Date.now() + t.expires_in * 1000 : 0;
 	saveCfg();
 }
-/* Another tab may already have refreshed. Refresh tokens are single-use, so
-	 using ours after that would fail. Adopt theirs. */
+/* N110 */
 function adoptStoredTokens() {
 	var stored = load(CFG_KEY, {});
 	if (stored.token && stored.token !== cfg.token) {
@@ -761,7 +759,7 @@ function adoptStoredTokens() {
 	}
 	return false;
 }
-/* docs/dev/implementation-notes.md#n14 */
+/* N14 */
 function withRefreshLock(fn) {
 	if (navigator.locks && navigator.locks.request) {
 		return navigator.locks.request("notes-token-refresh", { ifAvailable: true }, function (lock) {
@@ -772,14 +770,14 @@ function withRefreshLock(fn) {
 	return Promise.resolve().then(function () { return fn(false); });
 }
 var refreshing = null;
-/* docs/dev/implementation-notes.md#n15 */
+/* N15 */
 function refreshTokens(stale) {
 	if (refreshing) return refreshing;
 	if (stale === undefined) stale = cfg.token;
 	refreshing = withRefreshLock(function (waited) {
 		adoptStoredTokens();
 		if (newerThan(stale)) return cfg.token;
-		/* docs/dev/implementation-notes.md#n16 */
+		/* N16 */
 		var shared = waited && !sessionOnly;
 		return (shared ? waitForNewer(stale, 1500) : Promise.resolve(null)).then(function (newer) {
 			return newer || spend(shared);
@@ -792,19 +790,18 @@ function refreshTokens(stale) {
 		if (!cfg.refresh) { signOutLocally(""); throw signedOutError(); }
 		var spent = cfg.refresh;
 		return broker({ refresh_token: spent }).then(function (t) {
-			/* docs/dev/implementation-notes.md#n17 */
+			/* N17 */
 			if (cfg.refresh !== spent) return cfg.token;
 			applyTokens(t);
 			return cfg.token;
 		}, function (err) {
-			/* docs/dev/implementation-notes.md#n18 */
+			/* N18 */
 			if (err.code !== "bad_refresh_token") { err.retryable = true; throw err; }
-			// Safari storage may arrive after the refresh lock; allow its newer
-			// token to arrive even while this tab holds the lock.
+			/* N111 */
 			return waitForNewer(stale, 2000).then(function (token) {
 				if (token) return token;
 				if (waited) {
-					/* docs/dev/implementation-notes.md#n19 */
+					/* N19 */
 					cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
 				} else {
 					signOutLocally(spent);
@@ -814,7 +811,7 @@ function refreshTokens(stale) {
 		});
 	}
 }
-/* docs/dev/implementation-notes.md#n20 */
+/* N20 */
 function waitForNewer(stale, ms) {
 	return new Promise(function (resolve) {
 		var until = Date.now() + ms;
@@ -826,7 +823,7 @@ function waitForNewer(stale, ms) {
 		})();
 	});
 }
-/* docs/dev/implementation-notes.md#n21 */
+/* N21 */
 function newerThan(stale) {
 	return !!cfg.token && cfg.token !== stale && !(cfg.expires && Date.now() > cfg.expires - 5000);
 }
@@ -843,14 +840,14 @@ function signedOutError() {
 	e.signedOut = true;
 	return e;
 }
-/* docs/dev/implementation-notes.md#n22 */
+/* N22 */
 function signOutLocally(spent) {
 	resetNoteReads();
 	var stored = load(CFG_KEY, {});
 	if (!stored.refresh || stored.refresh === spent) forgetStored(CFG_KEY);
 	cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
 }
-/* Keep tabs in step: a refresh or sign-out in one applies to the others. */
+/* N141 */
 window.addEventListener("storage", function (e) {
 	if (current && (!e.key || e.key === draftKey(current.path))) updateNoteSummary();
 	if (e.key !== CFG_KEY) return;
@@ -862,7 +859,7 @@ window.addEventListener("storage", function (e) {
 	adoptStoredTokens();
 	followSettings();
 });
-/* docs/dev/implementation-notes.md#n23 */
+/* N23 */
 var API = "https://api.github.com";
 var apiRetryAt = 0;
 function rateLimitError() {
@@ -878,12 +875,12 @@ function request(path, options, retried) {
 	if (Date.now() < apiRetryAt) return Promise.reject(rateLimitError());
 	var used = "";
 	return currentToken().then(function (token) {
-		// Another request may have hit a limit while this one awaited refresh.
+		/* N142 */
 		if (Date.now() < apiRetryAt) throw rateLimitError();
 		used = token;
 		return fetchJSON(API + path, {
 			method: options.method || "GET",
-			/* docs/dev/implementation-notes.md#n24 */
+			/* N24 */
 			cache: "no-store",
 			headers: {
 				"Authorization": "Bearer " + token,
@@ -899,7 +896,7 @@ function request(path, options, retried) {
 		});
 	}).then(function (reply) {
 		var res = reply.res;
-		// A token GitHub no longer accepts: refresh once and try again.
+		/* N143 */
 		if (res.status === 401 && !retried && cfg.refresh) {
 			return refreshTokens(used).then(function () { return request(path, options, true); });
 		}
@@ -908,7 +905,7 @@ function request(path, options, retried) {
 			return Promise.resolve(reply.data).then(function (body) {
 				if (!body || typeof body !== "object") body = {};
 				var detail = typeof body.message === "string" ? body.message : "";
-				/* docs/dev/implementation-notes.md#n25 */
+				/* N25 */
 				if (res.status === 429 || (res.status === 403 && (res.headers.get("x-ratelimit-remaining") === "0" || /rate limit/i.test(detail)))) {
 					var after = Number(res.headers.get("retry-after"));
 					var reset = Number(res.headers.get("x-ratelimit-reset")) * 1000;
@@ -923,7 +920,7 @@ function request(path, options, retried) {
 				if (res.status >= 500) msg = "GitHub is temporarily unavailable. Try again shortly.";
 				if (res.status === 401) msg = "Signed out. Sign in again to continue.";
 				if (res.status === 403) msg = "GitHub refused. Is the app installed on this repository?";
-				/* docs/dev/implementation-notes.md#n26 */
+				/* N26 */
 				var tooBig = (Array.isArray(body.errors) ? body.errors : []).some(function (e) { return e && e.code === "too_large"; });
 				if (tooBig) msg = "That file is larger than 1 MB, too large to edit here, so it is left alone.";
 				if (res.status === 409) msg = "Conflict. The file changed on the server.";
@@ -945,11 +942,11 @@ function request(path, options, retried) {
 		return reply.data;
 	});
 }
-/* Account-level calls, used only by the settings dialog. */
+/* N144 */
 function fetchUser() {
 	return request("/user");
 }
-/* docs/dev/implementation-notes.md#n27 */
+/* N27 */
 function listRepos() {
 	var failed = 0;
 	return allPages("/user/installations", "installations").then(function (installs) {
@@ -971,7 +968,7 @@ function listRepos() {
 		return repos;
 	});
 }
-// fn over items, at most n at once; results in the items' order.
+/* N145 */
 function fewAtATime(items, n, fn) {
 	var results = [], next = 0;
 	function worker() {
@@ -983,7 +980,7 @@ function fewAtATime(items, n, fn) {
 	for (var k = 0; k < Math.min(n, items.length); k++) workers.push(worker());
 	return Promise.all(workers).then(function () { return results; });
 }
-/* docs/dev/implementation-notes.md#n28 */
+/* N28 */
 function repoAccess() {
 	return request(repoPath()).then(function (r) {
 		if (r && r.archived) {
@@ -995,7 +992,7 @@ function repoAccess() {
 		return "";
 	});
 }
-/* docs/dev/implementation-notes.md#n29 */
+/* N29 */
 function allPages(path, key) {
 	var out = [];
 	function page(n) {
@@ -1013,19 +1010,18 @@ function allPages(path, key) {
 function repoPath() {
 	return "/repos/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo);
 }
-// Encode a path for the contents API: slashes must stay literal.
+/* N146 */
 function encodePath(p) {
 	return p.split("/").map(encodeURIComponent).join("/");
 }
-/* docs/dev/implementation-notes.md#n30 */
+/* N30 */
 var repoEmpty = false;
 function isEmptyRepo() { return repoEmpty; }
-/* docs/dev/implementation-notes.md#n31 */
+/* N31 */
 function listTree() {
 	var url = repoPath() + "/git/trees/" + encodeURIComponent(cfg.branch) + "?recursive=1";
 	return request(url).catch(function (err) {
-		// 409 means empty, or unavailable (still being created, for one); only
-		// GitHub's own words tell them apart.
+		/* N112 */
 		if (err.status === 409 && /empty/i.test(err.detail)) return { tree: [], empty: true };
 		if (err.status === 409) {
 			throw new Error("GitHub says this repository is not available right now; it may still " +
@@ -1058,8 +1054,7 @@ function listTree() {
 		return list;
 	});
 }
-// A file the app will not open, so must never write: too large, stored in
-// Git LFS, or not UTF-8.
+/* N113 */
 function refused(message) {
 	var e = new Error(message);
 	e.refused = true;
@@ -1071,24 +1066,23 @@ function readFile(path) {
 	return request(url, { allow404: true }).then(function (data) {
 		if (!data) return { text: "", sha: null };              // file does not exist yet
 		if (Array.isArray(data)) throw new Error("That path is a folder.");
-		/* docs/dev/implementation-notes.md#n32 */
+		/* N32 */
 		if (data.encoding === "none") throw refused(tooLargeMessage(path));
 		if (typeof data.sha !== "string" || !data.sha || typeof data.content !== "string") throw incompleteReply();
 		var text;
 		try { text = fromBase64(data.content || ""); }
 		catch (e) {
-			/* docs/dev/implementation-notes.md#n33 */
+			/* N33 */
 			throw refused(path.split("/").pop() + " is not UTF-8 text, so it is left alone.");
 		}
-		// A Git LFS pointer stands in for a file stored elsewhere; saving over it
-		// would replace that file with this text.
+		/* N114 */
 		if (/^version https:\/\/git-lfs\.github\.com\/spec\/v1\r?\n/.test(text)) {
 			throw refused(path.split("/").pop() + " is stored with Git LFS, so it is left alone.");
 		}
 		return { text: text, sha: data.sha };
 	});
 }
-/* docs/dev/implementation-notes.md#n34 */
+/* N34 */
 function readImage(path) {
 	return request(repoPath() + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(cfg.branch)).then(function (data) {
 		if (!data || data.encoding !== "base64" || data.size > 1048576 || typeof data.content !== "string" || data.content.length > 1500000) throw new Error("Image exceeds 1 MB or is unavailable");
@@ -1110,7 +1104,7 @@ function createImage(path, content) {
 		return r.content.sha;
 	});
 }
-// https://docs.github.com/en/rest/commits/commits — bounded last ten commits.
+/* N147 */
 async function recentChanges(live) {
 	if(repoEmpty)return [];
 	var base=repoPath(), list=await request(base+"/commits?sha="+encodeURIComponent(cfg.branch)+"&per_page=10"), result=[];
@@ -1130,8 +1124,7 @@ function writeFile(path, text, sha) {
 		content: toBase64(text),
 		branch: cfg.branch
 	};
-	// No branch exists yet in an empty repository; left out, GitHub uses the
-	// default one and creates it with this commit.
+	/* N115 */
 	if (repoEmpty) delete body.branch;
 	if (sha) body.sha = sha;                                  // optimistic concurrency
 	var url = repoPath() + "/contents/" + encodePath(path);
@@ -1141,7 +1134,7 @@ function writeFile(path, text, sha) {
 		return { sha: data.content.sha };
 	});
 }
-/* docs/dev/implementation-notes.md#n35 */
+/* N35 */
 function deleteFile(path, sha) {
 	var url = repoPath() + "/contents/" + encodePath(path);
 	return request(url, { method: "DELETE", body: { message: "Delete " + path, sha: sha, branch: cfg.branch } })
@@ -1154,7 +1147,7 @@ function deleteFile(path, sha) {
 			}, function () { throw err; });
 		});
 }
-/* docs/dev/implementation-notes.md#n36 */
+/* N36 */
 function moveFile(from, to, sha, mode) {
 	var root = repoPath(), git = root + "/git";
 	var ref = "heads/" + encodePath(cfg.branch);
@@ -1185,8 +1178,7 @@ function moveFile(from, to, sha, mode) {
 						if (!commit || typeof commit.sha !== "string" || !commit.sha) throw incompleteReply();
 						return request(git + "/refs/" + ref, { method: "PATCH", body: { sha: commit.sha, force: false } })
 							.catch(function (err) {
-								// No answer at all: the move may have landed. It did if the
-								// new path now holds this version and the old one is gone.
+								/* N116 */
 								if (err.status && err.status < 500) throw err;
 								return request(git + "/ref/" + ref).then(function (r2) {
 									return Promise.all([contentsAt(to, r2.object.sha), contentsAt(from, r2.object.sha)]);
@@ -1207,7 +1199,7 @@ function moveFile(from, to, sha, mode) {
 function describe() {
 	return cfg.owner + "/" + cfg.repo + "@" + cfg.branch;
 }
-/* ---- base64 that survives UTF-8 and large files ---------------- */
+/* N148 */
 function toBase64(str) {
 	var bytes = new TextEncoder().encode(str);
 	var bin = "", CH = 0x8000;
@@ -1220,10 +1212,10 @@ function fromBase64(b64) {
 	var bin = atob(b64.replace(/\s/g, ""));
 	var bytes = new Uint8Array(bin.length);
 	for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-	/* docs/dev/implementation-notes.md#n37 */
+	/* N37 */
 	return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
 }
-/* docs/dev/implementation-notes.md#n38 */
+/* N38 */
 function eolOf(text) {
 	var crlf = (text.match(/\r\n/g) || []).length;
 	var cr = (text.match(/\r/g) || []).length - crlf;
@@ -1237,7 +1229,7 @@ function baseOf(raw) {
 	var body = bom ? raw.slice(1) : raw;
 	return { body: body, bom: bom, eol: eolOf(body) };
 }
-// [{ text, end }] per line; the last line's end is "".
+/* N149 */
 function splitLines(body) {
 	var out = [], re = /([^\r\n]*)(\r\n|\r|\n|$)/g, m;
 	while ((m = re.exec(body))) {
@@ -1280,7 +1272,7 @@ function pumpNoteReads(){
 		},function(e){job.waiters.forEach(function(w){w.reject(e);});}).finally(function(){noteReadActive--;noteReadPending.delete(job.pendingKey);pumpNoteReads();});
 	}
 }
-// The exact text to commit for editor text `text`, given what was read.
+/* N150 */
 function rawFor(text, base) {
 	if (!base) return text;
 	var old = splitLines(base.body), neu = text.split("\n");
@@ -1290,7 +1282,7 @@ function rawFor(text, base) {
 	while (j < n - i && j < o - i && neu[n - 1 - j] === old[o - 1 - j].text) {
 		ends[n - 1 - j] = old[o - 1 - j].end; j++;
 	}
-	/* docs/dev/implementation-notes.md#n39 */
+	/* N39 */
 	var anchors = [[i - 1, i - 1]];
 	var M = n - j - i, N = o - j - i, W = N + 1;
 	if (M * N <= 1e6) {
@@ -1317,12 +1309,12 @@ function rawFor(text, base) {
 	}
 	var k, out = "";
 	for (k = 0; k < n - 1; k++) if (!ends[k]) ends[k] = base.eol;
-	/* docs/dev/implementation-notes.md#n40 */
+	/* N40 */
 	for (k = 0; k < n - 2; k++) {
 		if (ends[k] === "\r" && neu[k + 1] === "" && ends[k + 1].charAt(0) === "\n") ends[k + 1] = "\r";
 	}
 	for (k = 0; k < n; k++) out += neu[k] + (k === n - 1 ? "" : ends[k]);
-	// Whatever happens above, what is saved must read back as what was typed.
+	/* N151 */
 	if (out.replace(/\r\n?/g, "\n") !== text) out = text.replace(/\n/g, base.eol);
 	return (base.bom ? "\uFEFF" : "") + out;
 }
@@ -1333,7 +1325,7 @@ var editor = null;
 var pinCache = pathMap();   // path -> { text, sha }
 var statusTimer = null;
 function $(id) { return document.getElementById(id); }
-/* docs/dev/implementation-notes.md#n41 */
+/* N41 */
 function flash(msg, isError, ms) {
 	updateNoteSummary();
 	var el = $("status");
@@ -1349,8 +1341,7 @@ function fail(err) {
 	if (err && err.signedOut) showSignIn();
 }
 /* TREE */
-var readOnly = "";            // why this repository cannot be changed, or ""
-// The editor takes typing only when there is a note for it to go into.
+var readOnly = "";            /* N117 */
 function editorLock() {
 	if (editor && editor.setOption) editor.setOption("readOnly", !!readOnly || moving || !current);
 	$("format-toolbar").hidden = !current;
@@ -1370,14 +1361,14 @@ function applyAccess(reason) {
 	if (reason && reason !== was) flash(reason, true);
 }
 var treeState = "ok";
-var treeError = "";            // shown in the list when it failed for a reason worth keeping          // "loading" | "failed" | "ok": what an empty tree means
-var loadNote = "";             // said once the next file list is in (it clears the status line)
-/* docs/dev/implementation-notes.md#n42 */
+var treeError = "";            /* N118 */
+var loadNote = "";             /* N152 */
+/* N42 */
 var pinWriting = Promise.resolve(); // all pinned commits so far, settled
 var pinNext = pathMap(); // path -> job waiting for the one before
-var pinBusy = pathMap();   // path -> true while a commit to it is on its way
+var pinBusy = pathMap();   /* N153 */
 var pinReloading = pathMap();
-var pinEpoch = 0; // bumped on changing repository; older replies ignored
+var pinEpoch = 0; /* N154 */
 var accessSeq = 0;
 var accessPending = false;
 function checkAccess() {
@@ -1403,7 +1394,7 @@ function refreshTree() {
 	return listTree().then(function (list) {
 		if (sequence !== treeSeq || epoch !== pinEpoch || !configured()) return;
 		if (list.movedTo) {
-			// Follow the repository to its default branch, as if chosen in settings.
+			/* N155 */
 			var changed = pointAt(cfg.owner, cfg.repo, list.movedTo, cfg.pins);
 			saveCfg();
 			persist(UI_KEY, ui);
@@ -1423,7 +1414,7 @@ function refreshTree() {
 		treeState = "failed";
 		treeError = err.unreachable ? err.message : "";
 		if (err.unreachable) {
-			files = [];                        // nothing listed may look as if it were still there
+			files = [];                        /* N156 */
 			accessSeq++;                       // and nothing is written to it
 			accessPending = false;
 			applyAccess(err.message);
@@ -1438,7 +1429,7 @@ function refreshTree() {
 	 (pasted images, PDFs). A name with no extension (LICENSE, Makefile) is
 	 treated as text. */
 var TEXT_FILE = /\.(md|markdown|mdx|txt|text|csv|tsv|json|jsonc|ya?ml|toml|ini|cfg|conf|canvas|excalidraw|base|html?|xml|svg|css|scss|js|mjs|cjs|jsx|ts|tsx|py|rb|sh|bash|zsh|fish|sql|rs|go|java|kt|swift|c|h|cpp|hpp|cs|lua|php|pl|r|jl|vue|astro|env|gitignore|gitattributes|editorconfig|log|org|rst|adoc|tex|bib|diff|patch|srt|vtt|properties|gradle|dockerfile|makefile)$/i;
-/* docs/dev/implementation-notes.md#n43 */
+/* N43 */
 var MAX_BYTES = 1024 * 1024;
 function tooLarge(path) {
 	return files.some(function (f) { return f.path === path && f.size > MAX_BYTES; });
@@ -1456,7 +1447,7 @@ function isTextFile(path) {
 	var name = path.split("/").pop();
 	return name.indexOf(".") === -1 || TEXT_FILE.test(name);
 }
-/* docs/dev/implementation-notes.md#n44 */
+/* N44 */
 function isHidden(path) {
 	return path.split("/").some(function (seg) { return seg.charAt(0) === "."; });
 }
@@ -1488,7 +1479,7 @@ async function searchContents() {
 				var draft = readDraft(path);
 				var text = current && current.path === path ? editor.getValue() : draft ? draft.text : (await sharedRead(path,live)).text;
 				if (!live()) return;
-				// Read the current draft again: typing may have continued during the request.
+				/* N157 */
 				draft = readDraft(path);
 				if (current && current.path === path) text = editor.getValue(); else if (draft) text = draft.text;
 				if (text.toLowerCase().indexOf(term) !== -1) matches.push(path);
@@ -1541,7 +1532,7 @@ function renderTree() {
 		host.appendChild(e);
 		return;
 	}
-	// Filtering flattens the view: it is a search result, not a tree.
+	/* N158 */
 	if (term) {
 		blobs.slice(0, 300).forEach(function (f) {
 			host.appendChild(fileRow(f.path, f.path, 0));
@@ -1613,7 +1604,7 @@ function fileRow(label, path, depth) {
 	return row;
 }
 /* EDITOR */
-/* docs/dev/implementation-notes.md#n45 */
+/* N45 */
 function textareaEditor(host) {
 	var ta = document.createElement("textarea");
 	ta.className = "fallback-editor";
@@ -1630,7 +1621,7 @@ function textareaEditor(host) {
 		clearHistory: function () {},
 		refresh: function () {},
 		scrollIntoView: function () {
-			/* docs/dev/implementation-notes.md#n46 */
+			/* N46 */
 			var mirror = document.createElement("div"), marker = document.createElement("span");
 			var style = getComputedStyle(ta);
 			["font", "lineHeight", "letterSpacing", "padding", "border", "boxSizing", "wordSpacing", "tabSize"].forEach(function (key) {
@@ -1640,7 +1631,7 @@ function textareaEditor(host) {
 			mirror.style.width = ta.getBoundingClientRect().width + "px";
 			var caret = ta.selectionDirection === "backward" ? ta.selectionStart : ta.selectionEnd;
 			mirror.textContent = ta.value.slice(0, caret);
-			// Keep the suffix: truncating the word can move it to the line above.
+			/* N159 */
 			marker.textContent = ta.value.slice(caret) || "\u200b";
 			mirror.appendChild(marker);
 			document.body.appendChild(mirror);
@@ -1656,7 +1647,7 @@ function textareaEditor(host) {
 		caret: function () { return ta.selectionStart; }
 	};
 }
-// Formatting edits source text through each editor's normal edit history.
+/* N160 */
 var imageUploading = false;
 function imageFolder(setting, note) {
 	var parent = note.includes("/") ? note.slice(0,note.lastIndexOf("/")) : "";
@@ -1766,7 +1757,7 @@ function formatNote(kind) {
 	editor.focus();
 	if (ta) {
 		ta.setSelectionRange(a,b);
-		/* docs/dev/implementation-notes.md#n47 */
+		/* N47 */
 		var inserted = false;
 		try { inserted = document.execCommand("insertText", false, replacement); } catch (e) {}
 		if (!inserted) ta.setRangeText(replacement,a,b,"end");
@@ -1796,7 +1787,7 @@ function ensureEditor() {
 	var ph = $("placeholder");
 	if (ph) ph.remove();
 	var host = $("editor-pane");
-	/* docs/dev/implementation-notes.md#n48 */
+	/* N48 */
 	var css = document.querySelector('link[href*="/codemirror/"]');
 	if (typeof CodeMirror === "function" && css && css.sheet) {
 		editor = CodeMirror(host, {
@@ -1807,7 +1798,7 @@ function ensureEditor() {
 			viewportMargin: 30,
 			inputStyle: "contenteditable",
 			spellcheck: true,
-			// Ctrl/Cmd-click follows a wikilink; it must not add a second cursor.
+			/* N161 */
 			configureMouse: function () { return { addNew: false }; },
 			extraKeys: {
 				"Cmd-S": function () { saveCurrent(); },
@@ -1816,13 +1807,11 @@ function ensureEditor() {
 		});
 	} else {
 		editor = textareaEditor(host);
-		// A badge in the header, not a toast: the status line is transient and
-		// gets cleared by whatever happens next.
+		/* N119 */
 		document.body.classList.add("plain-editor");
 	}
 	editorLock();
-	// CodeMirror reports setValue (opening a file, a restored draft) as a
-	// change too; only typing counts towards an autosave.
+	/* N120 */
 	editor.on("change", function (cm, change) {
 		if (document.body.classList.contains("preview-view")) previewView(!!current);
 		if (!current) return;
@@ -1840,7 +1829,7 @@ function ensureEditor() {
 	return editor;
 }
 /* WIKILINKS */
-/* docs/dev/implementation-notes.md#n49 */
+/* N49 */
 function followLinks(el) {
 	var touch = false;
 	el.addEventListener("pointerdown", function (e) { touch = e.pointerType === "touch"; }, true);
@@ -1852,7 +1841,7 @@ function followLinks(el) {
 		openLink(target);
 	}, true);
 }
-/* docs/dev/implementation-notes.md#n50 */
+/* N50 */
 function clickOffset(e) {
 	if (editor.caret) return editor.caret();
 	if (editor.coordsChar && (e.clientX || e.clientY)) {
@@ -1860,23 +1849,22 @@ function clickOffset(e) {
 	}
 	return editor.indexFromPos(editor.getCursor());
 }
-// The link target under `at`, without its alias, heading or block, or null.
-// A link never spans lines.
+/* N121 */
 function linkAt(text, at) {
 	var start = text.lastIndexOf("\n", at - 1) + 1;
 	var end = text.indexOf("\n", at);
 	var line = text.slice(start, end === -1 ? text.length : end);
 	var re = /\[\[([^\[\]\n]+)\]\]/g, m;
 	while ((m = re.exec(line))) {
-		/* docs/dev/implementation-notes.md#n51 */
+		/* N51 */
 		if (at - start <= m.index || at - start >= m.index + m[0].length) continue;
-		// In a table the alias bar is written \| so it does not end the cell.
+		/* N162 */
 		var target = m[1].split("|")[0].replace(/\\$/, "").split("#")[0].split("^")[0].trim();
 		return target ? target.replace(/^\/+/, "") : null;
 	}
 	return null;
 }
-/* docs/dev/implementation-notes.md#n52 */
+/* N52 */
 function resolveLink(target) {
 	var want = target.toLowerCase();
 	var best = null;
@@ -1896,7 +1884,7 @@ function openLink(target) {
 	var path = resolveLink(target);
 	if (path) { openFile(path); return; }
 	var name = target.split("/").pop();
-	// Unresolved against a list not (or not freshly) loaded is not "missing".
+	/* N163 */
 	if (treeState !== "ok") {
 		flash("The list of notes is not loaded, so " + name + " cannot be looked up yet. " +
 					"Try again in a moment, or press \u21bb.", true);
@@ -1913,10 +1901,10 @@ function openLink(target) {
 		return;
 	}
 	if (!confirm("There is no note called \u201c" + name + "\u201d yet. Create it?")) return;
-	// As Obsidian does, a link makes a note: [[Release 1.2]] is Release 1.2.md.
+	/* N164 */
 	startNote(spelledLikeFolders(/\.md$/i.test(target) ? target : target + ".md"));
 }
-/* docs/dev/implementation-notes.md#n53 */
+/* N53 */
 function spelledLikeFolders(path) {
 	var segs = path.split("/"), out = "";
 	for (var i = 0; i < segs.length - 1; i++) {
@@ -1931,8 +1919,9 @@ function spelledLikeFolders(path) {
 function dirty() {
 	return !!(current && editor && editor.getValue() !== current.saved);
 }
-/* docs/dev/implementation-notes.md#n54 */
+/* N54 */
 function updateNoteSummary() {
+	updateBacklinks();
 	renderNoteTags();
 	var box = $("note-summary");
 	if (!box) return;
@@ -1952,13 +1941,13 @@ function updateNoteSummary() {
 	var count = (text.match(/\S+/g) || []).length;
 	$("note-word-count").textContent = count + (count === 1 ? " word" : " words");
 }
-/* docs/dev/implementation-notes.md#n55 */
+/* N55 */
 function showDiscard(on, copy) {
 	$("btn-discard").hidden = !on;
 	$("btn-copy").hidden = !copy;
 }
 function setCrumb(path, tag) {
-	// Rename and Delete are for a file that exists on GitHub (not a new one yet).
+	/* N165 */
 	$("btn-rename").hidden = $("btn-delete").hidden = !(current && current.sha && current.path === path);
 	var el = $("crumb");
 	el.textContent = "";
@@ -1987,10 +1976,10 @@ function setCrumb(path, tag) {
 		el.appendChild(t);
 	}
 }
-/* docs/dev/implementation-notes.md#n56 */
+/* N56 */
 var openSeq = 0, openingPath = null;
 function openFile(path, discarding, navigating) {
-	// Guards the restore-on-boot path as well as a click.
+	/* N166 */
 	if (!isTextFile(path)) {
 		flash(path.split("/").pop() + " is not a text file.", true);
 		return;
@@ -1999,14 +1988,14 @@ function openFile(path, discarding, navigating) {
 	openingPath=path;
 	function stillHere() { return sequence === openSeq && epoch === pinEpoch && signedIn(); }
 	if (discarding) {
-		// Nothing on screen may be committed while GitHub's version loads.
+		/* N167 */
 		if (current) current.leaving = true;
 		clearTimeout(autosaveTimer);
 	} else {
 		leaveCurrent();
 	}
 	flash("Opening...");
-	/* docs/dev/implementation-notes.md#n57 */
+	/* N57 */
 	var ahead = Promise.all([inflight && inflight.key === draftKey(path) ? inflight.done : null, pinBusy[path] ? pinWriting : null]);
 	return ahead.then(function () { if (stillHere()) return readNote(path); }).then(function (r) {
 		if (!r || !stillHere()) return;
@@ -2015,7 +2004,7 @@ function openFile(path, discarding, navigating) {
 		if (discarding) dropDraft(path);
 		var draft = readDraft(path);
 		if (draft && draft.text === r.text) { dropDraft(path); draft = null; }
-		/* docs/dev/implementation-notes.md#n58 */
+		/* N58 */
 		current = draft
 			? { path: path, sha: draft.sha || null, saved: r.sha ? r.text : "\u0000", base: r.base, stale: (draft.sha || null) !== r.sha }
 			: { path: path, sha: r.sha, saved: r.text, base: r.base };
@@ -2051,18 +2040,17 @@ function openFile(path, discarding, navigating) {
 				: "Restored your unsaved changes to " + path.split("/").pop() + ".");
 		}
 	}).catch(function (err) {
-		// Unsaved text for a file that can no longer be opened here (it grew
-		// past 1 MB elsewhere, say) must not become unreachable.
+		/* N122 */
 		if (!stillHere()) return;
 		var draft = err.refused && readDraft(path);
 		if (draft) { rescueDraft(path, draft, err.message); return; }
-		// Still on the old file after all: it is live again.
+		/* N168 */
 		if (left && current === left) left.leaving = false;
 		fail(err);
 		if (navigating && current) recordNavigation(current.path, true);
 	}).finally(function(){if(sequence===openSeq)openingPath=null;});
 }
-/* docs/dev/implementation-notes.md#n59 */
+/* N59 */
 var navPosition = 0, navEnd = 0, navSession = randomString(12);
 try {
 	var navSaved = JSON.parse(sessionStorage.getItem("notes.navigation") || "null"), navState = history.state;
@@ -2107,7 +2095,7 @@ addEventListener("popstate", function (e) {
 });
 $("btn-back").onclick = function () { if (navPosition > 0) history.back(); };
 $("btn-forward").onclick = function () { if (navPosition < navEnd) history.forward(); };
-/* docs/dev/implementation-notes.md#n60 */
+/* N60 */
 function rescueDraft(path, draft, reason) {
 	taskView(false);
 	var copy = path.replace(/(\.[^./]*)?$/, function (ext) { return " (unsaved copy)" + ext; });
@@ -2128,7 +2116,7 @@ function rescueDraft(path, draft, reason) {
 	persist(UI_KEY, ui);
 	flash(reason + " Your unsaved text for it is here, as a new note.", true);
 }
-/* docs/dev/implementation-notes.md#n61 */
+/* N61 */
 function leaveCurrent() {
 	if (!current) return;
 	clearTimeout(autosaveTimer);
@@ -2136,21 +2124,21 @@ function leaveCurrent() {
 	else if (dirty() && current.touched && !current.conflict) saveCurrent(true);
 	current.leaving = true;
 }
-/* docs/dev/implementation-notes.md#n62 */
+/* N62 */
 var AUTOSAVE_MS = 2000;
 var autosaveTimer = null;
 var saving = false;        // a commit is in flight
-var inflight = null;       // { key, done }: that commit, settling either way
+var inflight = null;       /* N169 */
 var saveAgain = null;      // asked to save meanwhile: { doc, auto }
 function scheduleAutosave() {
 	clearTimeout(autosaveTimer);
 	autosaveTimer = setTimeout(function () { saveCurrent(true); }, AUTOSAVE_MS);
 }
-// `auto` is true only for autosave; a click passes an event.
+/* N170 */
 function saveCurrent(auto) {
 	auto = auto === true;
 	if (readOnly) { if (!auto) flash(readOnly, true); return; }
-	if (moving) return;                  // a rename or delete is in flight for the open note
+	if (moving) return;                  /* N171 */
 	if (accessPending) {
 		if (auto) scheduleAutosave(); else flash("Checking whether this repository can be changed...");
 		return;
@@ -2158,7 +2146,7 @@ function saveCurrent(auto) {
 	if (auto && (!current || !current.touched || current.conflict)) return;
 	clearTimeout(autosaveTimer);
 	if (!current || current.leaving || !dirty()) return;
-	/* docs/dev/implementation-notes.md#n63 */
+	/* N63 */
 	if (saving) {
 		if (!saveAgain || saveAgain.doc !== current) saveAgain = { doc: current, auto: auto };
 		else saveAgain.auto = saveAgain.auto && auto;
@@ -2168,8 +2156,7 @@ function saveCurrent(auto) {
 	var text = editor.getValue();
 	var path = doc.path;
 	var raw = rawFor(text, doc.base);
-	// Past 1 MB GitHub's API would not hand the note back, so it could not be
-	// opened here again: keep it as a draft instead.
+	/* N123 */
 	if (overLimit(raw)) { flash(overLimitMessage(path), true); return; }
 	var key = draftKey(path);            // before a change of repository moves cfg on
 	var base = doc.sha;
@@ -2180,7 +2167,7 @@ function saveCurrent(auto) {
 	doc.saveError = "";
 	updateNoteSummary();
 	var attempted = false;
-	/* docs/dev/implementation-notes.md#n64 */
+	/* N64 */
 	var ready = typeof doc.unsure === "string" ? readFile(path).then(function (r) {
 		if (r.text === doc.unsure) doc.sha = r.sha;  // our exact bytes, endings included
 		else if (r.sha !== doc.sha) {
@@ -2190,21 +2177,21 @@ function saveCurrent(auto) {
 		}
 		doc.unsure = null;
 	}, function (err) {
-		/* docs/dev/implementation-notes.md#n65 */
+		/* N65 */
 		if (err.refused) err.status = 409;
 		throw err;
 	}) : null;
 	function write() {
-		// Recovery waits for a read: settings may have changed while it waited.
+		/* N172 */
 		if (draftKey(path) !== key) throw new Error("The repository changed before retrying. Reopen the draft in its original repository and try again. If a conflict appears, copy your text before using Discard.");
 		attempted = true;
 		return writeFile(path, raw, doc.sha);
 	}
-	/* docs/dev/implementation-notes.md#n66 */
+	/* N66 */
 	var done = (ready ? ready.then(write) : write()).then(function (r) {
 		doc.savedAt = Date.now(); doc.saveError = ""; doc.conflict = false; doc.stale = false;
 		doc.unsure = null;
-		doc.base = baseOf(raw);              // the next save compares with what this wrote
+		doc.base = baseOf(raw);              /* N173 */
 		if (current === doc) {
 			current.sha = r.sha;
 			current.saved = text;
@@ -2213,13 +2200,12 @@ function saveCurrent(auto) {
 			$("btn-save").disabled = !dirty();
 			syncDraft();                       // gone, or rebased if typed during the save
 		} else {
-			/* docs/dev/implementation-notes.md#n67 */
+			/* N67 */
 			try {
 				var store = draftStore();
 				var d = JSON.parse(store.getItem(key) || "null");
 				if (d && d.text === text) store.removeItem(key);
-				// Only text this tab typed after it; another tab's draft never saw
-				// this commit and must still meet the conflict check.
+				/* N124 */
 				else if (d && (d.sha || null) === base && d.text === draftWritten[key]) {
 					d.sha = r.sha;
 					store.setItem(key, JSON.stringify(d));
@@ -2262,7 +2248,7 @@ function saveCurrent(auto) {
 	});
 	inflight = { key: key, done: done };
 }
-// A save refused as the note changed on GitHub: merge once, against a known start.
+/* N125 */
 function mergeTheirs(doc) {
 	if (current !== doc || doc.stale || doc.merged || doc.unsure) return Promise.reject();
 	return readNote(doc.path).then(function (r) {
@@ -2276,7 +2262,7 @@ function mergeTheirs(doc) {
 		saveAgain = { doc: doc, auto: false };
 	});
 }
-/* docs/dev/implementation-notes.md#n68 */
+/* N68 */
 function replaceText(text) {
 	var old = editor.getValue(), at = editor.caret ? editor.caret() : editor.indexFromPos(editor.getCursor()), p = 0, s = 0;
 	while (p < old.length && old[p] === text[p]) p++;
@@ -2287,7 +2273,7 @@ function replaceText(text) {
 	if (editor.caret) editor.getWrapperElement().setSelectionRange(at, at); else editor.setCursor(editor.posFromIndex(at));
 	syncDraft();
 }
-// Where each line of `o` is in `x` (LCS), or -1; null if too large.
+/* N174 */
 function keptLines(o, x) {
 	var m = [], s = 0, e = 0, n = o.length, k = x.length, L = [], i, j;
 	while (s < n && s < k && o[s] === x[s]) { m[s] = s; s++; }
@@ -2305,12 +2291,12 @@ function keptLines(o, x) {
 	for (i = 0; i < n; i++) if (m[i] === undefined) m[i] = -1;
 	return m;
 }
-// Three-way line merge: what one side changed, or null if both did.
+/* N175 */
 function merge3(base, mine, theirs) {
 	var o = base.split("\n"), a = mine.split("\n"), b = theirs.split("\n");
 	var ma = keptLines(o, a), mb = keptLines(o, b), out = [], io = 0, ia = 0, ib = 0, i;
 	if (!ma || !mb) return null;
-	// Both removing from one run of identical lines: which copy is unknowable.
+	/* N176 */
 	for (i = 0; i < o.length; i = j) {
 		for (var j = i + 1, da = ma[i] < 0, db = mb[i] < 0; o[j] === o[i] && j < o.length; j++) { da = da || ma[j] < 0; db = db || mb[j] < 0; }
 		if (j - i > 1 && da && db) return null;
@@ -2328,7 +2314,7 @@ function merge3(base, mine, theirs) {
 	}
 	return out.join("\n");
 }
-// Keep both: mine as a new note beside theirs, which the note then shows.
+/* N177 */
 function saveCopy() {
 	var doc = current;
 	if (!doc || !doc.conflict || saving) return;
@@ -2357,12 +2343,11 @@ function newFile() {
 	if (!path) return;
 	path = path.replace(/^\/+/, "").trim();
 	if (!path) return;
-	// "Release 1.2" is a note, not a file this app could never open again.
+	/* N178 */
 	if (!/\.[a-z0-9]+$/i.test(path) || !isTextFile(path)) path += ".md";
 	startNote(path);
 }
-// Small Moment-compatible subset; unknown tokens never silently change paths.
-// https://obsidian.md/help/plugins/daily-notes
+/* N126 */
 function dailyDate(format, date) {
 	var months = "January February March April May June July August September October November December".split(" ");
 	var days = "Sunday Monday Tuesday Wednesday Thursday Friday Saturday".split(" ");
@@ -2391,7 +2376,7 @@ function dailyPath(path) {
 }
 async function todayNote() {
 	var sequence = ++openSeq, epoch = pinEpoch, date = new Date(), notice = "", left = current;
-	// Cancelling an earlier open must not leave its still-visible note unsaveable.
+	/* N179 */
 	if (left) left.leaving = false;
 	function here() { return sequence === openSeq && epoch === pinEpoch && signedIn(); }
 	try {
@@ -2414,7 +2399,7 @@ async function todayNote() {
 			flash(notice);
 			return;
 		}
-		// A cached or truncated tree cannot prove absence.
+		/* N180 */
 		var existing = await readFile(path);
 		if (!here()) return;
 		if (existing.sha || readDraft(path)) {
@@ -2447,8 +2432,7 @@ function startNote(path, text) {
 	taskView(false);
 	document.body.classList.remove("tree-open");
 	openSeq++;
-	// A note already there, or one typed but never committed: open it, never
-	// replace its draft with a fresh template.
+	/* N127 */
 	if (readDraft(path) || files.some(function (f) { return f.path === path; })) {
 		openFile(path);
 		return;
@@ -2465,13 +2449,13 @@ function startNote(path, text) {
 	$("btn-save").disabled = false;
 	setCrumb(path, "(new)");
 	showDiscard(false);
-	ui.last = path;                      // so a reload finds its way back to the draft
+	ui.last = path;                      /* N181 */
 	rememberNote(path);
 	recordNavigation(path);
 	persist(UI_KEY, ui);
 	syncDraft();
 }
-/* docs/dev/implementation-notes.md#n69 */
+/* N69 */
 var moving = false;
 var moveChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel("notes-changes") : null;
 function renameCurrent() {
@@ -2481,7 +2465,7 @@ function renameCurrent() {
 	var to = prompt("Rename or move to (the full path in the repository)", from);
 	if (!to) return;
 	to = to.replace(/^\/+/, "").trim();
-	// No extension given: keep the note's own, so it stays a note.
+	/* N182 */
 	var ext = (from.match(/\.[^./]+$/) || [""])[0];
 	if (ext && !/\.[^./]+$/.test(to.split("/").pop())) to += ext;
 	if (!to || to === from) return;
@@ -2509,7 +2493,7 @@ function renameCurrent() {
 		editorLock();
 	});
 }
-// Why a note cannot be moved to `to` here, or "".
+/* N183 */
 function renameProblem(from, to) {
 	if (files.some(function (f) { return f.path === to; })) return to + " already exists.";
 	var parts = to.split("/");
@@ -2525,7 +2509,7 @@ function renameProblem(from, to) {
 function modeOf(path) {
 	return (files.filter(function (f) { return f.path === path; })[0] || {}).mode;
 }
-/* docs/dev/implementation-notes.md#n70 */
+/* N70 */
 function followMove(from, to) {
 	resetNoteReads();
 	if(tagIndex[from]){tagIndex[to]=tagIndex[from];delete tagIndex[from];renderTags();}
@@ -2557,7 +2541,7 @@ if (moveChannel) {
 		refreshTree();
 	};
 }
-/* Delete the open note, after saying plainly what that means. */
+/* N184 */
 function deleteCurrent() {
 	if (!current || !current.sha || readOnly || moving) return;
 	if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
@@ -2570,8 +2554,7 @@ function deleteCurrent() {
 	moving = true;                       // nothing typed now could be kept
 	editorLock();
 	flash("Deleting...");
-	// GitHub asks for writes to files one after another: wait for any save or
-	// pinned task still on its way.
+	/* N128 */
 	var ahead = Promise.all([inflight ? inflight.done : null, pinWriting]);
 	ahead.then(function () {
 		if (epoch !== pinEpoch || !signedIn()) throw new Error("The repository changed. Reopen the note before deleting it.");
@@ -2603,7 +2586,7 @@ function deleteCurrent() {
 		editorLock();
 	});
 }
-/* docs/dev/implementation-notes.md#n71 */
+/* N71 */
 function followDelete(path, fromElsewhere) {
 	resetNoteReads();
 	delete tagIndex[path];renderTags();
@@ -2611,7 +2594,7 @@ function followDelete(path, fromElsewhere) {
 		if (fromElsewhere && dirty()) {
 			current.sha = null;
 			current.saved = "\u0000";
-			current.touched = false;         // no autosave: bringing it back is their call
+			current.touched = false;         /* N185 */
 			syncDraft();                     // their words, kept as a draft of a new note
 			setCrumb(path, "(new: deleted in another tab, not saved)");
 			loadNote = path.split("/").pop() + " was deleted in another tab. Your unsaved words are still " +
@@ -2619,7 +2602,7 @@ function followDelete(path, fromElsewhere) {
 			showDiscard(true);
 			return;
 		}
-		/* docs/dev/implementation-notes.md#n72 */
+		/* N72 */
 		var d = readDraft(path);
 		if (d && (d.text === draftWritten[draftKey(path)] || d.text === current.saved)) dropDraft(path);
 		current = null;
@@ -2648,7 +2631,7 @@ function suggestPath() {
 	var p = function (n) { return (n < 10 ? "0" : "") + n; };
 	return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + ".md";
 }
-/* docs/dev/implementation-notes.md#n73 */
+/* N73 */
 function renderPinTabs() {
 	var host = $("pin-tabs");
 	host.textContent = "";
@@ -2657,8 +2640,7 @@ function renderPinTabs() {
 		b.textContent = path.split("/").pop();
 		if (i === ui.pin) b.className = "active";
 		b.onclick = function () {
-			if (ui.pin !== i) hideUndo();       // it would undo in a list no longer shown
-			// Header actions and tasks must still target the same file while loading.
+			if (ui.pin !== i) hideUndo();       /* N129 */
 			openFile(path);
 			document.body.classList.remove("tree-open");
 		};
@@ -2731,21 +2713,23 @@ function previewView(show, force) {
 	}
 	try {
 		var images = [], renderer = new marked.Renderer(), taskMarker = randomString(12), taskNumber = 0;
+		previewHeadingMarker=taskMarker;var headingRender=renderer.heading.bind(renderer),headingNumber=0;
+		renderer.heading=function(token){return headingRender(token).replace(/^<h([1-6])>/,'<h$1 data-note-heading="'+taskMarker+'-'+headingNumber+++'">');};
 	renderer.checkbox = function (token) { return '<input type="checkbox" disabled data-task="' + taskMarker + '-' + taskNumber++ + '"' + (token.checked ? ' checked' : '') + '>'; };
 		renderer.image = function (token) {
 			images.push({ ref: token.href, alt: token.text });
 			return '<span data-note-image="' + (images.length - 1) + '"></span>';
 		};
-		var text = source, front = /^(?:\uFEFF)?---\n([\s\S]*?)\n(?:---|\.\.\.)(?:\n|$)/.exec(text);
+		var text = source.replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n"), front = frontOf(text);
 		if (front) {
 			var box = document.createElement("pre"); box.className = "frontmatter";
-			box.textContent = front[1]; host.appendChild(box); text = text.slice(front[0].length);
+			box.textContent = front[1] || ""; host.appendChild(box); text = text.slice(front[0].length);
 		}
-		// Keep the sanitised fragment: never serialise or reparse untrusted markup.
+		/* N186 */
 		var fragment = DOMPurify.sanitize(marked.parse(text, { gfm: true, renderer: renderer }), {
 			RETURN_DOM_FRAGMENT: true,
 			ALLOWED_TAGS: ["span","p","br","hr","h1","h2","h3","h4","h5","h6","blockquote","pre","code","em","strong","del","ul","ol","li","table","thead","tbody","tr","th","td","a","input"],
-			ALLOWED_ATTR: ["data-note-image","data-task","href","title","type","checked","disabled","start"], ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false
+			ALLOWED_ATTR: ["data-note-heading","data-note-image","data-task","href","title","type","checked","disabled","start"], ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false
 		});
 		fragment.querySelectorAll("[data-note-image]").forEach(function (el) {
 			var key = el.getAttribute("data-note-image"), item = /^\d+$/.test(key) ? images[Number(key)] : null; el.removeAttribute("data-note-image");
@@ -2760,7 +2744,7 @@ function previewView(show, force) {
 			if (!/^https?:\/\//i.test(href)) a.removeAttribute("href");
 			else { a.target = "_blank"; a.rel = "noopener noreferrer"; }
 		});
-		// Wikilinks are built only from text nodes, outside code and existing links.
+		/* N187 */
 		var walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT), nodes = [], node;
 		while ((node = walker.nextNode())) if (!node.parentElement || !node.parentElement.closest("pre,code,a,[data-loading]")) nodes.push(node);
 		nodes.forEach(function (node) {
@@ -2787,7 +2771,7 @@ function previewView(show, force) {
 		if (focused) { var target = Array.from(host.querySelectorAll("[aria-label]")).find(function (el) { return el.getAttribute("aria-label") === focusName; }); (target || $("preview")).focus({preventScroll:true}); }
 	} catch (err) { host.textContent = "Preview unavailable for this note. Press Edit to keep writing."; }
 }
-/* docs/dev/implementation-notes.md#n74 */
+/* N74 */
 function checklistLines(source) {
 	var lines = source.split("\n"), tasks = [];
 	function match(raw, at, indent) {
@@ -2833,7 +2817,7 @@ function checklistLines(source) {
 function bindChecklist(source, path, marker, count) {
 	var host = $("pin-list"), tasks = checklistLines(source), controls = Array.from(host.querySelectorAll("input[data-task]"));
 	controls = controls.filter(function (box) { return box.getAttribute("data-task").startsWith(marker + "-"); });
-	// Unsupported blockquotes/HTML/indented code cannot shift line addresses.
+	/* N188 */
 	if (tasks.length !== count || controls.length !== count) {
 		if (count) host.appendChild(emptyNote("Use Edit for this checklist's source formatting."));
 		return;
@@ -2867,7 +2851,7 @@ function bindChecklist(source, path, marker, count) {
 		box.onchange = function () { var lines = source.split("\n"); lines[task.index] = task.line.replace(/\[([ xX])\]/, box.checked ? "[x]" : "[ ]"); write(lines.join("\n")); };
 		var row = document.createElement("div"), lab = document.createElement("label"), text = document.createElement("span"), tools = document.createElement("div");
 		row.className = "task" + (task.checked ? " done" : ""); tools.className = "task-tools";
-		// Preserve nested lists; rebuild the task's own first line from text only.
+		/* N189 */
 		box.remove();
 		while (li.firstChild && !(li.firstChild.nodeType === 1 && /^(UL|OL)$/.test(li.firstChild.tagName))) text.appendChild(li.firstChild);
 		if (!text.textContent.trim()) text.textContent = task.text;
@@ -2952,8 +2936,8 @@ function taskView(show) {
 	$("btn-tasks").hidden = true;
 	if (!show && editor) editor.refresh();
 }
-/* docs/dev/implementation-notes.md#n75 */
-var pinFound = pathMap(), pinSeen = pathMap(), pinScanning = false, pinAgain = false;   /* docs/dev/implementation-notes.md#n76 */
+/* N75 */
+var pinFound = pathMap(), pinSeen = pathMap(), pinScanning = false, pinAgain = false;   /* N76 */
 var pinLeaving = false;
 addEventListener("pagehide", function () { pinLeaving = true; });
 addEventListener("pageshow", function (e) { if (e.persisted) { pinLeaving = false; if (files.length) scanPins(); } });
@@ -2964,9 +2948,62 @@ function pins() {
 }
 function isPinned(path) { return pins().indexOf(path) !== -1; }
 function inNote(path) { return /\.(md|markdown)$/i.test(path) && !readOnly; }
-// Frontmatter: YAML between a first line "---" and a line "---" or "...".
-function frontOf(text) { return text.match(/^---\n([\s\S]*?\n)?(---|\.\.\.)(?:\n|$)/); }
-// Obsidian tags/properties: https://obsidian.md/help/tags
+/* N190 */
+function frontOf(text) { return text.startsWith("---\n") ? /^---\n([\s\S]*?)^(---|\.\.\.)(?:\n|$)/m.exec(text) : null; }
+var backlinkSeq=0,backlinkDoc=null,backlinkScope="";
+var previewHeadingMarker="";
+function noteHeadings(text){
+	var body=noteBody(text),offset=text.slice(0,text.length-body.length).split("\n").length-1,out=[],order=0;
+	function childMap(raw,child,map){var lines=raw.split("\n"),next=0;return child.split("\n").map(function(line){var want=line.trim();for(;next<lines.length;next++){var got=lines[next].trimEnd();if(want?got.endsWith(want):/^[\s>]*$/.test(got))return map[next++];}return null;});}
+	function walk(tokens,source,map){var cursor=0,line=0;for(var t of tokens){var at=source.indexOf(t.raw,cursor);if(at<0)continue;var start=line+source.slice(cursor,at).split("\n").length-1;line=start+t.raw.split("\n").length-1;cursor=at+t.raw.length;
+		if(t.type==="heading")out.push({text:t.text,depth:t.depth,line:map[start],order:order++});
+		else if(t.type==="blockquote"||t.type==="list_item")walk(t.tokens,t.text,childMap(t.raw,t.text,map.slice(start,line+1)));
+		else if(t.type==="list")walk(t.items,t.raw,map.slice(start,line+1));
+	}}
+	walk(marked.lexer(body),body,body.split("\n").map((_,i)=>i+offset));return out;
+}
+function showOutline(){
+	if(!current||!editor||!signedIn())return;var doc=current,path=doc.path,scope=recentScope(),text=editor.getValue(),host=$("outline-list");host.replaceChildren();
+	var entries=window.marked?noteHeadings(text):[];$("outline-status").textContent=!window.marked?"Outline unavailable: the Markdown library could not load.":entries.length?"Choose a heading.":"No headings in this note.";
+	function page(start){host.replaceChildren();if(entries.length>500)$("outline-status").textContent="Headings "+(start+1)+"–"+Math.min(start+500,entries.length)+" of "+entries.length+".";
+	entries.slice(start,start+500).forEach(function(entry){var b=document.createElement("button");b.textContent=entry.text;b.style.paddingLeft=(8+(entry.depth-1)*12)+"px";b.setAttribute("aria-label","Heading "+entry.depth+": "+entry.text);b.onclick=function(){
+		$("outline").close();if(current!==doc||doc.path!==path||scope!==recentScope()||!signedIn()||editor.getValue()!==text){flash("The note changed. Open Outline again.");return;}
+		if(document.body.classList.contains("preview-view")){var h=$("pin-list").querySelector('[data-note-heading="'+previewHeadingMarker+'-'+entry.order+'"]');if(h){h.scrollIntoView({block:"start"});h.tabIndex=-1;h.focus({preventScroll:true});}else flash("Preview unavailable. Switch to Edit to find this heading.");}
+		else if(Number.isInteger(entry.line)){var at=text.split("\n").slice(0,entry.line).join("\n").length+(entry.line?1:0);editor.focus();if(editor.caret)editor.getWrapperElement().setSelectionRange(at,at);else editor.setCursor({line:entry.line,ch:0});editor.scrollIntoView();}else flash("This heading's source position is unavailable.");
+	};host.appendChild(b);});[[-500,"Previous headings"],[500,"More headings"]].forEach(function(pair){var next=start+pair[0];if(next<0||next>=entries.length)return;var b=document.createElement("button");b.textContent=pair[1];b.onclick=function(){page(next);host.firstChild.focus();};host.appendChild(b);});}page(0);if(!$("outline").open)$("outline").showModal();
+}
+$("btn-outline").onclick=showOutline;$("outline-close").onclick=()=>$("outline").close();
+function noteBody(text){text=text.replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n");var f=frontOf(text);return f?text.slice(f[0].length):text;}
+function markdownTarget(href,source){
+	try{href=href.split(/[?#]/)[0];if(!href)return source;href=decodeURIComponent(href);if(/[:\\\x00-\x1f]/.test(href)||href.startsWith("//"))return null;
+		var parts=href.startsWith("/")?[]:source.split("/").slice(0,-1);for(var p of href.split("/")){if(p===".."){if(!parts.length)return null;parts.pop();}else if(p&&p!==".")parts.push(p);}var path=parts.join("/");return files.some(f=>f.path===path&&f.type==="blob"&&!isHidden(path))?path:null;
+	}catch(e){return null;}
+}
+function linkedNotes(text,source){
+	var found=new Set(),wiki=[],comment=false,marker="PADGITLINK"+randomString(12).replace(/[_-]/g,"x"),body=noteBody(text);
+	body=body.replace(/\[\[([^\]\n]+)\]\]/g,function(all,inside,at){var slash=0;for(var n=at-1;n>=0&&body[n]==="\\";n--)slash++;if(body[at-1]==="!"||slash%2)return all;wiki.push(linkAt(all,2));return marker+(wiki.length-1)+"Z";});var tokens=marked.lexer(body);
+	function walk(token){if(!token||typeof token!=="object")return;if(["code","codespan","html","image"].includes(token.type))return;
+		if(token.type==="link"){var target=markdownTarget(token.href,source);if(target&&!comment)found.add(target);return;}
+		if(token.type==="text"&&!token.tokens)token.text.split("%%").forEach(function(part,i){if(i)comment=!comment;if(!comment)for(var m of part.matchAll(new RegExp(marker+"(\\d+)Z","g"))){var target=wiki[+m[1]],path=target&&resolveLink(target);if(path)found.add(path);}});
+		Object.keys(token).forEach(k=>{if(typeof token[k]==="object")walk(token[k]);});
+	}walk(tokens);return found;
+}
+function updateBacklinks(){
+	var box=$("backlinks");if(!box)return;var doc=current&&signedIn()&&/\.(md|markdown)$/i.test(current.path)?current:null,scope=recentScope();box.hidden=!doc;
+	if(doc===backlinkDoc&&scope===backlinkScope&&(!doc||box.dataset.path===doc.path))return;
+	backlinkDoc=doc;backlinkScope=scope;box.dataset.path=doc?doc.path:"";backlinkSeq++;$("backlinks-list").replaceChildren();$("backlinks-status").textContent="";if(doc&&box.open)loadBacklinks();
+}
+async function loadBacklinks(){
+	var doc=current,path=doc&&doc.path,scope=recentScope(),seq=++backlinkSeq,host=$("backlinks-list");host.replaceChildren();if(!doc)return;
+	if(!window.marked){$("backlinks-status").textContent="Links unavailable: the Markdown library could not load. Editing still works.";return;}
+	var all=files.filter(f=>f.type==="blob"&&/\.(md|markdown)$/i.test(f.path)&&!isHidden(f.path)&&f.path!==path),notes=all.filter(f=>f.size<=MAX_BYTES).slice(0,300),skipped=all.length-notes.length,next=0,failed=0,matches=[];
+	$("backlinks-status").textContent="Finding links…";function live(){return seq===backlinkSeq&&current===doc&&doc.path===path&&scope===recentScope()&&signedIn()&&$("backlinks").open;}
+	async function worker(){while(live()&&next<notes.length){var p=notes[next++].path;try{var draft=readDraft(p),text=draft?draft.text:(await sharedRead(p,live)).text;if(!live())return;draft=readDraft(p);if(draft)text=draft.text;if(linkedNotes(text,p).has(path))matches.push(p);}catch(e){if(e.signedOut)throw e;failed++;}}}
+	try{await Promise.all([worker(),worker(),worker(),worker()]);if(!live())return;matches.sort().forEach(p=>{var b=document.createElement("button");b.textContent=p;b.onclick=()=>openFile(p);host.appendChild(b);});$("backlinks-status").textContent=(matches.length?matches.length+" linking notes.":"No linking notes found.")+(skipped||failed||files.truncated?" Incomplete: "+skipped+" skipped, "+failed+" unavailable; loaded files only.":" Loaded Markdown notes; reopen to refresh.");}
+	catch(e){if(seq===backlinkSeq&&scope===recentScope()){ $("backlinks-status").textContent="Links unavailable.";fail(e);}}
+}
+$("backlinks").ontoggle=function(){if(this.open)loadBacklinks();else backlinkSeq++;};
+/* N191 */
 var tagSeq=0,tagIndex=pathMap(),tagChoice="",tagSignature="";
 function validTag(t){return typeof t==="string"&&/^[\p{L}\p{N}\p{M}\p{Extended_Pictographic}\u200d\ufe0f_\/-]+$/u.test(t)&&!/^[0-9]+$/.test(t);}
 function tagFront(text){
@@ -3042,7 +3079,7 @@ function pinnedText(text) {
 	var m = frontOf(text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n"));
 	return !!m && /^pinned:[ \t]*(true|yes)[ \t]*$/im.test(m[1] || "");
 }
-/* docs/dev/implementation-notes.md#n77 */
+/* N77 */
 function withPin(text, on) {
 	var m = frontOf(text), rest = m ? (m[1] || "").replace(/^pinned:[ \t]*(true|false|yes|no)[ \t]*\n/gim, "") : "";
 	if (/^pinned:/im.test(rest)) return null;
@@ -3050,7 +3087,7 @@ function withPin(text, on) {
 	if (on) return "---\n" + rest + "pinned: true\n" + end + "\n" + after;
 	return rest ? "---\n" + rest + end + "\n" + after : after;
 }
-// Pinned notes found change the list: the one shown stays the one shown.
+/* N192 */
 function setPins(fn) {
 	var shown = activePin();
 	fn();
@@ -3058,11 +3095,11 @@ function setPins(fn) {
 	renderPinTabs();
 	if (activePin() !== shown) renderPins();
 }
-// What this tab saw in a note's own text is newer than any scan.
+/* N193 */
 function notePinned(path, text) {
 	setPins(function () { pinSeen[path] = pinFound[path] = pinnedText(text); });
 }
-/* docs/dev/implementation-notes.md#n78 */
+/* N78 */
 async function scanPins() {
 	if (pinScanning) { pinAgain = true; return; }
 	pinScanning = true;
@@ -3084,7 +3121,7 @@ async function scanPins() {
 				if (r.sha) known[r.sha] = pinnedText(r.text) ? 1 : 0;
 				if (live() && r.sha === f.sha) setPins(function () { found(f); });
 			} catch (e) {
-				if (!e.refused) return;                // offline, or the page closing: stop, carry on next time
+				if (!e.refused) return;                /* N194 */
 				known[f.sha] = 0;                      // not text it can open: not pinned
 			}
 			persist(UI_KEY, ui);                     // a page closed mid-scan keeps it too
@@ -3107,7 +3144,7 @@ async function scanPins() {
 function togglePin() {
 	if (!current || !signedIn()) return;
 	var path = current.path, text = editor.getValue(), at = cfg.pins.indexOf(path);
-	// A restored draft is saved only when the person chooses to.
+	/* N195 */
 	if (inNote(path) && dirty() && !current.touched && !current.template) { flash("Save or Discard your restored changes first, then pin.", true); return; }
 	var on = !(at !== -1 || (inNote(path) ? pinnedText(text) : isPinned(path))), next = inNote(path) && withPin(text, on);
 	if (at !== -1) cfg.pins.splice(at, 1);
@@ -3183,18 +3220,17 @@ function toggleTask(path, index, checked) {
 	lines[index] = lines[index].replace(/\[([ xX])\]/, checked ? "[x]" : "[ ]");
 	if (commitPin(path, lines.join("\n")) === false) renderPins();   // not saved: show it as it is
 }
-// Remove task lines in one commit, then offer Undo rather than ask first.
-// `gone`: [{ index, line }] as drawn, in order.
+/* N130 */
 var pinUndo = null; // { path, gone, timer } while offered
 function removeTasks(path, gone, said) {
 	var cached = pinCache[path];
 	if (!cached) return;
 	var lines = cached.text.split("\n");
-	// The file changed since the rows were drawn: remove nothing, never the wrong line.
+	/* N131 */
 	if (!gone.every(function (g) { return lines[g.index] === g.line; })) { renderPins(); return; }
 	for (var i = gone.length - 1; i >= 0; i--) lines.splice(gone[i].index, 1);
 	var left = lines.join("\n");
-	/* docs/dev/implementation-notes.md#n79 */
+	/* N79 */
 	var offer = { path: path, gone: gone.slice(), left: left, said: said };
 	var ok = commitPin(path, left, function () { if (pinUndo === offer) hideUndo(); });
 	if (ok === false) { renderPins(); return; }
@@ -3213,14 +3249,14 @@ function hideUndo() {
 	pinUndo = null;
 	$("pin-undo").hidden = true;
 }
-// A tick is not a move: text compares with its boxes cleared.
+/* N196 */
 function untick(text) { return text.replace(/^(\s*[-*]\s+)\[[xX]\]/gm, "$1[ ]"); }
 function undoRemove() {
 	var u = pinUndo;
 	if (!u) return;
 	var cached = pinCache[u.path];
 	if (!cached) { flash("Still loading that file. Try Undo again in a moment.", true); return; }
-	/* docs/dev/implementation-notes.md#n80 */
+	/* N80 */
 	var now = untick(cached.text), then = untick(u.left);
 	if (now !== then && now.indexOf(then.replace(/\s*$/, "") + "\n") !== 0) {
 		hideUndo();
@@ -3228,7 +3264,7 @@ function undoRemove() {
 		return;
 	}
 	var lines = cached.text.split("\n");
-	// In order, so each line goes back where it was.
+	/* N197 */
 	u.gone.forEach(function (g) { lines.splice(g.index, 0, g.line); });
 	// A refusal or failure offers it again.
 	var ok = commitPin(u.path, lines.join("\n"), function () { showUndo(u); });
@@ -3252,7 +3288,7 @@ function addTask() {
 		});
 		lines.splice(captureTarget.at, 0, ...added); next = lines.join("\n");
 	}
-	// Refused, or failed to save: the task goes back in the box.
+	/* N198 */
 	var ok = commitPin(path, next, function () {
 		input.value = (input.value ? input.value + "\n" : "") + text;
 		input.rows = Math.min(4, input.value.split("\n").length);
@@ -3275,7 +3311,7 @@ function commitPin(path, text, onFail, capture, recover) {
 	pinCache[path] = { text: text, sha: sha, base: baseOf(raw) };   // optimistic: redraw immediately
 	renderPins();
 	flash("Saving...");
-	/* docs/dev/implementation-notes.md#n81 */
+	/* N81 */
 	var job = pinNext[path] || { onFail: [], captures: [] };
 	job.raw = raw;
 	job.text = text;
@@ -3296,7 +3332,7 @@ function sendPin(path) {
 	return writeFile(path, job.raw, sha).then(function (r) {
 		if (pinEpoch !== epoch) return;      // another repository by now
 		if (pinCache[path]) pinCache[path].sha = r.sha;
-		// The open note follows every commit, lest a later failure leave it behind.
+		/* N199 */
 		if (current && current.path === path && !dirty()) {
 			current.sha = r.sha;
 			current.saved = job.text;
@@ -3313,7 +3349,7 @@ function sendPin(path) {
 		if (!files.some(function (f) { return f.path === path; })) refreshTree();   // a new file
 		flash("Saved");
 	}).catch(function (err) {
-		// What was waiting was built on this commit: not sent on a guess.
+		/* N200 */
 		if (pinEpoch !== epoch) { fail(err); return; }
 		var waiting = pinNext[path];
 		delete pinNext[path];
@@ -3343,6 +3379,8 @@ function openDialog() {
 	if (!d.open) d.showModal();
 }
 function showSignIn(message, info) {
+	$("outline").close();$("outline-list").replaceChildren();
+	backlinkSeq++;backlinkDoc=null;$("backlinks").hidden=true;$("backlinks-list").replaceChildren();$("backlinks-status").textContent="";
 	resetTags();
 	resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-notes").open=false;
 	$("view-signin").hidden = false;
@@ -3359,7 +3397,7 @@ function showSignIn(message, info) {
 	err.textContent = message || "";          // may come from the address bar: text
 	openDialog();
 }
-/* The account view: who you are, which repository, which pinned files. */
+/* N201 */
 function openSettings() {
 	if (!signedIn()) { showSignIn(); return; }
 	$("view-signin").hidden = true;
@@ -3368,13 +3406,12 @@ function openSettings() {
 	$("f-install").href = $("fr-install").href = "https://github.com/apps/" +
 		encodeURIComponent(DEPLOYMENT.appSlug) + "/installations/new";
 	$("who-login").textContent = cfg.login ? "@" + cfg.login : "";
-	// An image source loads a picture and never runs script.
+	/* N202 */
 	if (cfg.avatar) $("who-avatar").src = cfg.avatar;
 	var sel = $("f-repo");
 	sel.textContent = "";
 	if (configured()) {
-		// The repository in use is always there to keep, so pins and "Forget
-		// me" can be saved before a long list has arrived.
+		/* N132 */
 		repoChoices = [currentChoice()];
 		sel.appendChild(new Option(currentChoice().full, "0"));
 		sel.disabled = false;
@@ -3384,12 +3421,12 @@ function openSettings() {
 		sel.appendChild(new Option("Loading…", ""));
 		sel.disabled = true;
 		$("f-save").disabled = true;
-		/* docs/dev/implementation-notes.md#n82 */
+		/* N82 */
 		if (!firstRunShown) accountView("loading");
 	}
 	openDialog();
 	loadRepoList();
-	/* docs/dev/implementation-notes.md#n83 */
+	/* N83 */
 	fetchUser().then(function (u) {
 		cfg.login = u.login || "";
 		cfg.avatar = u.avatar_url || "";
@@ -3402,7 +3439,7 @@ function currentChoice() {
 	return { owner: cfg.owner, repo: cfg.repo, branch: cfg.branch,
 					 full: cfg.owner + "/" + cfg.repo, private: true };
 }
-/* docs/dev/implementation-notes.md#n84 */
+/* N84 */
 var repoListSeq = 0;
 function loadRepoList() {
 	var sel = $("f-repo");
@@ -3412,7 +3449,7 @@ function loadRepoList() {
 	return listRepos().then(function (repos) {
 		if (seq !== repoListSeq) return;
 		var failed = repos.failed;
-		/* docs/dev/implementation-notes.md#n85 */
+		/* N85 */
 		if (configured() && !repos.some(function (r) { return r.owner === cfg.owner && r.repo === cfg.repo; })) {
 			repos = [currentChoice()].concat(repos);
 		}
@@ -3429,7 +3466,7 @@ function loadRepoList() {
 			sel.appendChild(new Option("No repositories yet: choose some below", ""));
 			sel.disabled = true;
 			$("f-save").disabled = true;
-			/* docs/dev/implementation-notes.md#n86 */
+			/* N86 */
 			if (!failed) firstRun();
 			else if (firstRunShown) $("fr-status").textContent = partly + " Press Check now to try again.";
 			else listFailed(partly);
@@ -3437,7 +3474,7 @@ function loadRepoList() {
 		}
 		firstRunShown = false;
 		accountView("form");
-		/* docs/dev/implementation-notes.md#n87 */
+		/* N87 */
 		var choice = picked ? picked.full : configured() ? cfg.owner + "/" + cfg.repo : null;
 		if (!choice) {
 			var guess = repos.filter(function (r) { return r.private && r.repo.toLowerCase() === "notes"; })[0] ||
@@ -3452,8 +3489,7 @@ function loadRepoList() {
 		});
 		sel.disabled = false;
 		repoPicked();
-		// First sign-in with the app on a single private repository: nothing
-		// to choose. A public one is only ever chosen on purpose.
+		/* N133 */
 		if (!configured() && repos.length === 1 && repos[0].private) saveSettings();
 	}).catch(function (err) {
 		if (seq !== repoListSeq) return;
@@ -3467,14 +3503,14 @@ function loadRepoList() {
 		listFailed("Could not load the list of repositories.");
 	});
 }
-/* docs/dev/implementation-notes.md#n88 */
+/* N88 */
 function listFailed(why) {
 	$("f-repo").textContent = "";
 	$("f-repo").appendChild(new Option("Could not load repositories", ""));
 	$("repos-failed-text").textContent = why + " ";
 	accountView("failed");
 }
-// Save is for a real choice, and a public repository is named as such.
+/* N203 */
 function repoPicked() {
 	var pick = $("f-repo").value === "" ? null : repoChoices[Number($("f-repo").value)];
 	$("f-save").disabled = !pick;
@@ -3484,7 +3520,7 @@ function repoPicked() {
 		$("repo-hint-text").textContent = "Only repositories the app is installed on are listed.";
 	}
 }
-/* docs/dev/implementation-notes.md#n89 */
+/* N89 */
 function accountView(mode) {
 	$("repos-loading").hidden = mode !== "loading";
 	$("repos-failed").hidden = mode !== "failed";
@@ -3492,7 +3528,7 @@ function accountView(mode) {
 	$("account-form").hidden = mode !== "form";
 	$("f-save").hidden = mode !== "form";
 }
-// The app is on no repository: the two steps, nothing else.
+/* N204 */
 var firstRunShown = false;
 function firstRun() {
 	$("fr-status").textContent = firstRunShown
@@ -3501,8 +3537,7 @@ function firstRun() {
 	var first = !firstRunShown;
 	firstRunShown = true;
 	accountView("firstrun");
-	// The dialog opened on "looking", where Sign out was all there was to
-	// focus; Enter must not sign anyone out by accident.
+	/* N134 */
 	if (first) $("fr-create").focus();
 }
 function checkRepos() {
@@ -3512,11 +3547,11 @@ function checkRepos() {
 	else accountView("loading");
 	loadRepoList().then(function () { b.disabled = false; }, function () { b.disabled = false; });
 }
-/* docs/dev/implementation-notes.md#n90 */
+/* N90 */
 function prepareRepositoryChange() {
 	leaveCurrent();
 	try {
-		/* docs/dev/implementation-notes.md#n91 */
+		/* N91 */
 		Object.keys(pinBusy).forEach(function (path) {
 			var cached = pinCache[path];
 			if (!cached) return;
@@ -3550,16 +3585,17 @@ function pointAt(owner, repo, branch, pins, prepared) {
 	return changedRepo;
 }
 function showPointed(changedRepo) {
+	if(changedRepo){$("outline").close();$("outline-list").replaceChildren();}
 	if(changedRepo){resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-status").textContent="";$("recent-notes").open=false;}
 	renderTabs();
-	// Same repository: a pinned file being written keeps its state and queue.
+	/* N205 */
 	var keep = pathMap();
 	if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
 	pinCache = keep;
 	if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinReloading = pathMap(); pinActive = pathMap(); pinFound = pathMap(); pinSeen = pathMap(); hideUndo(); }
 	ui.pin = 0;
 	if (changedRepo) {
-		files = [];                  // the old repository's list is not this one's
+		files = [];                  /* N206 */
 		applyAccess("");             // until this one's access is known
 		current = null;
 		resetTags();
@@ -3574,7 +3610,7 @@ function showPointed(changedRepo) {
 	renderPins();
 	refreshTree().then(function () { if (changedRepo) openRoute(); });
 }
-/* docs/dev/implementation-notes.md#n92 */
+/* N92 */
 function followSettings() {
 	var s = load(CFG_KEY, {});
 	if (!s.owner || !s.repo || !s.branch) return;
@@ -3601,7 +3637,7 @@ function saveSettings() {
 	}
 	sessionOnly = nextSessionOnly;
 	var changedRepo = pointAt(pick.owner, pick.repo, pick.branch, cfg.pins, true);
-	/* docs/dev/implementation-notes.md#n93 */
+	/* N93 */
 	sessionOnly = nextSessionOnly;
 	document.body.classList.toggle("session-only", sessionOnly);
 	saveCfg();
@@ -3620,28 +3656,28 @@ function forget() {
 			". Cancel and save them first if you want to keep them."
 		: "";
 	if (!confirm("Sign out on this browser?" + warn)) return;
-	/* docs/dev/implementation-notes.md#n94 */
+	/* N94 */
 	cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
 	repoListSeq++;
 	forgetStored(CFG_KEY);
 	forgetStored(UI_KEY);
 	try { sessionStorage.removeItem("notes.navigation"); } catch (e) {}
 	forgetDrafts();
-	current = null;                      // nothing may write a draft back on the way out
+	current = null;                      /* N207 */
 	location.replace(redirectUri());
 }
 /* WIRING */
-/* docs/dev/implementation-notes.md#n95 */
+/* N95 */
 (function followVisibleArea() {
 	var vv = window.visualViewport;
 	if (!vv) return;
 	var shell = $("shell");
 	var lastHeight = vv.height;
 	function fit(e) {
-		/* docs/dev/implementation-notes.md#n96 */
+		/* N96 */
 		var top = vv.pageTop != null ? vv.pageTop : vv.offsetTop + (window.scrollY || 0);
 		var whole = Math.abs(window.innerHeight - vv.height) < 1 && !top;
-		// Pinch zoom also shrinks the visible area; that is not a keyboard.
+		/* N208 */
 		if (whole || vv.scale > 1.01) {
 			shell.style.height = "";
 			shell.style.transform = "";
@@ -3649,20 +3685,22 @@ function forget() {
 			shell.style.height = vv.height + "px";
 			shell.style.transform = top ? "translateY(" + top + "px)" : "";
 		}
-		/* docs/dev/implementation-notes.md#n97 */
+		/* N97 */
 		if (e.type === "resize" && vv.height !== lastHeight && editor) {
-			editor.refresh();
 			var typing = editor.getWrapperElement && editor.getWrapperElement().contains(document.activeElement);
+			if(vv.scale<=1.01&&vv.height<450&&vv.height<lastHeight&&(typing||$("preview").contains(document.activeElement)))$("backlinks").open=false;
+			editor.refresh();
 			if (typing && editor.scrollIntoView) editor.scrollIntoView(null, 40);
+			else if ($("preview").contains(document.activeElement)) document.activeElement.scrollIntoView({block:"nearest"});
 		}
 		lastHeight = vv.height;
 	}
 	vv.addEventListener("resize", fit);
 	vv.addEventListener("scroll", fit);
 })();
-// Phones never show a title: tapping the badge says why, again.
+/* N209 */
 $("readonly").onclick = function () { flash(readOnly, true); };
-// Not an onerror attribute: the policy allows no inline handlers.
+/* N210 */
 $("who-avatar").addEventListener("error", function () { this.style.visibility = "hidden"; });
 $("btn-save").onclick     = saveCurrent;
 $("btn-discard").onclick  = discardDraft;
@@ -3682,7 +3720,7 @@ $("f-signin").onclick     = function () {
 	$("f-signin").disabled = true;
 	signIn(!$("f-session-in").checked);
 };
-/* docs/dev/implementation-notes.md#n98 */
+/* N98 */
 $("settings").addEventListener("cancel", function (e) {
 	if (!configured()) e.preventDefault();
 });
@@ -3706,7 +3744,7 @@ $("btn-source").onclick = async function () {
 	taskView(false);
 	editor.focus();
 };
-/* docs/dev/implementation-notes.md#n99 */
+/* N99 */
 function wide() { return !matchMedia("(max-width:820px)").matches; }
 function sideLayout(refresh) {
 	document.documentElement.style.setProperty("--side-w", (ui.sideWidth || 260) + "px");
@@ -3716,7 +3754,7 @@ function sideLayout(refresh) {
 	if (refresh !== false && editor) editor.refresh();
 }
 function sideWidth(w) {
-	ui.sideWidth = Math.round(w);                 // the stylesheet keeps it within 180-600 px, 60% of the window
+	ui.sideWidth = Math.round(w);                 /* N211 */
 	persist(UI_KEY, ui);
 	sideLayout();
 }
@@ -3763,11 +3801,11 @@ $("scrim").onclick = function () {
 		sideLayout();
 	});
 	window.addEventListener("resize", function () { sideLayout(false); });
-	// Many places close the phone drawer; the button follows whichever did.
+	/* N212 */
 	new MutationObserver(function () { sideLayout(false); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 	sideLayout(false);
 })();
-/* docs/dev/implementation-notes.md#n100 */
+/* N100 */
 function applyTheme(t) {
 	if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
 	else document.documentElement.removeAttribute("data-theme");
@@ -3795,7 +3833,7 @@ $("f-text-size").onchange = function () {
 	applyTextSize(this.value);
 };
 try { applyTextSize(localStorage.getItem("notes.textSize")); } catch (e) { applyTextSize("normal"); }
-/* docs/dev/implementation-notes.md#n101 */
+/* N101 */
 var quickScope = "", quickMatches = [], quickIndex = 0;
 function recentScope() { return JSON.stringify([cfg.owner, cfg.repo, cfg.branch]); }
 var recentSeq=0,recentLoading=false;
@@ -3906,7 +3944,7 @@ $("quick-query").onkeydown = function (e) {
 		e.preventDefault(); quickIndex = (quickIndex + (e.key === "ArrowDown" ? 1 : -1) + quickMatches.length) % quickMatches.length; quickSelect();
 	}
 };
-// Capture before CodeMirror's macOS Ctrl-K binding can delete a line.
+/* N213 */
 document.addEventListener("keydown", function (e) {
 	if (!e.isComposing && !e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
 }, true);
@@ -3916,17 +3954,17 @@ document.addEventListener("keydown", function (e) {
 		saveCurrent();
 	}
 });
-// A phone may never bring a hidden page back; commit what is there now.
+/* N214 */
 document.addEventListener("visibilitychange", function () {
 	updateNoteSummary();
 	if (document.visibilityState === "hidden") saveCurrent(true);
-	// Back from GitHub's repository settings in the other tab.
+	/* N215 */
 	else if ($("settings").open && !$("view-account").hidden && signedIn()) loadRepoList();
 });
 window.addEventListener("beforeunload", function (e) {
 	if (dirty()) { e.preventDefault(); e.returnValue = ""; }
 });
-/* ---- boot ------------------------------------------------------ */
+/* N216 */
 function start() {
 	taskView(true);
 	document.body.classList.toggle("session-only", sessionOnly);
@@ -3947,8 +3985,7 @@ function start() {
 	renderPins();
 	refreshTree().then(function () {
 		if (openRoute()) return;
-		// A new note that was never committed is not in the tree, but its draft
-		// is still worth reopening.
+		/* N135 */
 		if (ui.last && (readDraft(ui.last) || files.some(function (f) { return f.path === ui.last; }))) {
 			openFile(ui.last);
 		}
@@ -3957,7 +3994,7 @@ function start() {
 (function boot() {
 	var params = new URLSearchParams(location.search);
 	if (params.get("error")) {
-		/* docs/dev/implementation-notes.md#n102 */
+		/* N102 */
 		var pending = null;
 		try { pending = JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); } catch (e) {}
 		try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
@@ -3974,7 +4011,7 @@ function start() {
 		}
 		return;
 	}
-	/* docs/dev/implementation-notes.md#n103 */
+	/* N103 */
 	if (params.get("setup_action") === "request") {
 		history.replaceState(null, "", redirectUri());
 		try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
@@ -3990,12 +4027,12 @@ function start() {
 		start();
 		if (r && r.orphan) { if (!signedIn()) showSignInAgain(ORPHAN_SIGNIN); return; }
 		if (!r || !r.installed) return;
-		// start() has already opened settings when no repository is chosen yet.
+		/* N217 */
 		if (signedIn()) { if (configured()) openSettings(); return; }
 		showSignIn("", "Back from GitHub. If you started in another Padgit tab, or in the Padgit app on " +
 							 "your home screen, close this and carry on there. Otherwise sign in to use the " +
 							 "repositories you chose.");
-		/* docs/dev/implementation-notes.md#n104 */
+		/* N104 */
 		$("f-session-in").checked = true;
 	}, function (err) {
 		start();

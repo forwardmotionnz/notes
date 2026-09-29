@@ -268,6 +268,26 @@ Obsidian would not understand, so both can work on the same repository.
 
 ## Open notes
 
+Choose **Outline** above the note to see its headings, including underlined
+headings and headings inside lists or quotes. Select one to jump there in the
+editor or Preview. The outline uses the current unsaved text without fetching
+anything; it does not modify the note. Long outlines have Previous/More controls.
+Escape closes the outline. If the note changes while it is open, reopen it to
+get current positions. If the Markdown library is unavailable, a notice explains
+why the outline cannot load; editing still works.
+
+Expand **Linked from** under a Markdown note to see notes that link to it.
+Wikilinks use the same resolution as opening a link; Markdown paths resolve
+relative to their source note. Reference-style links work too. Code, comments,
+image embeds and external links do not count. Drafts take precedence over
+saved text. Choose a result to open its source.
+On a small screen, Linked from collapses when the keyboard needs the space.
+
+The scan reads up to 300 loaded Markdown notes and reports skipped or
+unavailable files. Refresh Files to pick up repository changes, then reopen
+Linked from. If the Markdown library fails to load, the section explains why
+it is unavailable; editing remains available.
+
 Expand **Tags** in Files to find Markdown notes by tag. Counts include nested
 tags (`project` includes `project/notes`) and ignore case. Opening the section
 scans up to 300 loaded Markdown notes using the shared reader; skipped or
@@ -310,7 +330,7 @@ from the original note. Failed uploads leave your note text unchanged.
 No offline queue, no graph view, no plugins, no real-time collaboration and
 no line-by-line merge tool: a conflict is merged when the changes are on
 different lines, and otherwise kept both ways (see above). Each of those is
-a common reason a notes app becomes unmaintainable. Backlinks are planned.
+a common reason a notes app becomes unmaintainable.
 
 ## Accessibility
 

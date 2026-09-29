@@ -1,8 +1,18 @@
 # MVP ledger
 
-Iterations: 45 (cap extended by the owner's requests; current batch N16, N33, N26, N27)
+Iterations: 47 (cap extended by the owner's requests; current batch N17 and N28)
 
 ## Current handover — 2026-09-29
+
+The requested next two features are N17 backlinks (`783c719`) and N28 heading
+outline. Both are implemented and independently reviewed, with mutation tests
+and inspected desktop/phone light/dark screenshots. Focused results: backlinks
+13/13, outline 36/36, preview 15/15, tags 53/53, pins-sync 54/54, wikilinks 47/47
+and accessibility 57/57 in both engines. Final merge validation is the full
+61-suite CI run on the combined PR. Next by priority is N29 callouts, then N30
+recently deleted notes. N34 still needs the owner's coordinated domain cutover.
+
+### Previous batch handover — 2026-09-29 (merged in PR #20)
 
 The requested next four are implemented: N16 image upload (`c8f2e48`),
 N33 open tabs (`0d1c7ce`), N26 shared reader/Recent (`9eb3878`) and N27 tags.
@@ -10,7 +20,7 @@ Each has focused Chromium/WebKit checks, a fresh independent review,
 mutation checks and inspected desktop/phone light/dark screenshots.
 N27 passes 53/53 in both engines, including real CodeMirror and fallback Undo,
 unsafe-YAML refusals, BOM/CRLF/draft preservation, bounded scan and scope races.
-Full CI for all 59 suites in both engines is the remaining merge gate.
+All 59 suites passed in both engines; PR #20 merged as `b60a541` and published.
 Next by priority after this batch is N17 backlinks. N34's domain/account
 cutover remains owner-only and outside this batch.
 
@@ -283,8 +293,8 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N33 | 40 | done | Tabs 17/17 both engines; navigation 14/14, reading 12/12, mobile-new 6/6, privacy 41/41, axe 45/45 both. Review: background deletion persisted, closing a loading tab cancels its read, local-storage failure blocks unsafe closing, failed neighbour read restores tab. Unsafe-close mutation caught. n33 four screenshots inspected. N16 commit `c8f2e48`. Long comments moved to implementation-notes.md with identical executable AST, saving 13 KB. |
 | N26 | 41 | done | Recent previews/history and shared reader; 18/18 Chromium + WebKit, content-search 13/13 and pins-sync 54/54. Review fixes, mutation and screenshots below. |
 | N27 | 42 | done | Tags, counts, filtering and source edits; 53/53 Chromium + WebKit, independent review fixed, mutation and screenshots below. |
-| N17 | 43 | todo | Owner's request 2026-09-27, 5 of 5 |
-| N28 | 44 | todo | UX review 2026-09-28: outline of headings |
+| N17 | 43 | done | Linked from with bounded shared reads, draft priority and Markdown/wiki resolution. 13/13 both engines; wikilinks 47/47, review/mutation/screens below. |
+| N28 | 44 | done | Heading outline with source/Preview jumps, nested headings and pagination. 36/36 both engines; axe 57/57; review/mutation/screens below. |
 | N29 | 45 | todo | UX review 2026-09-28: callouts in Preview |
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
@@ -1032,3 +1042,16 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - Independent G-3 review found valid but unsupported YAML root indentation, explicit keys and blank-separated scalar continuation could be damaged. All now refuse the edit, with regression assertions. Duplicate/quoted/spaced tags keys, aliases and complex values also refuse edits; source editing remains available.
 - Focused tags suite 53/53 in Chromium and WebKit. Removing the safe-frontmatter guard makes assertions fail (tests/screens/tags-mutation.log). Existing development-note references shortened, with all detailed explanations retained in docs/dev/implementation-notes.md, to keep the app below 204800 bytes.
 - Inspected tests/screens/n27-{1280,390}-{light,dark}.png and n27-390-{light,dark}-chips.png. Scrolling sidebar sections and note chips stay within phone/desktop bounds. Axe now also scans expanded Tags and Recent.
+
+### N17 evidence — 2026-09-29
+- On-demand Linked from panel below the open note, four shared reads at a time / at most 300 Markdown files. Reports skipped, failed and truncated listings; local drafts win, changing note/repository cancels publication, sign-out clears results, missing Markdown CDN has a visible fallback. Does not write or persist an index.
+- Fresh G-3 review found formatted and URL wikilink aliases split across parser tokens and were omitted. Fixed by tokenising opaque references through the existing Markdown parser; code, escaped links, comments and embeds still do not count. Regression tests cover these aliases and Obsidian comments outside code.
+- Backlinks 13/13 and existing wikilinks 47/47 pass in Chromium and WebKit. Removing the target-match filter causes expected failures (tests/screens/backlinks-mutation.log). Screens tests/screens/n17-{1280,390}-{light,dark}.png inspected.
+- Longer comments appended to implementation-notes.md with executable AST equality verified; numbered source comments point there. Existing notes retained. No new dependency/build step; final size/full CI checked with N28.
+
+### N28 evidence — 2026-09-29
+- Outline uses current source and the existing Markdown parser, no requests or writes. Source maps follow nested lists/quotes and setext headings; duplicate headings jump by render identity in Preview. Focus goes to the heading/editor, Escape closes, stale source refuses a jump, account/repository boundaries clear private outline text. Previous/More provides all headings with at most 500 entries per page.
+- G-3 review found the initial 500-entry cap hid later headings; pagination fixed it and a 505-heading regression checks both directions. Reviewer independently verified 1001 entries and the final jump. Initial different-frontmatter-parsers concern was refuted, but exercising empty frontmatter exposed an older shared regex error: it could consume through a later horizontal rule. Both views now share a parser that stops at the first delimiter, with a real Preview-jump regression.
+- Outline 36/36, Preview 15/15, axe 57/57 and size checks pass in both engines. Related tags 53/53 and pins-sync 54/54 also pass after the frontmatter fix. One initial combined focused run reported an outline WebKit failure; isolated and subsequent combined checks passed with all assertions retained. Full CI remains the combined release validation.
+- Removing the source-change guard causes the intended assertion to fail (tests/screens/outline-mutation.log). Inspected tests/screens/n28-{1280,390}-{light,dark}.png. Remaining longer source comments moved to the existing implementation notes with AST equivalence checked, preserving the single-file size limit without runtime dependencies or a build.
+- Full CI on a3de4bb: all 61 WebKit suites passed; Chromium caught the backlinks summary covering task capture at the iPhone SE keyboard height. Fixed viewport resize handling to scroll the focused Preview field into view and collapse expanded backlinks when the keyboard leaves under 450px. Existing keyboard assertions retained; expanded-panel checks added. Keyboard now 33/33 in both engines, with editor resize/scroll-count assertions unchanged. The corrected PR runs full CI again before merge.

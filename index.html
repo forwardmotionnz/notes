@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-s/ISx+HfQNORpLy5TxDBTpYMzOfoJJ7xqbuncPaWZxI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-hIr3AoVIuXtgGlOxDCSpCR/0RyqGtqGVDLiWoKtfm/w=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -166,7 +166,21 @@ header button{padding:5px 7px;}
 #status{order:10;flex-basis:100%;white-space:normal;}
 #status:empty{display:none;}
 }
-body.preview-view #editor-pane, body.preview-view #pins{display:none;}
+body.preview-view #editor-pane{display:none;}
+#preview #pins{display:block;}
+#preview #pin-list{padding:0;overflow:visible;}
+#preview #task-tools{display:none;}
+#preview .task{flex-wrap:wrap;color:var(--fg);font-size:inherit;}
+#preview .task label{color:var(--fg);}
+#preview .list-add input,#preview .list-add textarea{flex:1;min-width:0;}
+#preview .list-add button{flex:none;white-space:nowrap;}
+#preview .task-tools{display:flex;gap:2px;}
+#preview .task-tools button{padding:2px 5px;font-size:12px;}
+#preview .list-add{display:flex;gap:6px;margin:8px 0;}
+#preview .task-edit{font-size:inherit;}
+#preview .task label{margin:0;}
+#preview li:has(> .task){list-style:none;}
+#preview #pins>*{max-width:760px;margin-left:auto;margin-right:auto;}
 #preview{flex:1;min-width:0;overflow:auto;padding:20px;overflow-wrap:anywhere;}
 #preview pre{white-space:pre-wrap;background:var(--bg-soft);padding:12px;border:1px solid var(--line);}
 #preview table{border-collapse:collapse;display:block;overflow:auto;}
@@ -238,7 +252,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 		<section id="editor-pane">
 			<div id="placeholder">Open a file, or press + to create one.<span class="side-note"> ☰ shows the file list.</span></div>
 		</section>
-		<article id="preview" hidden tabindex="0" aria-label="Note preview"></article>
+		<article id="preview" hidden tabindex="0" aria-label="Note preview">
 		<aside id="pins">
 			<div id="task-tools"><span id="task-title"></span><button id="btn-source">Edit note</button></div>
 			<div id="pin-add">
@@ -247,7 +261,7 @@ body.preview-view #editor-pane, body.preview-view #pins{display:none;}
 			</div>
 			<div id="pin-undo" hidden><span></span><button type="button">Undo</button></div>
 			<div id="pin-list"></div>
-		</aside>
+		</aside></article>
 		<div id="scrim"></div>
 	</main>
 	<footer id="note-summary" hidden aria-label="Note status"><span id="note-save-status" role="status"></span><span id="note-save-time"></span><span id="note-word-count"></span></footer>
@@ -1402,6 +1416,7 @@ var loadNote = "";             // said once the next file list is in (it clears 
 var pinWriting = Promise.resolve(); // all pinned commits so far, settled
 var pinNext = pathMap(); // path -> job waiting for the one before
 var pinBusy = pathMap();   // path -> true while a commit to it is on its way
+var pinReloading = pathMap();
 var pinEpoch = 0; // bumped on changing repository; older replies ignored
 var accessSeq = 0;
 var accessPending = false;
@@ -1917,9 +1932,10 @@ function openFile(path, discarding, navigating) {
 	// A commit of this very file may still be on its way (it was just left).
 	// Read it only once that has settled, so the editor starts from what
 	// GitHub really holds and never from the version before it.
-	var ahead = inflight && inflight.key === draftKey(path) ? inflight.done : Promise.resolve();
+	var ahead = Promise.all([inflight && inflight.key === draftKey(path) ? inflight.done : null, pinBusy[path] ? pinWriting : null]);
 	return ahead.then(function () { if (stillHere()) return readNote(path); }).then(function (r) {
 		if (!r || !stillHere()) return;
+		taskView(false);
 		ensureEditor();
 		if (discarding) dropDraft(path);
 		var draft = readDraft(path);
@@ -2155,7 +2171,7 @@ function saveCurrent(auto) {
 			} catch (e) {}
 		}
 		notePinned(path, text);
-		if (isPinned(path)) {
+		if (isPinned(path) || document.body.classList.contains("preview-view")) {
 			delete pinCache[path];
 			renderPins();
 		}
@@ -2598,7 +2614,7 @@ function renderPinTabs() {
 		host.appendChild(b);
 	});
 }
-var previewSeq = 0;
+var previewSeq = 0, previewIdentity = "", captureTarget = null;
 function imagePath(ref, note, wiki) {
 	var name = wiki ? ref : decodeURIComponent(ref);
 	if (/[:\\\x00-\x1f]/.test(name) || /^\/\//.test(name)) throw new Error("External images are not loaded");
@@ -2638,26 +2654,38 @@ async function previewImages(items, seq, scope, note) {
 	}
 	await Promise.all([worker(), worker(), worker(), worker()]);
 }
-function previewView(show) {
+function previewView(show, force) {
+	var path = current ? current.path : activePin(), cached = path && pinCache[path];
+	var source = cached && (!current || !dirty()) ? cached.text : editor ? editor.getValue() : "";
+	var identity = JSON.stringify([draftKey(""),path,source,readOnly,!!(current && dirty()),!!pinReloading[path]]);
+	if (!force && show && document.body.classList.contains("preview-view") && previewIdentity === identity) return;
+	previewIdentity = show ? identity : "";
 	var seq = ++previewSeq;
 	document.body.classList.toggle("preview-view", show);
 	$("preview").hidden = !show;
 	$("btn-preview").setAttribute("aria-pressed", String(show));
 	$("btn-preview").textContent = show ? "Edit" : "Preview";
-	if (!show) { $("preview").replaceChildren(); if (editor) editor.refresh(); return; }
-	var host = $("preview");
+	if (!show) { $("pins").appendChild($("pin-add")); $("pin-list").replaceChildren(); if (editor) editor.refresh(); return; }
+	var host = $("pin-list");
+	captureTarget = {path:path,scope:draftKey("")};
+	$("task-title").textContent = path || "";
+	var focused = host.contains(document.activeElement), focusName = focused && document.activeElement.getAttribute("aria-label"), scroll = $("preview").scrollTop;
+	$("pins").appendChild($("pin-add"));
 	host.replaceChildren();
+	if (!path) return;
+	if (!cached && current && !dirty()) pinCache[path] = { text: source, sha: current.sha, base: current.base };
 	if (!window.marked || !window.DOMPurify || !DOMPurify.isSupported) {
 		host.textContent = "Preview unavailable: its libraries could not load. Press Edit to keep writing.";
 		return;
 	}
 	try {
-		var images = [], renderer = new marked.Renderer();
+		var images = [], renderer = new marked.Renderer(), taskMarker = randomString(12), taskNumber = 0;
+	renderer.checkbox = function (token) { return '<input type="checkbox" disabled data-task="' + taskMarker + '-' + taskNumber++ + '"' + (token.checked ? ' checked' : '') + '>'; };
 		renderer.image = function (token) {
 			images.push({ ref: token.href, alt: token.text });
 			return '<span data-note-image="' + (images.length - 1) + '"></span>';
 		};
-		var text = editor.getValue(), front = /^(?:\uFEFF)?---\n([\s\S]*?)\n(?:---|\.\.\.)(?:\n|$)/.exec(text);
+		var text = source, front = /^(?:\uFEFF)?---\n([\s\S]*?)\n(?:---|\.\.\.)(?:\n|$)/.exec(text);
 		if (front) {
 			var box = document.createElement("pre"); box.className = "frontmatter";
 			box.textContent = front[1]; host.appendChild(box); text = text.slice(front[0].length);
@@ -2666,7 +2694,7 @@ function previewView(show) {
 		var fragment = DOMPurify.sanitize(marked.parse(text, { gfm: true, renderer: renderer }), {
 			RETURN_DOM_FRAGMENT: true,
 			ALLOWED_TAGS: ["span","p","br","hr","h1","h2","h3","h4","h5","h6","blockquote","pre","code","em","strong","del","ul","ol","li","table","thead","tbody","tr","th","td","a","input"],
-			ALLOWED_ATTR: ["data-note-image","href","title","type","checked","disabled","start"], ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false
+			ALLOWED_ATTR: ["data-note-image","data-task","href","title","type","checked","disabled","start"], ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false
 		});
 		fragment.querySelectorAll("[data-note-image]").forEach(function (el) {
 			var key = el.getAttribute("data-note-image"), item = /^\d+$/.test(key) ? images[Number(key)] : null; el.removeAttribute("data-note-image");
@@ -2702,19 +2730,176 @@ function previewView(show) {
 			if (at) { parts.appendChild(document.createTextNode(node.textContent.slice(at))); node.replaceWith(parts); }
 		});
 		host.appendChild(fragment);
-		previewImages(images, seq, draftKey(""), current.path);
+		previewImages(images, seq, draftKey(""), path);
+		bindChecklist(source, path, taskMarker, taskNumber);
+		$("preview").scrollTop = scroll;
+		if (focused) { var target = Array.from(host.querySelectorAll("[aria-label]")).find(function (el) { return el.getAttribute("aria-label") === focusName; }); (target || $("preview")).focus({preventScroll:true}); }
 	} catch (err) { host.textContent = "Preview unavailable for this note. Press Edit to keep writing."; }
 }
-$("btn-preview").onclick = function () {
+// Only map plain list source recognised by the Markdown parser. Ambiguous
+// constructs stay read-only; never guess a source line from rendered text.
+function checklistLines(source) {
+	var lines = source.split("\n"), tasks = [];
+	function match(raw, at, indent) {
+		var want = raw.replace(/\n+$/, "").split("\n");
+		return want.every(function (line, n) { return (lines[at + n] || "").slice(Math.min(indent, /^ */.exec(lines[at + n] || "")[0].length)) === line; });
+	}
+	function nested(list, begin, end) {
+		var candidates = [];
+		for (var i = begin; i < end; i++) {
+			var indent = /^ */.exec(lines[i])[0].length;
+			if (match(list.raw, i, indent)) candidates.push({at:i, indent:indent});
+		}
+		if (candidates.length !== 1) throw new Error("Ambiguous list source");
+		parse(list, candidates[0].at, candidates[0].indent);
+	}
+	function parse(list, at, indent) {
+		list.items.forEach(function (item) {
+			while (at < lines.length && !lines[at].trim()) at++;
+			if (!match(item.raw, at, indent)) throw new Error("Unsupported list source");
+			var end = at + item.raw.replace(/\n+$/, "").split("\n").length;
+			var m = /^( *)([-*+]|\d+[.)])\s+\[([ xX])\] ?(.*)$/.exec(lines[at]);
+			if (item.task) {
+				if (!m) throw new Error("Unsupported task source");
+				tasks.push({index:at,end:end,indent:m[1].length,text:m[4],line:lines[at],checked:m[3].toLowerCase()==="x"});
+			}
+			(item.tokens || []).forEach(function (token) { if (token.type === "list") nested(token, at + 1, end); });
+			at = end;
+		});
+	}
+	try {
+		var offset = 0, front = frontOf(source.replace(/^\uFEFF/, "")), body = front ? source.slice(front[0].length) : source;
+		offset = source.length - body.length;
+		marked.lexer(body).forEach(function (token) {
+			if (!token.raw) return;
+			if (source.slice(offset, offset + token.raw.length) !== token.raw) throw new Error("Unsupported Markdown source");
+			if (token.type === "list") parse(token, source.slice(0, offset).split("\n").length - 1, 0);
+			offset += token.raw.length;
+		});
+	} catch (e) { return []; }
+	return tasks.sort(function (a,b) { return a.index-b.index; });
+}
+
+function bindChecklist(source, path, marker, count) {
+	var host = $("pin-list"), tasks = checklistLines(source), controls = Array.from(host.querySelectorAll("input[data-task]"));
+	controls = controls.filter(function (box) { return box.getAttribute("data-task").startsWith(marker + "-"); });
+	// Unsupported blockquotes/HTML/indented code cannot shift line addresses.
+	if (tasks.length !== count || controls.length !== count) {
+		if (count) host.appendChild(emptyNote("Use Edit for this checklist's source formatting."));
+		return;
+	}
+	var scope = draftKey(""), locked = !!readOnly || !!(current && dirty());
+	$("pin-input").disabled = $("pin-go").disabled = locked;
+	function live() { return scope === draftKey("") && signedIn() && (current ? current.path === path : activePin() === path); }
+	function write(next, onFail, recover) {
+		if (!live() || locked || !pinCache[path] || pinCache[path].text !== source) return false;
+		return commitPin(path, next, onFail, null, recover);
+	}
+	function button(name, label, action) {
+		var b = document.createElement("button"); b.textContent = label; b.setAttribute("aria-label", name); b.disabled = locked; b.onclick = action; return b;
+	}
+	var lists = new Map();
+	function keepNumbers(lines, list) {
+		var siblings = tasks.filter(function (t) { return t.list === list; }), first = siblings[0], last = siblings[siblings.length - 1], markers = [];
+		var original = source.split("\n"), re = new RegExp("^( {" + first.indent + "})(\\d+[.)])(?=\\s)");
+		for (var i = first.index; i < last.end; i++) { var m = re.exec(original[i]); if (m) markers.push(m[2]); }
+		var n = 0;
+		for (var i = first.index; i < last.end; i++) lines[i] = lines[i].replace(re, function (all, space) { return space + markers[n++]; });
+		return lines.join("\n");
+	}
+	controls.forEach(function (box, n) {
+		var task = tasks[n], li = box.closest("li"), list = li && li.parentElement;
+		if (!li || !list || !/^(UL|OL)$/.test(list.tagName)) return;
+		if (!lists.has(list)) lists.set(list, []); lists.get(list).push(task);
+		task.li = li; task.list = list;
+		box.removeAttribute("data-task"); box.disabled = locked;
+		box.setAttribute("aria-label", task.text || "Task");
+		box.onchange = function () { var lines = source.split("\n"); lines[task.index] = task.line.replace(/\[([ xX])\]/, box.checked ? "[x]" : "[ ]"); write(lines.join("\n")); };
+		var row = document.createElement("div"), lab = document.createElement("label"), text = document.createElement("span"), tools = document.createElement("div");
+		row.className = "task" + (task.checked ? " done" : ""); tools.className = "task-tools";
+		// Preserve nested lists; rebuild the task's own first line from text only.
+		box.remove();
+		while (li.firstChild && !(li.firstChild.nodeType === 1 && /^(UL|OL)$/.test(li.firstChild.tagName))) text.appendChild(li.firstChild);
+		if (!text.textContent.trim()) text.textContent = task.text;
+		lab.append(box, text); row.append(lab, tools); li.prepend(row);
+		var edit = button("Edit task: " + task.text, "Edit", function () {
+			var input = document.createElement("input"); input.className = "task-edit"; input.value = task.text; input.setAttribute("aria-label", "Task text");
+			var done = button("Save task text", "Save", function () {
+				if (!input.value.trim()) return;
+				var lines = source.split("\n"); lines[task.index] = task.line.slice(0, task.line.length - task.text.length) + input.value;
+				write(lines.join("\n"), function () { flash("Task text was not saved. Reopen this note to recover its draft.", true); }, true);
+			});
+			input.onkeydown = function (e) { if (e.isComposing) return; if (e.key === "Enter") { e.preventDefault(); done.click(); } if (e.key === "Escape") previewView(true, true); };
+			row.replaceChildren(input, done, button("Cancel editing task", "Cancel", function () { previewView(true, true); })); input.focus();
+		});
+		function move(direction) {
+			var siblings = tasks.filter(function (t) { return t.list === list; }), at = siblings.indexOf(task), other = siblings[at + direction];
+			if (!other) return;
+			var lines = source.split("\n"), first = direction < 0 ? other : task, last = direction < 0 ? task : other;
+			var a = lines.slice(first.index, first.end), gap = lines.slice(first.end, last.index), b = lines.slice(last.index, last.end);
+			lines.splice(first.index, last.end - first.index, ...b, ...gap, ...a); write(keepNumbers(lines, list));
+		}
+		var up = button("Move up: " + task.text, "↑", function () { move(-1); }), down = button("Move down: " + task.text, "↓", function () { move(1); });
+		var rm = button("Remove task: " + task.text, "×", function () {
+			if (!live() || locked) return;
+			if (pinCache[path].text !== source) { renderPins(); return; }
+			var lines = source.split("\n"), gone = lines.slice(task.index, task.end).map(function (line, i) { return {index: task.index + i, line: line}; });
+			removeTasks(path, gone, "Removed “" + task.text + "”.");
+		}); rm.className = "rm";
+		var handle = button("Drag task: " + task.text, "↕", function () {}); handle.draggable = !locked;
+		handle.ondragstart = function (e) { e.dataTransfer.setData("text/plain", String(task.index)); checklistDrag = { scope: scope, path: path, source: source, task: task }; };
+		row.ondragover = function (e) { if (!locked && checklistDrag && checklistDrag.task.list === list) e.preventDefault(); };
+		row.ondrop = function (e) {
+			e.preventDefault(); var d = checklistDrag; checklistDrag = null;
+			if (!d || d.scope !== scope || d.path !== path || d.source !== source || d.task.list !== list || d.task === task) return;
+			var lines = source.split("\n"), from = d.task, block = lines.splice(from.index, from.end - from.index), at = task.index;
+			if (from.index < at) at = task.end - block.length;
+			lines.splice(at, 0, ...block); write(keepNumbers(lines, list));
+		}; handle.ondragend = function () { checklistDrag = null; };
+		tools.append(edit, up, down, handle, rm);
+	});
+	var lastRoot = Array.from(lists.keys()).filter(function (list) { return !list.parentElement.closest("li"); }).pop();
+	lists.forEach(function (items, list) {
+		if (list === lastRoot) {
+			var last = items[items.length - 1]; captureTarget.at = last.end; captureTarget.line = last.line; captureTarget.source = source;
+			$("pin-add").className = "list-add"; list.after($("pin-add")); return;
+		}
+		var form = document.createElement("div"), input = document.createElement("input"); form.className = "list-add";
+		input.placeholder = "Add a task"; input.setAttribute("aria-label", "Add a task to this list"); input.disabled = locked;
+		var add = button("Add task to this list", "Add", function () {
+			if (!input.value.trim()) return;
+			var last = items[items.length - 1], lines = source.split("\n"), value = input.value;
+			var marker = /^\s*([-*+]|\d+[.)])/.exec(last.line)[1];
+			if (/^\d/.test(marker)) marker = (parseInt(marker, 10) + 1) + marker.slice(-1);
+			lines.splice(last.end, 0, " ".repeat(last.indent) + marker + " [ ] " + value);
+			write(lines.join("\n"), function () { $("pin-input").value = value; }, true);
+		});
+		input.onkeydown = function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); add.click(); } };
+		form.append(input, add); list.after(form);
+	});
+	var ticked = tasks.filter(function (t) { return t.checked; }).map(function (t) { return { index: t.index, line: t.line }; });
+	if (ticked.length && !locked) { var clear = button("Clear completed tasks", "Clear " + ticked.length + " done", function () { if (live()) removeTasks(path, ticked, "Cleared " + ticked.length + " done tasks."); }); clear.className = "clear-done"; host.append(clear); }
+	if (!source) host.appendChild(emptyNote("Nothing in " + path + " yet. Add a task below."));
+	$("pin-add").hidden = false;
+	if (!lastRoot) { $("pin-add").className = "list-add"; host.after($("pin-add")); }
+	if (locked && current && dirty()) host.appendChild(emptyNote("Save or resolve your changes to edit this checklist. You can keep writing in Edit."));
+}
+var checklistDrag = null;
+$("btn-preview").onclick = async function () {
+	if (!current && activePin()) { await openFile(activePin()); if (current) { taskView(false); editor.focus(); } return; }
 	if (!current || !editor) { flash("Open a note first."); return; }
+	var doc = current, epoch = pinEpoch;
 	var show = !document.body.classList.contains("preview-view");
+	if (!show) await pinWriting;
+	if (current !== doc || epoch !== pinEpoch) return;
+	if (show && !pinBusy[current.path]) pinCache[current.path] = {text: editor.getValue(), sha: current.sha, base: current.base};
 	taskView(false); previewView(show);
 	if (!show) editor.focus();
 };
 function taskView(show) {
-	previewView(false);
+	previewView(show);
 	document.body.classList.toggle("task-view", show);
-	$("btn-tasks").hidden = show || !current || !isPinned(current.path);
+	$("btn-tasks").hidden = true;
 	if (!show && editor) editor.refresh();
 }
 /* A pin is `pinned: true` in the note's frontmatter (an Obsidian property),
@@ -2859,95 +3044,20 @@ function emptyNote(text) {
 }
 var pinReadSeq = 0;
 function renderPins() {
-	var sequence = ++pinReadSeq, epoch = pinEpoch;
-	var host = $("pin-list");
-	var path = activePin();
-	$("task-title").textContent = path || "Pinned tasks";
-	$("btn-source").disabled = !path;
-	host.textContent = "";
-	if (!path || !configured()) {
-		host.appendChild(emptyNote(configured() ? "No pinned file." : "Your pinned tasks appear here."));
-		return;
-	}
-	var cached = pinCache[path];
-	if (!cached) {
-		host.appendChild(emptyNote("Loading..."));
+	if (!configured()) return;
+	var path = current && document.body.classList.contains("preview-view") ? current.path : activePin();
+	if (!path) return;
+	if (!pinCache[path] && (!current || current.path !== path)) {
+		var sequence = ++pinReadSeq, epoch = pinEpoch;
 		readNote(path).then(function (r) {
 			if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
-			pinCache[path] = r;
-			if (activePin() === path) renderPins();
-		}).catch(function (err) {
-			if (epoch !== pinEpoch || sequence !== pinReadSeq || !configured()) return;
-			host.textContent = "";
-			var e = document.createElement("div");
-			e.className = "empty";
-			e.textContent = err.message;
-			host.appendChild(e);
-		});
+			pinCache[path] = r; renderPins();
+		}).catch(function (e) { if (epoch === pinEpoch) fail(e); });
 		return;
 	}
-	var lines = cached.text.split("\n");
-	var any = false;
-	var ticked = [];
-	lines.forEach(function (line, index) {
-		var task = line.match(/^(\s*[-*]\s+)\[([ xX])\]\s?(.*)$/);
-		if (task) {
-			any = true;
-			var done = task[2].toLowerCase() === "x";
-			if (done) ticked.push({ index: index, line: line });
-			var row = document.createElement("div");
-			row.className = "task" + (done ? " done" : "");
-			var lab = document.createElement("label");
-			var box = document.createElement("input");
-			box.type = "checkbox";
-			box.checked = done;
-			box.disabled = !!readOnly;
-			box.onchange = function () { toggleTask(path, index, box.checked); };
-			var txt = document.createElement("span");
-			txt.textContent = task[3];             // a line of the note: text, never markup
-			lab.appendChild(box);
-			lab.appendChild(txt);
-			var rm = document.createElement("button");
-			rm.type = "button";
-			rm.className = "rm";
-			rm.textContent = "\u00d7";
-			rm.title = "Remove";
-			rm.setAttribute("aria-label", "Remove task: " + task[3]);   // an attribute's value: text
-			rm.disabled = !!readOnly;
-			rm.onclick = function () {
-				removeTasks(path, [{ index: index, line: line }], "Removed \u201c" + task[3] + "\u201d.");
-			};
-			row.appendChild(lab);
-			row.appendChild(rm);
-			host.appendChild(row);
-			return;
-		}
-		var head = line.match(/^#{1,6}\s+(.*)$/);
-		if (head) {
-			any = true;
-			var h = document.createElement("div");
-			h.className = "task-head";
-			h.textContent = head[1];
-			host.appendChild(h);
-		}
-	});
-	if (ticked.length && !readOnly) {
-		var clear = document.createElement("button");
-		clear.type = "button";
-		clear.className = "clear-done";
-		clear.textContent = "Clear " + ticked.length + " done";
-		clear.onclick = function () {
-			removeTasks(path, ticked, "Cleared " + ticked.length + (ticked.length === 1 ? " done task." : " done tasks."));
-		};
-		host.appendChild(clear);
-	}
-	if (!any) {
-		var e2 = document.createElement("div");
-		e2.className = "empty";
-		e2.textContent = "Nothing in " + path + " yet. Add a task above.";
-		host.appendChild(e2);
-	}
+	if (document.body.classList.contains("task-view") || document.body.classList.contains("preview-view")) previewView(true);
 }
+
 function toggleTask(path, index, checked) {
 	var cached = pinCache[path];
 	if (!cached) return;
@@ -3011,7 +3121,7 @@ function undoRemove() {
 function addTask() {
 	var input = $("pin-input");
 	var text = input.value.trim();
-	var path = activePin();
+	var path = captureTarget && captureTarget.scope === draftKey("") ? captureTarget.path : null;
 	if (!text || !path) return;
 	var cached = pinCache[path];
 	if (!cached) { flash("Still loading that file.", true); return; }
@@ -3019,6 +3129,13 @@ function addTask() {
 	var next = (body ? body + "\n" : "") + text.split(/\r?\n/).filter(function (line) {
 		return line.trim();
 	}).map(function (line) { return "- [ ] " + line; }).join("\n") + "\n";
+	if (captureTarget.at != null && captureTarget.source === cached.text) {
+		var lines = cached.text.split("\n"), m = /^(\s*)([-*+]|\d+[.)])/.exec(captureTarget.line), number = parseInt(m[2], 10);
+		var added = text.split(/\r?\n/).filter(function (line) { return line.trim(); }).map(function (line, i) {
+			return m[1] + (isNaN(number) ? m[2] : (number + i + 1) + m[2].slice(-1)) + " [ ] " + line;
+		});
+		lines.splice(captureTarget.at, 0, ...added); next = lines.join("\n");
+	}
 	// Refused, or failed to save: the task goes back in the box.
 	var ok = commitPin(path, next, function () {
 		input.value = (input.value ? input.value + "\n" : "") + text;
@@ -3026,12 +3143,19 @@ function addTask() {
 	}, text);
 	if (ok !== false) { input.value = ""; input.rows = 1; }
 }
-function commitPin(path, text, onFail, capture) {
+function commitPin(path, text, onFail, capture, recover) {
+	if (pinReloading[path]) { flash("Reloading the checklist after a failed save. Try again shortly.", true); return false; }
+	if (readOnly) { flash(readOnly, true); return false; }
 	if (accessPending) { flash("Checking whether this repository can be changed...", true); return false; }
 	var cached = pinCache[path];
 	var sha = cached ? cached.sha : null;
 	var raw = rawFor(text, cached && cached.base);
 	if (overLimit(raw)) { flash(overLimitMessage(path).replace(" It is kept as a draft.", ""), true); return false; }
+	if (recover || (pinNext[path] && pinNext[path].recovery) || (pinActive[path] && pinActive[path].recovery)) {
+		recover = true;
+		try { draftStore().setItem(draftKey(path), JSON.stringify({text:text,sha:sha,at:Date.now()})); }
+		catch (e) { flash("Could not keep this task edit on this device. Copy it before retrying.", true); return false; }
+	}
 	pinCache[path] = { text: text, sha: sha, base: baseOf(raw) };   // optimistic: redraw immediately
 	renderPins();
 	flash("Saving...");
@@ -3040,6 +3164,7 @@ function commitPin(path, text, onFail, capture) {
 	var job = pinNext[path] || { onFail: [], captures: [] };
 	job.raw = raw;
 	job.text = text;
+	job.recovery = !!recover;
 	if (onFail) job.onFail.push(onFail);
 	if (capture) job.captures.push(capture);
 	pinNext[path] = job;
@@ -3064,6 +3189,9 @@ function sendPin(path) {
 			current.base = baseOf(job.raw);
 			editor.setValue(job.text);
 		}
+		var next = pinNext[path];
+		if (next && next.recovery) { try { draftStore().setItem(draftKey(path), JSON.stringify({text:next.text,sha:r.sha,at:Date.now()})); } catch (e) {} }
+		else if (job.recovery) { var draft = readDraft(path); if (draft && draft.text === job.text) dropDraft(path); }
 		if (pinNext[path]) return sendPin(path);
 		delete pinBusy[path];
 		delete pinActive[path];
@@ -3077,9 +3205,20 @@ function sendPin(path) {
 		delete pinBusy[path];
 		delete pinActive[path];
 		delete pinCache[path];       // drop bad state and reload from the server
-		renderPins();
+		pinReloading[path] = true;
 		job.onFail.concat(waiting ? waiting.onFail : []).forEach(function (f) { f(); });
 		fail(err);
+		return readNote(path).then(function (r) {
+			if (pinEpoch !== epoch) return;
+			pinCache[path] = r;
+			if (current && current.path === path && !dirty()) { current.sha = r.sha; current.saved = r.text; current.base = r.base; editor.setValue(r.text); }
+		}, function () {}).then(function () {
+			if (pinEpoch !== epoch) return;
+			delete pinReloading[path];
+			var recovery = waiting && waiting.recovery ? waiting : job.recovery ? job : null;
+			if (recovery) { try { draftStore().setItem(draftKey(path), JSON.stringify({text:recovery.text,sha:sha,at:Date.now()})); } catch (e) {} }
+			renderPins();
+		});
 	});
 }
 /* SETTINGS */
@@ -3315,7 +3454,7 @@ function showPointed(changedRepo) {
 	var keep = pathMap();
 	if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
 	pinCache = keep;
-	if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinActive = pathMap(); pinFound = pathMap(); pinSeen = pathMap(); hideUndo(); }
+	if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinReloading = pathMap(); pinActive = pathMap(); pinFound = pathMap(); pinSeen = pathMap(); hideUndo(); }
 	ui.pin = 0;
 	if (changedRepo) {
 		files = [];                  // the old repository's list is not this one's
@@ -3466,13 +3605,14 @@ $("pin-input").addEventListener("keydown", function (e) {
 $("filter").addEventListener("input", function () { cancelSearch(); renderTree(); });
 $("btn-tasks").onclick = showTasks;
 $("btn-source").onclick = async function () {
-	var path = activePin(), epoch = pinEpoch;
+	var path = current ? current.path : activePin(), epoch = pinEpoch;
 	if (!path) return;
 	if (!current || current.path !== path) {
 		var opening = openFile(path), sequence = openSeq;
 		await opening;
 		if (sequence !== openSeq) return;
 	}
+	await pinWriting;
 	if (epoch !== pinEpoch || !current || current.path !== path) return;
 	taskView(false);
 	editor.focus();

@@ -68,7 +68,7 @@ try {
   {
     const { ctx, p } = await ready();
     const hold = await gate(p, 'https://api.github.com/repos/roldaof/alpha/contents/inbox.md?*');
-    await p.evaluate(() => openFile('inbox.md'));
+    await p.evaluate(() => { openFile('inbox.md'); });
     await hold.started;
     await pickBeta(p);
     hold.release();
@@ -81,7 +81,7 @@ try {
   {
     const { ctx, p } = await ready();
     const hold = await gate(p, 'https://api.github.com/**/contents/inbox.md?*');
-    await p.evaluate(() => openFile('inbox.md'));
+    await p.evaluate(() => { openFile('inbox.md'); });
     await hold.started;
     await H.clickRow(p, 'plan.md');
     await p.waitForFunction(() => current?.path === 'plan.md');

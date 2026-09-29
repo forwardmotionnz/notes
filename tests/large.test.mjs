@@ -133,7 +133,7 @@ const FILES = () => ({ 'big.md': BIG, 'todo.md': '# Today\n', 'inbox.md': 'small
   await H.signIn(p);
   await H.settle(p, 400);
   await H.preview(p, 'todo.md');
-  await p.getByRole('button', { name: 'Edit task: one', exact: true }).click();
+  await H.taskAction(p, 'Edit task: one');
   await p.locator('.task-edit').fill('one task too many');
   await p.locator('.task-edit').press('Enter');
   await H.settle(p, 500);

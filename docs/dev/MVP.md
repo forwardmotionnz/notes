@@ -299,7 +299,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N30 | 46 | todo | UX review 2026-09-28: recently deleted notes |
 | N36 | 44a | done | The header's ← → buttons removed; `tests/navigation.test.mjs` 14/14 now drives the browser's own back and forward (both ways, after a reload and from the middle of history) and checks the header has no arrows. Full suite 61/61 Chromium. Commit in the log |
 | N37 | 44b | done | Tasks screen, "Add a task" boxes, Edit note / Tasks switch and pinned-only logic removed; a pin opens like any note; Preview checklists keep tick, edit, move, drag, remove, Clear done and Undo. 18 suites that drove the Tasks screen now drive Preview (reasons under "N37: tests changed"). G-1: full suite 61/61 Chromium, three runs. G-2: each safeguard reverted alone fails a test: Undo withdrawn on opening another note (tasks "another note: the Undo is withdrawn", "a new note: the Undo is not offered there"), cache refilled before Preview's shortcut (tasks "another list: setup"), Undo refused with unsaved typing (tasks "unsaved typing: Undo sends nothing"), shortcut marked only while open (pinned-tree "a new note: the shortcut is no longer marked"), late checklist reply never rolls the editor back (tasks "late tick reply: the note shows what GitHub has"). G-3: four findings, all fixed with those tests. G-4 `tests/screens/n37-*.png`. Commits in the log |
-| N38 | 44c | todo | Owner's review 2026-09-29: visual redesign (mock-up for approval first) |
+| N38 | 44c | done | Built to the approved mock-up (https://claude.ai/artifact/AmXpGUFgM5kpXJkZ1awT42): icons, buttons, header with save dot, Edit/Preview switch and ⋯ menu, tabs (chips on phones), icon toolbar, sidebar sections, reading face for headings, property chips, checklist rows with tap-to-edit, grip and ⋯. `tests/design.test.mjs` 60/60; full suite 62/62 Chromium; axe zero serious issues in every view, both themes, both widths. G-2: each safeguard reverted alone fails a named design check (property values as text; links in tasks; Saving… while a save is on its way; focus back to ⋯; menus close on Tab and on a tap; tabs with one name told apart; Pinned chip follows the pin check; phone title keeps its line in a conflict; one task menu at a time) and the menu observer writing unchanged attributes stops sign-in. G-3: nine findings; eight fixed with those tests; the ninth (no quick-switcher button on phones) kept on purpose, since search is at the top of the Files sheet. Screenshots `tests/screens/n38*.png`; README screenshot redone |
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 
 ### N10: plan
@@ -668,6 +668,15 @@ The owner found the app's look clunky (text buttons, glyphs as icons, three stac
 - A design pass over the whole app, not piecemeal tweaks: one inline SVG icon set (openly licensed, no extra requests); a small family of buttons (icon, subtle, primary) with one size and radius; a calm header (file list, the note's title, save status, an Edit/Preview switch, and a ⋯ menu for Rename, Delete, Outline and Tags); tabs that look like tabs; one icon toolbar; sidebar sections (Pinned, Recent, Tags, Files) with consistent rows, icons and counts; a type scale and spacing tuned for reading; both themes; phones.
 - First a static mock-up (desktop and phone, light and dark) for the owner's approval; then the build, with accessibility (axe) and every existing behaviour kept. Needs size headroom: `index.html` is 201 KB of 200 KB; N36 and N37 free some, and the owner may be asked to raise the limit (e.g. to 250 KB).
 
+### N38: tests changed with the redesign
+- Rename, Delete and Outline moved into the note's ⋯ menu, and a task's Edit, Move up, Move down and Remove into its ⋯ menu: tests open the menu first (`H.noteAction`, `H.taskAction`) and check what is offered with `H.inMenu`; what they check is unchanged. Tags opens from the menu (tags suite adds a check that it does).
+- hostile and preview counted every `svg` as a payload; the app now draws its own icons as `svg`. Both now exempt only the exact icon shape (`<svg class="i" aria-hidden="true">` holding one `<use href="#i-name">`); any other `svg` still counts.
+- theme and manifest: the dark background is now #151816 (was #16181c).
+- note-tabs: on phones, open notes are one scrolling row of chips (approved design) instead of a folded list.
+- keyboard: the Android resize check opens a note first, because the save status only shows while a note is open. accessibility: on phones the quick switcher opens without its header button, which phones no longer show (search is in the Files sheet).
+- sidebar: the empty-state hint names the button at the top left instead of ☰.
+- G-3 review (fixed, each with a design check): the save status said Saved while a save was on its way; on a phone the note's name vanished during a conflict; focus was lost after a ⋯ action's dialog; menus stayed open after tabbing out, and (on iOS) after a tap on plain text; closing one task menu closed another; tabs with the same name looked alike and the open chip could be off-screen; the Pinned chip accepted values the pin check does not; messages said "Press Edit" where phones show a pencil.
+
 ## Needs the owner
 
 - **GitHub Sponsors for N35:** set up the Sponsors profile (github.com/sponsors) for the account that should receive support (your personal account, or the forwardmotionnz organisation) and say which. Whether each version is also published as a GitHub release is your call.
@@ -891,6 +900,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-28: GitHub Sponsors moved out of About (N31) into its own item at the end of the list (N35), as the owner asked.
 - 2026-09-29: Owner's review of the built app: N36 remove ← →, N37 one kind of note (Tasks screen and "Add a task" go), N38 visual redesign with a mock-up first. Placed ahead of the remaining items.
 - 2026-09-29: The owner raised the size limit for `index.html` to 250 KB (256,000 bytes) for the redesign (N38).
+- 2026-09-29: The owner approved the N38 mock-up and all five choices in it: a header with title, save dot, Edit/Preview switch and ⋯ menu; checklist rows with tap-to-edit, grip and ⋯; a reading face for headings; properties as chips; Save as a status dot rather than a header button.
 
 ## Log
 (one line per iteration: date, item, result, commit)
@@ -1081,4 +1091,5 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - Removing the source-change guard causes the intended assertion to fail (tests/screens/outline-mutation.log). Inspected tests/screens/n28-{1280,390}-{light,dark}.png. Remaining longer source comments moved to the existing implementation notes with AST equivalence checked, preserving the single-file size limit without runtime dependencies or a build.
 - Full CI on a3de4bb: all 61 WebKit suites passed; Chromium caught the backlinks summary covering task capture at the iPhone SE keyboard height. Fixed viewport resize handling to scroll the focused Preview field into view and collapse expanded backlinks when the keyboard leaves under 450px. Existing keyboard assertions retained; expanded-panel checks added. Keyboard now 33/33 in both engines, with editor resize/scroll-count assertions unchanged. The corrected PR runs full CI again before merge.
 - 2026-09-29 · N36 · done · (the commit "N36: remove the header's back and forward buttons")
-- 2026-09-29 · N37 · done · 0823ccd and the commit "N37: fixes from review"
+- 2026-09-29 · N37 · done · 0823ccd and the commit "N37: fixes from review"; merged in forwardmotionnz/notes#23
+- 2026-09-29 · N38 · done · baa1aa9, 58a1107 and the commit "N38: fixes from review"

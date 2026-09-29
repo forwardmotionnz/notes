@@ -17,7 +17,7 @@ async function ready(opts = {}) {
 const renameTo = async (p, target) => {
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept(target) : d.accept());
-  await p.click('#btn-rename');
+  await H.noteAction(p, '#btn-rename');
   await H.settle(p, 700);
 };
 
@@ -30,7 +30,7 @@ const renameTo = async (p, target) => {
   await p.click('#f-save');
   await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');
-  t.check('a Rename button is offered for the open file', await p.isVisible('#btn-rename'));
+  t.check('a Rename button is offered for the open file', await H.inMenu(p, '#btn-rename'));
   const before = gh.commits.length;
   await renameTo(p, 'archive/2026/inbox old.md');
   t.check('the file is at its new path with its content', gh.files['archive/2026/inbox old.md'] === '# Inbox\n\nkeep me\n');
@@ -123,7 +123,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   });
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('moved.md') : d.accept());
-  await p.click('#btn-rename');
+  await H.noteAction(p, '#btn-rename');
   await H.settle(p, 500);
   t.check('the note is locked while it moves', await p.evaluate(() => document.querySelector('#cm-stub').readOnly));
   await p.waitForTimeout(2500);
@@ -209,7 +209,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   });
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('moved.md') : d.accept());
-  await p.click('#btn-rename');
+  await H.noteAction(p, '#btn-rename');
   await H.settle(p, 300);
   await p.click('#btn-refresh');
   await H.settle(p, 400);
@@ -291,7 +291,7 @@ for (const step of ['git/ref/heads', 'git/commits/', 'git/trees', 'git/commits',
   const repos = [{ owner: { login: 'roldaof' }, name: 'vault', full_name: 'roldaof/vault', default_branch: 'main', private: true, archived: true }];
   const { ctx, p } = await ready({ repos });
   await H.clickRow(p, 'inbox.md');
-  t.check('no Rename in a read-only repository', !(await p.isVisible('#btn-rename')));
+  t.check('no Rename in a read-only repository', !(await H.inMenu(p, '#btn-rename')));
   await ctx.close();
 }
 

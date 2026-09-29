@@ -3,7 +3,7 @@
    the same guarantee now covers task text edited in Preview. */
 import * as H from './harness.mjs';
 const t=H.suite('capture-recovery');await H.start();
-const edit=async(p,from,to)=>{await p.getByRole('button',{name:'Edit task: '+from,exact:true}).click();await p.locator('.task-edit').fill(to);await p.locator('.task-edit').press('Enter');};
+const edit=async(p,from,to)=>{await H.taskAction(p, 'Edit task: '+from);await p.locator('.task-edit').fill(to);await p.locator('.task-edit').press('Enter');};
 for (const status of [0,503,429]) {
   const gh=H.fakeGitHub({files:{'todo.md':'- [ ] one\n- [ ] two\n','inbox.md':'hi\n'}});const ctx=await H.context(gh);const p=await H.page(ctx);await H.signIn(p);await H.settle(p,500);
   await H.preview(p,'todo.md');

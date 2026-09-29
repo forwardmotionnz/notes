@@ -72,14 +72,16 @@ invalid settings show an explanation and leave the current note alone.
 
 - Folder tree of the repository, collapse state remembered
 - Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
-- **Rename** beside the open note's name renames or moves it (type a new
+- The note's **⋯** menu, at the top right, holds **Rename or move**,
+  **Outline**, **Tags** and **Delete**.
+- **Rename or move** renames or moves the open note (type a new
   path, folders included) in a single commit: it either happens completely
   or not at all, and it never overwrites another file
 - **Delete** removes the open note in a single commit, after asking. Nothing
   is lost for good: the note stays in the repository's history, and on
   github.com the file's history (or the commit that deleted it) lets you
   copy it back. If it changed elsewhere since you opened it, it is not
-  deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
+  deleted.
 - Pin or unpin the open note using the star beside its name. Pinned files
   appear at the top of Files as shortcuts and open like any other note. A pin is saved in the note itself, as the property
   `pinned: true` at its top (Obsidian shows it as a property; other editors
@@ -91,27 +93,32 @@ invalid settings show an explanation and leave the current note alone.
   pinned in this browser only; unpinning one and pinning it again moves it
   into the note.
 - Any note's Preview has live checklists. Add a task in Edit, as a `- [ ]`
-  line or with the toolbar's checklist button; in Preview, tick it, edit its
-  text, drag its handle or use ↑/↓ to reorder siblings; moving
+  line or with the toolbar's checklist button. In Preview, tick it, tap its
+  text to edit it, drag its handle to reorder it, or use its **⋯** menu for
+  Edit, Move up, Move down and Remove; moving
   or removing a parent includes its nested tasks and continuation paragraphs.
   Ticks and
   edits go to GitHub one at a time; clicks made while one is on its way
-  share the next commit. × removes a task (always shown on a phone, on
-  hover on a computer) and **Clear done** removes every ticked one, each
-  in one commit, with a few seconds to press **Undo**
+  share the next commit. A task's ⋯ menu is always shown on a phone and
+  appears on hover on a computer. **Remove** takes out one task and **Clear
+  done** every ticked one, each in one commit, with a few seconds to press
+  **Undo**
 - Filter across every path in the repository
-- The file list: on a computer, ☰ hides it to give the note the whole
+- The file list: on a computer, the button at the top left hides it to give the note the whole
   width, and dragging its right edge makes it wider or narrower (the arrow
   keys work on the edge too; double-click puts it back to the usual width).
-  Both are remembered in this browser. On a phone, ☰ opens it over the note.
+  Both are remembered in this browser. On a phone, ☰ opens it over the note,
+  with the search box at its top.
 - Light and dark: **Settings → Theme** is *Same as this device* unless you
   choose Light or Dark, which this browser then remembers (signing out keeps
   it)
 - A layout that works on a phone
 
 Each save is one commit. Notes save themselves two seconds after you stop
-typing, and straight away when you switch to another app or tab; **Save** and
-`Ctrl`/`Cmd`+`S` still work any time. A file you have only opened, or a
+typing, and straight away when you switch to another app or tab. Beside the
+note's name, a green dot with **Saved** means GitHub has it; with unsaved
+changes it turns into a **Save** button (on a phone, the dot alone), and
+`Ctrl`/`Cmd`+`S` works any time. A file you have only opened, or a
 restored draft you have not typed into yet, is never saved on its own.
 Switching to another file never asks anything: what you typed is committed
 on the way out, or, if that cannot happen yet (offline, a conflict), kept as
@@ -133,9 +140,11 @@ merged when the changes are on different lines, or reported as a conflict
 
 ## Preview and search
 
-Use **Preview** beside Save to read the current note, including unsaved edits,
-as rendered Markdown. **Edit** returns to the unchanged source. Frontmatter
-appears as text above the note; checklists are editable and wikilinks open
+Use the **Edit / Preview** switch at the top to read the current note, including unsaved edits,
+as rendered Markdown. **Edit** returns to the unchanged source. Headings use
+your device's book face. Simple properties (frontmatter) appear as chips above
+the note, such as *Pinned* and its tags; anything more complex appears as its
+text; checklists are editable and wikilinks open
 notes. Repository PNG, JPEG, GIF and WebP images appear in Markdown image
 references and Obsidian `![[image.png]]` embeds. Relative paths resolve from the
 note's folder; `/` starts at the repository root. Up to 20 images, each no larger
@@ -267,7 +276,7 @@ Obsidian would not understand, so both can work on the same repository.
 
 ## Open notes
 
-Choose **Outline** above the note to see its headings, including underlined
+Choose **Outline** in the note's ⋯ menu to see its headings, including underlined
 headings and headings inside lists or quotes. Select one to jump there in the
 editor or Preview. The outline uses the current unsaved text without fetching
 anything; it does not modify the note. Long outlines have Previous/More controls.
@@ -292,7 +301,7 @@ tags (`project` includes `project/notes`) and ignore case. Opening the section
 scans up to 300 loaded Markdown notes using the shared reader; skipped or
 unavailable notes are reported. Close and reopen it to refresh.
 
-The open note shows its tags above the editor and Preview. **Add tag** writes
+**Tags** in the note's ⋯ menu shows its tags above the editor and Preview. **Add tag** writes
 the `tags` property; the × removes a frontmatter tag. These edits preserve
 other properties and unsaved text and support Undo. Inline `#tags` remain in
 the text: select their chip to find related notes, or edit the source to remove

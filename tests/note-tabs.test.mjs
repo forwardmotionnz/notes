@@ -23,8 +23,9 @@ if(exists){
  for(let i=0;i<15;i++)await p.evaluate(i=>openFile('n'+i+'.md'),i);t.check('tab count is bounded',(await paths()).length===12);
  await p.evaluate(()=>followDelete('n3.md',true));t.check('background deletion is persisted',await p.evaluate(()=>!JSON.parse(localStorage.getItem(UI_KEY)).openNotes.paths.includes('n3.md')));
  await p.evaluate(()=>{followMove('n14.md','renamed.md');});t.check('rename updates open tab path',(await paths()).includes('renamed.md')&&!(await paths()).includes('n14.md'));
- await p.setViewportSize({width:390,height:820});await p.evaluate(()=>renderTabs());t.check('phone tabs fold into a list',await p.locator('#note-tabs summary').isVisible()&&!await p.locator('#note-tabs').evaluate(e=>e.open));
- await p.locator('#note-tabs summary').click();t.check('phone list can be opened',await p.locator('#note-tabs button').first().isVisible());
+ await p.setViewportSize({width:390,height:820});await p.evaluate(()=>renderTabs());// N38 (approved design): on a phone the open notes are one scrolling row of chips, not a folded list.
+ t.check('phone tabs are one scrolling row',!await p.locator('#note-tabs summary').isVisible()&&await p.locator('#note-tabs>div').evaluate(e=>getComputedStyle(e).flexDirection==='row'&&getComputedStyle(e).overflowX==='auto'));
+ t.check('phone tabs can be reached',await p.locator('#note-tabs button').first().isVisible()&&await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  await p.evaluate(()=>{cfg.repo='another';renderTabs();});t.check('another repository cannot see previous tabs',(await paths()).length===0);
 }
 await c.close();await H.stop();t.finish();

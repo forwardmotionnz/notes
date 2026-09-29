@@ -649,6 +649,24 @@ export const saveNote = async (p, path, text) => {
   await setEditor(p, text);
   await p.click('#btn-save');
 };
+// N38: Rename, Delete, Outline and Tags live in the note's ⋯ menu.
+export const noteAction = async (p, id, opts) => {
+  await p.click('#btn-more', opts);
+  await p.click(id, opts);
+};
+// Whether an action is offered in the ⋯ menu (open or not).
+export const inMenu = (p, id) => p.evaluate(id => {
+  const el = document.querySelector(id), more = document.getElementById('btn-more');
+  return !!el && !el.hidden && getComputedStyle(el).display !== 'none' && !more.hidden && getComputedStyle(more).display !== 'none';
+}, id);
+// N38: a task's Edit, Move up, Move down and Remove live in its ⋯ menu.
+export const taskAction = async (p, name) => {
+  await p.evaluate(name => {
+    const item = [...document.querySelectorAll('#pin-list .task-menu button')].find(b => b.getAttribute('aria-label') === name);
+    if (item && item.closest('.task-menu').hidden) item.closest('.task-tools').querySelector('.task-more').click();
+  }, name);
+  await p.locator('#pin-list .task-menu:not([hidden])').getByRole('menuitem', { name, exact: true }).click();
+};
 // Ticks or unticks the Preview checkbox whose task text is `name`.
 export const tick = (p, name) => p.getByRole('checkbox', { name, exact: true }).click();
 // Fixture setup for persisted pin lists; pin/unpin UI is covered by pinned-tree.

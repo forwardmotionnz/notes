@@ -5,7 +5,7 @@ import * as H from './harness.mjs';
 const t = H.suite('theme');
 await H.start();
 
-const LIGHT = 'rgb(255, 255, 255)', DARK = 'rgb(22, 24, 28)';
+const LIGHT = 'rgb(255, 255, 255)', DARK = 'rgb(21, 24, 22)'   // N38's dark background, #151816;
 const bg = p => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
 const metas = p => p.$$eval('meta[name="theme-color"]', m => m.map(x => x.content));
 async function choose(p, value) {
@@ -49,7 +49,7 @@ async function choose(p, value) {
   await choose(p, 'dark');
   await p.emulateMedia({ colorScheme: 'light' });
   t.check('dark on a light device', (await bg(p)) === DARK, await bg(p));
-  t.check('dark: the browser bar colour follows', (await metas(p)).every(c => c === '#16181c'), JSON.stringify(await metas(p)));
+  t.check('dark: the browser bar colour follows', (await metas(p)).every(c => c === '#151816'), JSON.stringify(await metas(p)));
   // Remembered, and in place before anything is drawn: the editor's files are
   // held back, so only the head of the page has run when this is measured.
   let release;
@@ -59,7 +59,7 @@ async function choose(p, value) {
   await nav;
   await p.waitForSelector('body');
   t.check('remembered: dark before the app has started', (await bg(p)) === DARK, await bg(p));
-  t.check('review: the browser bar colour too', (await metas(p)).every(c => c === '#16181c'), JSON.stringify(await metas(p)));
+  t.check('review: the browser bar colour too', (await metas(p)).every(c => c === '#151816'), JSON.stringify(await metas(p)));
   release();
   await H.settle(p, 1500);
   await ctx.unroute('**/codemirror/5.65.16/codemirror.min.js');
@@ -84,7 +84,7 @@ async function choose(p, value) {
   await choose(p, 'dark');
   await choose(p, 'auto');
   t.check('auto again: follows the device', (await bg(p)) === LIGHT, await bg(p));
-  t.check('auto again: both bar colours back', JSON.stringify(await metas(p)) === '["#2f6f4f","#16181c"]', JSON.stringify(await metas(p)));
+  t.check('auto again: both bar colours back', JSON.stringify(await metas(p)) === '["#2f6f4f","#151816"]', JSON.stringify(await metas(p)));
   await p.reload();
   await H.settle(p, 1000);
   t.check('auto again: nothing remembered', await p.evaluate(() => localStorage.getItem('notes.theme')) === null);

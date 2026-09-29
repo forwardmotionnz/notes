@@ -58,7 +58,7 @@ async function drag(p, dx) {
   await H.signIn(p);
   await p.click('#btn-tree');
   await H.settle(p, 200);
-  t.check('hidden, nothing open: the hint says ☰ shows the list', /☰ shows the file list/.test(await p.textContent('#placeholder')) &&
+  t.check('hidden, nothing open: the hint says how to show the list', /top left shows Files/.test(await p.textContent('#placeholder')) &&
     await p.evaluate(() => getComputedStyle(document.querySelector('.side-note')).display !== 'none'));
   t.check('the Files button has a name', (await p.getAttribute('#btn-tree', 'aria-label')) === 'Files');
   await p.click('#btn-tree');

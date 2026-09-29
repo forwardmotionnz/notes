@@ -152,7 +152,7 @@ await H.start();
   await H.settle(p, 400);
   await H.preview(p, 'todo.md');
   await p.route('https://api.github.com/**/contents/**', r => r.request().method() === 'PUT' ? r.abort() : r.fallback());
-  await p.getByRole('button', { name: 'Edit task: one', exact: true }).click();
+  await H.taskAction(p, 'Edit task: one');
   await p.locator('.task-edit').fill('do not lose me');
   await p.locator('.task-edit').press('Enter');
   await H.settle(p, 600);

@@ -186,7 +186,7 @@ function holdCommits() {
 const THREE = () => ({ gh: { files: { 'todo.md': '- [ ] one\n- [ ] two\n- [ ] three\n' } } });
 const boxes = p => p.$$eval('#pin-list .task input', e => e.map(b => b.checked));
 const editTask = async (p, from, to) => {
-  await p.getByRole('button', { name: 'Edit task: ' + from, exact: true }).click();
+  await H.taskAction(p, 'Edit task: ' + from);
   await p.locator('.task-edit').fill(to);
   await p.locator('.task-edit').press('Enter');
 };

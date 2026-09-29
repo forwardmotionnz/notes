@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- A calmer look (from the owner's review): one set of line icons, one family of buttons, a header with the note's name, a save dot, an Edit / Preview switch and a ⋯ menu for Rename or move, Outline, Tags and Delete; tabs that look like tabs (a row of chips on phones); an icon formatting toolbar; Pinned, Recent, Tags and Files as sidebar sections; headings in Preview in the device's book face; simple properties as chips; checklist rows that edit on tap, with a drag handle and a ⋯ menu. No fonts or images are downloaded.
 - Heading outline with source/Preview navigation, nested headings and paging for long notes; no extra requests.
 - “Linked from” backlinks for the open Markdown note, including wikilinks, Markdown links and local drafts.
 - Tags from frontmatter and note text, counted in Files, with tag chips and safe frontmatter editing.

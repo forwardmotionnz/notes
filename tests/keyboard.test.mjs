@@ -120,7 +120,7 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   await H.still(p);                                 // Files has finished sliding away
   // N37: the "Add a task" box is gone; a task's text is edited in Preview.
   await H.preview(p, 'todo.md');
-  await p.getByRole('button', { name: 'Edit task: one', exact: true }).click();
+  await H.taskAction(p, 'Edit task: one');
   const field = '.task-edit', save = 'button[aria-label="Save task text"]';
   await p.focus(field);
   await p.evaluate(k => window.keyboard(k), keyboard);
@@ -179,6 +179,8 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   await H.settle(p, 300);
   t.check('Android is asked to resize the page for the keyboard', await p.evaluate(() =>
     /interactive-widget=resizes-content/.test(document.querySelector('meta[name=viewport]').content)));
+  // N38: the save status shows only while a note is open.
+  await p.evaluate(() => openFile('inbox.md')); await p.waitForFunction(() => current?.path === 'inbox.md');
   await p.setViewportSize({ width: W, height: FULL - KEYBOARD });
   await H.settle(p, 200);
   t.check('resized: Save and settings still on screen', (await onScreen(p, '#btn-save')) === 'ok' &&

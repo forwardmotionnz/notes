@@ -17,7 +17,8 @@ for(const noCdn of [false,true]) {
  t.check('frontmatter shown as text', (await p.textContent('#preview .frontmatter')).includes('<img src=x'));
  t.check('tasks are editable in Preview',await p.locator('#preview input[type=checkbox]:enabled').count()===2);
  t.check('code stays literal',(await p.textContent('#preview pre code')).includes('<script>'));
- t.check('dangerous markup and images absent',await p.locator('#preview script,#preview iframe,#preview svg,#preview form,#preview img,#preview [onerror],#preview a[href^="javascript:"]').count()===0);
+ // N38: the app's own icons (an <svg class="i"> holding one <use href="#i-name">) are allowed; any other svg is not.
+ t.check('dangerous markup and images absent',await p.evaluate(()=>[...document.querySelectorAll('#preview script,#preview iframe,#preview svg,#preview form,#preview img,#preview [onerror],#preview a[href^="javascript:"]')].filter(e=>!(e.localName==='svg'&&e.getAttribute('class')==='i'&&e.attributes.length===2&&e.children.length===1&&e.firstElementChild.localName==='use'&&e.firstElementChild.attributes.length===1&&/^#i-[a-z]+$/.test(e.firstElementChild.getAttribute('href')||''))).length)===0);
  t.check('payload never executes',await p.evaluate(()=>!window.pwned));
  }
  await p.click('#btn-preview');

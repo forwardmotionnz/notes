@@ -25,9 +25,9 @@ const answer = (p, yes) => {
 {
   const { gh, ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
-  t.check('a Delete button is offered for the open note', await p.isVisible('#btn-delete'));
+  t.check('a Delete button is offered for the open note', await H.inMenu(p, '#btn-delete'));
   answer(p, false);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 300);
   t.check('it asks first', p.asked.length === 1);
   t.check('and says it can be recovered from the history', /history/i.test(p.asked[0] || '') && /recover/i.test(p.asked[0] || ''),
@@ -35,7 +35,7 @@ const answer = (p, yes) => {
   t.check('saying no deletes nothing', 'inbox.md' in gh.files && gh.commits.length === 0);
 
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('saying yes deletes it, in one commit', !('inbox.md' in gh.files) && gh.commits.length === 1 && gh.commits[0].deleted);
   t.check('the commit says what it did', /inbox\.md/.test(gh.commits[0].message) && /delete/i.test(gh.commits[0].message),
@@ -56,7 +56,7 @@ const answer = (p, yes) => {
   await H.clickRow(p, 'inbox.md');
   await H.setEditor(p, '# Inbox\n\nunsaved\n');
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('the warning mentions the unsaved changes', /unsaved/i.test(p.asked[0] || ''), p.asked[0]);
   t.check('it is deleted, not saved first', !('inbox.md' in gh.files) && gh.commits.length === 1);
@@ -75,7 +75,7 @@ const answer = (p, yes) => {
   });
   await H.setEditor(p, '# Inbox\n\nunsaved\n');   // an autosave is now 2 s away
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 300);
   await p.evaluate(() => {                         // and they switch apps meanwhile
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
@@ -94,7 +94,7 @@ const answer = (p, yes) => {
   gh.files['inbox.md'] = '# Inbox\n\nnew words from another device\n';
   gh.touch();
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('a file changed elsewhere is not deleted', gh.files['inbox.md'] === '# Inbox\n\nnew words from another device\n');
   t.check('and the person is told why', /changed/i.test(await H.status(p)) && /not deleted/i.test(await H.status(p)),
@@ -108,7 +108,7 @@ const answer = (p, yes) => {
   await H.clickRow(p, 'inbox.md');
   await p.route('https://api.github.com/**/contents/**', r => r.request().method() === 'DELETE' ? r.abort() : r.fallback());
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('a failed delete leaves the file and the note open', 'inbox.md' in gh.files &&
     (await p.textContent('#crumb .name')) === 'inbox.md' && /not deleted/i.test(await H.status(p)), await H.status(p));
@@ -127,7 +127,7 @@ const answer = (p, yes) => {
     return r.abort();                             // ...and the reply was lost
   });
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('a delete whose reply was lost is reported as done', /deleted/i.test(await H.status(p)) &&
     !/not deleted/i.test(await H.status(p)) && (await H.editorValue(p)) === '', await H.status(p));
@@ -144,7 +144,7 @@ const answer = (p, yes) => {
   await H.settle(c, 700);                     // tab C has it open too...
   await H.setEditor(c, '# Inbox\n\nC was typing\n'); // ...with unsaved words
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('a clean tab closes the deleted note', (await H.editorValue(b)) === '' && /deleted/i.test(await H.status(b)),
     await H.status(b));
@@ -166,7 +166,7 @@ const answer = (p, yes) => {
   await H.settle(c, 700);
   await H.setEditor(c, '# Inbox\n\nC was typing\n');
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   await H.clickRow(c, 'plan.md');                   // C moves on without saving
   await c.evaluate(() => openFile('inbox.md'));     // and comes back to it (no longer listed)
@@ -188,7 +188,7 @@ const answer = (p, yes) => {
   await c.evaluate(() => moveChannel && moveChannel.close());   // e.g. an iOS tab frozen in the background
   await H.setEditor(c, '# Inbox\n\nfrozen tab typing\n');
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check("the deleting tab leaves another tab's draft alone", await p.evaluate(() =>
     (localStorage.getItem('notes.draft.v1:roldaof/obsidian-vault@main:inbox.md') || '').includes('frozen tab typing')));
@@ -200,7 +200,7 @@ const answer = (p, yes) => {
   const { ctx, p } = await ready();
   await H.clickRow(p, 'inbox.md');
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('after a delete the empty editor takes no typing', await p.evaluate(() => document.querySelector('#cm-stub').readOnly));
   await H.clickRow(p, 'plan.md');
@@ -214,7 +214,7 @@ const answer = (p, yes) => {
   await H.clickRow(p, 'inbox.md');
   delete gh.files['inbox.md']; gh.touch();         // another device got there first
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('a note already deleted elsewhere counts as deleted', /deleted/i.test(await H.status(p)) &&
     !/not deleted/i.test(await H.status(p)) && (await H.editorValue(p)) === '', await H.status(p));
@@ -228,9 +228,9 @@ const answer = (p, yes) => {
     return r.fallback();
   });
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 200);
-  await p.click('#btn-delete', { timeout: 1000 }).catch(() => {});
+  await H.noteAction(p, '#btn-delete', { timeout: 1000 }).catch(() => {});
   await p.waitForTimeout(2200);
   t.check('a second tap while it deletes changes nothing', p.asked.length === 1 && !/not deleted/i.test(await H.status(p)),
     p.asked.length + ' ' + await H.status(p));
@@ -244,7 +244,7 @@ const answer = (p, yes) => {
     JSON.stringify({ text: 'old draft', sha: 'stale', at: 0 })));
   await H.clickRow(p, 'inbox.md');
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('a delete refused over a stale draft says to Discard first', /discard/i.test(await H.status(p)) &&
     'inbox.md' in gh.files, await H.status(p));
@@ -261,7 +261,7 @@ const answer = (p, yes) => {
   await H.settle(p, 400);
   await H.clickRow(p, 'inbox.md');
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('a deleted note is no longer pinned', JSON.stringify(await p.$$eval('#pin-tabs button', b => b.map(x => x.textContent))) === '["todo.md"]');
   t.check('and the person is told', /unpinned/i.test(await H.status(p)), await H.status(p));
@@ -282,7 +282,7 @@ const answer = (p, yes) => {
   await H.tick(p, 'one');
   await H.clickRow(p, 'inbox.md');
   answer(p, true);
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await p.waitForTimeout(2500);
   t.check('both the task and the delete land', gh.files['todo.md'] === '- [x] one\n' && !('inbox.md' in gh.files),
     await H.status(p));
@@ -297,7 +297,7 @@ const answer = (p, yes) => {
   const repos = [{ owner: { login: 'roldaof' }, name: 'vault', full_name: 'roldaof/vault', default_branch: 'main', private: true, archived: true }];
   const { ctx, p } = await ready({ repos });
   await H.clickRow(p, 'inbox.md');
-  t.check('no Delete in a read-only repository', !(await p.isVisible('#btn-delete')));
+  t.check('no Delete in a read-only repository', !(await H.inMenu(p, '#btn-delete')));
   await ctx.close();
 }
 

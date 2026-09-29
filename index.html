@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-Q/VA6Xkg5eZeEzCk4pnulEEfa2HUbjC9y0yfutzaR0E=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-0FiUBZ+X6OLqRzFL9BUq7ievt9ctdkF5axEzBpbQIuU=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -2605,7 +2605,7 @@ function newNotePath() {
 	if (place && place.kind === "move") {
 		/* N182 */
 		var ext = (place.from.match(/\.[^./]+$/) || [""])[0];
-		if (ext && !/\.[^./]+$/.test(path.split("/").pop())) path += ext;
+		if (ext && !/\.[a-z][a-z0-9]{0,9}$/i.test(path.split("/").pop())) path += ext;   // "Dr. Smith" has no extension; "notes.pdf" has one
 		return path;
 	}
 	/* N178 */
@@ -2616,6 +2616,8 @@ function placeProblem(path) {
 	if (!path) return place.kind === "new" ? "Type a name for the note." : "Type a name.";
 	if (isHidden(path)) return "Names and folders starting with a dot are hidden here. Choose another.";
 	if (place.kind === "move") {
+		if (place.doc.conflict) return "Resolve the conflict first: Save as copy, or Discard.";
+		if (!place.doc.sha && (saving || inflight)) return "Wait for its first save to finish, then move it.";
 		if (path === place.from) return "That is where it is now.";
 		if (readDraft(path) || tabPaths().indexOf(path) !== -1) return path + " is already open as a note. Choose another name.";
 		return place.doc.sha ? renameProblem(place.from, path) : renameProblem(place.from, path).replace(/^it is a link or a special file; rename it on GitHub\.$/, "");
@@ -2636,7 +2638,8 @@ function newNoteGo() {
 	if (placeProblem(path)) return;
 	$("new-note").close();
 	if (place.kind === "new") startNote(path);
-	else if (current === place.doc) moveCurrent(place.doc, path);
+	else if (current === place.doc && !openingPath) moveCurrent(place.doc, path);
+	else flash("Not moved: another note opened meanwhile. Try again from its menu.", true);
 }
 /* N126 */
 function dailyDate(format, date) {
@@ -2751,6 +2754,7 @@ var moving = false;
 var moveChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel("notes-changes") : null;
 function renameCurrent() {
 	if (!current || readOnly || moving) return;
+	if (openingPath && openingPath !== current.path) { flash("Wait for the note to open, then rename it.", true); return; }
 	if (current.sha && accessPending) { flash("Checking whether this repository can be changed...", true); return; }
 	var from = current.path, name = from.split("/").pop();
 	place = { kind: "move", doc: current, from: from };
@@ -2759,8 +2763,11 @@ function renameCurrent() {
 function moveCurrent(doc, to) {
 	var from = doc.path, epoch = pinEpoch;
 	if (!to || to === from) return;
+	if (doc.conflict) { flash("Not moved: resolve the conflict first.", true); return; }
 	if (!doc.sha) {
-		// Never saved: only where it will be saved changes, so nothing is sent.
+		// Never saved: only where it will be saved changes, so nothing is sent. Not while its
+		// first save is on its way: that save still writes to the old path.
+		if (saving || inflight) { flash("Not moved: wait for its first save to finish.", true); return; }
 		followMove(from, to);
 		setCrumb(to, "(new)");
 		syncDraft();
@@ -3322,7 +3329,7 @@ function showOutline(){
 	function page(start){host.replaceChildren();if(entries.length>500)$("outline-status").textContent="Headings "+(start+1)+"–"+Math.min(start+500,entries.length)+" of "+entries.length+".";
 	entries.slice(start,start+500).forEach(function(entry){var b=document.createElement("button");b.textContent=entry.text;b.style.paddingLeft=(8+(entry.depth-1)*12)+"px";b.setAttribute("aria-label","Heading "+entry.depth+": "+entry.text);b.onclick=function(){
 		$("outline").close();if(current!==doc||doc.path!==path||scope!==recentScope()||!signedIn()||editor.getValue()!==text){flash("The note changed. Open Outline again.");return;}
-		if(document.body.classList.contains("preview-view")){var h=$("pin-list").querySelector('[data-note-heading="'+previewHeadingMarker+'-'+entry.order+'"]');if(h){h.scrollIntoView({block:"start"});h.tabIndex=-1;h.focus({preventScroll:true});}else flash("Preview unavailable. Switch to Edit to find this heading.");}
+		if(document.body.classList.contains("preview-view")){var h=$("pin-list").querySelector('[data-note-heading="'+previewHeadingMarker+'-'+entry.order+'"]');if(h){for(var d=h.closest("details");d;d=d.parentElement.closest("details"))d.open=true;h.scrollIntoView({block:"start"});h.tabIndex=-1;h.focus({preventScroll:true});}else flash("Preview unavailable. Switch to Edit to find this heading.");}
 		else if(Number.isInteger(entry.line)){var at=text.split("\n").slice(0,entry.line).join("\n").length+(entry.line?1:0);editor.focus();if(editor.caret)editor.getWrapperElement().setSelectionRange(at,at);else editor.setCursor({line:entry.line,ch:0});editor.scrollIntoView();}else flash("This heading's source position is unavailable.");
 	};host.appendChild(b);});[[-500,"Previous headings"],[500,"More headings"]].forEach(function(pair){var next=start+pair[0];if(next<0||next>=entries.length)return;var b=document.createElement("button");b.textContent=pair[1];b.onclick=function(){page(next);host.firstChild.focus();};host.appendChild(b);});}page(0);if(!$("outline").open)$("outline").showModal();
 }
@@ -4241,7 +4248,7 @@ $("quick-query").onkeydown = function (e) {
 };
 /* N213 */
 document.addEventListener("keydown", function (e) {
-	if (!e.isComposing && !e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
+	if (!e.isComposing && !e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open && !$("new-note").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
 }, true);
 document.addEventListener("keydown", function (e) {
 	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {

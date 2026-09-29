@@ -30,7 +30,7 @@ const NOTE = [
   '> > Careful.',
   '',
 ].join('\n');
-const gh = H.fakeGitHub({ files: { 'Garden.md': NOTE, 'Seeds.md': '# Seeds\n' } });
+const gh = H.fakeGitHub({ files: { 'Garden.md': NOTE, 'Seeds.md': '# Seeds\n', 'Folded.md': '# Top\n\n> [!note]- Folded\n> ## Hidden head\n> text\n' } });
 const c = await H.context(gh), p = await H.page(c); p.setDefaultTimeout(5000);
 await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
 const commits = gh.commits.length;
@@ -62,4 +62,12 @@ t.check('the note itself is never changed', gh.files['Garden.md'] === NOTE && gh
 await p.click('#btn-preview');
 t.check('Edit still shows the Markdown as written', (await H.editorValue(p)) === NOTE);
 t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));
+{
+  // Review: Outline reaches a heading inside a folded callout by opening it.
+  await H.preview(p, 'Folded.md');
+  t.check('folded: setup', !await p.locator('#preview details.callout').evaluate(d => d.open));
+  await H.noteAction(p, '#btn-outline'); await p.locator('#outline-list button', { hasText: 'Hidden head' }).click();
+  t.check('Outline opens a folded callout to reach its heading', await p.locator('#preview details.callout').evaluate(d => d.open) &&
+    await p.evaluate(() => document.activeElement.textContent === 'Hidden head'));
+}
 await c.close(); await H.stop(); t.finish();

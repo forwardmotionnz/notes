@@ -92,4 +92,43 @@ for (const width of [1280, 390]) {
   t.check(`${width}: no page errors`, p.errors.length === 0, p.errors.join(' | '));
   await c.close();
 }
+/* ===== review of the folder work ===== */
+{
+  const gh = H.fakeGitHub({ files: { 'Garden/Plan.md': '# Plan\n', 'Recipes/Soup.md': 'soup\n', 'Dr. Smith.md': 'appointment\n' } });
+  const c = await H.context(gh), p = await H.page(c); p.setDefaultTimeout(5000);
+  await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
+  // 1: no move while the first save is on its way
+  await H.newNote(p, 'Stew', 'Recipes'); await p.waitForFunction(() => current?.path === 'Recipes/Stew.md');
+  let release; const gate = new Promise(r => release = r);
+  await p.route('**/contents/Recipes/Stew.md', async r => { if (r.request().method() === 'PUT') await gate; return r.fallback(); });
+  await p.click('#btn-save'); await p.waitForFunction(() => saving);
+  await H.noteAction(p, '#btn-rename'); await p.selectOption('#nn-folder', 'Garden');
+  t.check('a new note cannot move while its first save is on its way', await p.isDisabled('#nn-go') && /first save/.test(await p.textContent('#nn-path')));
+  await p.click('#nn-cancel'); release(); await p.waitForFunction(() => !saving && !!current.sha);
+  t.check('it saved where it was', 'Recipes/Stew.md' in gh.files && await p.evaluate(() => current.path) === 'Recipes/Stew.md');
+  await p.unroute('**/contents/Recipes/Stew.md');
+  // 2: a note in conflict is not moved
+  await H.newNote(p, 'Idea', 'Garden'); await p.waitForFunction(() => current?.path === 'Garden/Idea.md');
+  gh.files['Garden/Idea.md'] = '# made on another device\n'; gh.touch();
+  await H.setEditor(p, '# mine\n'); await p.click('#btn-save'); await p.waitForFunction(() => !saving && current.conflict);
+  await H.noteAction(p, '#btn-rename'); await p.fill('#nn-name', 'Idea mine');
+  t.check('a note in conflict cannot be moved until the conflict is resolved', await p.isDisabled('#nn-go') && /conflict/.test(await p.textContent('#nn-path')));
+  await p.click('#nn-cancel');
+  t.check('and its text is still there', await H.editorValue(p) === '# mine\n' && await p.evaluate(() => current.path) === 'Garden/Idea.md');
+  // 3: names with a dot
+  await p.evaluate(() => { current.conflict = false; });
+  await p.evaluate(() => openFile('Dr. Smith.md')); await p.waitForFunction(() => current?.path === 'Dr. Smith.md' && !openingPath);
+  await H.noteAction(p, '#btn-rename');
+  t.check('a name with a dot opens ready to move', await p.inputValue('#nn-name') === 'Dr. Smith' && /where it is now/.test(await p.textContent('#nn-path')));
+  await p.selectOption('#nn-folder', 'Garden');
+  t.check('and moves with its own extension', await p.isEnabled('#nn-go') && (await p.textContent('#nn-path')) === 'Will move to Garden/Dr. Smith.md');
+  await p.fill('#nn-name', 'Release 2.0');
+  t.check('"Release 2.0" keeps .md too', (await p.textContent('#nn-path')) === 'Will move to Garden/Release 2.0.md');
+  // 4: the quick switcher does not open over the dialog
+  await p.keyboard.press('Control+k');
+  t.check('Ctrl+K does not open another note over the dialog', !await p.evaluate(() => document.getElementById('quick-switcher').open));
+  await p.click('#nn-cancel');
+  t.check('no page errors besides the conflict itself', p.errors.filter(e => !/409/.test(e)).length === 0, p.errors.join(' | '));
+  await c.close();
+}
 await H.stop(); t.finish();

@@ -266,6 +266,14 @@ Obsidian would not understand, so both can work on the same repository.
 - A text file that is not UTF-8 (an old Windows or Latin-1 file) is not
   opened: shown here it would be garbled, and saved it would be destroyed.
 
+## Open notes
+
+Open notes have tabs above the editor and Preview. Reopening a note selects
+its tab. Use **×** to close a tab; unsaved text stays in its draft. The last
+12 open tabs are remembered for this browser's current repository and branch.
+On phones, expand **Open notes** to choose or close one. Closing the last tab
+leaves the editor empty; it does not delete a file.
+
 ## Adding images
 
 Use **Image** above the editor, paste an image, or drop one into the text.

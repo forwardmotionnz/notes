@@ -1,6 +1,6 @@
 # MVP ledger
 
-Iterations: 42 (cap extended by the owner's requests; current batch N16, N33, N26, N27)
+Iterations: 43 (cap extended by the owner's requests; current batch N16, N33, N26, N27)
 
 ## Current handover — 2026-09-29
 
@@ -268,7 +268,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N24 | 37 | moved | Folded into N32 |
 | N25 | 38 | done | Formatting toolbar and scoped shortcuts; formatting 52/52 both engines, keyboard-editor 24/24, quick-switcher 19/19, axe 45/45; review fixes covered by rendered-Markdown assertions; selection mutation caught; four screenshots inspected. N32 commit `15a9c9d`. |
 | N16 | 39 | done | Images: 39/39 both engines, actual paste/drop and real/fallback editor Undo, scopes, size/type, Obsidian folders; review fixes covered reserved paths, pointer drops and busy feedback. Cross-note insertion mutation caught; n16 desktop/phone light/dark screenshots inspected. |
-| N33 | 40 | todo | Owner's request 2026-09-28: tabs |
+| N33 | 40 | done | Tabs 17/17 both engines; navigation 14/14, reading 12/12, mobile-new 6/6, privacy 41/41, axe 45/45 both. Review: background deletion persisted, closing a loading tab cancels its read, local-storage failure blocks unsafe closing, failed neighbour read restores tab. Unsafe-close mutation caught. n33 four screenshots inspected. N16 commit `c8f2e48`. Long comments moved to implementation-notes.md with identical executable AST, saving 13 KB. |
 | N26 | 41 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |
 | N27 | 42 | todo | UX review 2026-09-28: tags |
 | N17 | 43 | todo | Owner's request 2026-09-27, 5 of 5 |

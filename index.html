@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-sJ+4ninsWbt5tpzhdE3kd9XrUStufW6q574SwjGZihI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-xxI6/BS98qTPbHNJ5n+1yXr5xOyII75hQpVOiLs5+os=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -3836,7 +3836,7 @@ function noteMenuSync() {
 new MutationObserver(noteMenuSync).observe($("note-menu"), { attributes: true, subtree: true, attributeFilter: ["hidden"] });
 $("btn-more").onclick = function (e) { e.stopPropagation(); noteMenu($("note-menu").hidden); };
 $("note-menu").addEventListener("click", function (e) { if (e.target.closest("[role^=menuitem]")) { noteMenu(false); $("btn-more").focus(); } }, true);   // capture: before the action opens a dialog
-// 4: a menu closes when focus leaves it
+// A menu closes when focus leaves it.
 $("note-menu").addEventListener("focusout", function (e) { if (!this.contains(e.relatedTarget) && e.relatedTarget !== $("btn-more") && e.relatedTarget) noteMenu(false); });
 $("note-menu").addEventListener("keydown", function (e) {
 	var items = Array.from(this.querySelectorAll("[role^=menuitem]:not([hidden])")), at = items.indexOf(document.activeElement);
@@ -3997,7 +3997,8 @@ function renderTabs() {
 	host.querySelector("summary").textContent="Open notes ("+paths.length+")";
 	var label=function(p){return p.split("/").pop().replace(/\.(md|markdown)$/i,"");},twins=function(p){return paths.filter(function(q){return label(q)===label(p);}).length>1;};
 	paths.forEach(function(path){var row=document.createElement("span"),open=document.createElement("button"),close=document.createElement("button");
-		open.textContent=twins(path)?path.replace(/\.(md|markdown)$/i,""):label(path);   // same name twice: show the folders tooopen.title=path;row.className=current&&current.path===path?"on":"";open.setAttribute("aria-pressed",String(!!current&&current.path===path));open.onclick=function(){openFile(path);};
+		// same name twice: show the folders too
+		open.textContent=twins(path)?path.replace(/\.(md|markdown)$/i,""):label(path);open.title=path;row.className=current&&current.path===path?"on":"";open.setAttribute("aria-pressed",String(!!current&&current.path===path));open.onclick=function(){openFile(path);};
 		close.appendChild(icon("x"));close.className="plain";close.setAttribute("aria-label","Close "+path);close.title="Close";close.onclick=function(){closeNoteTab(path);};row.append(open,close);list.append(row);
 	});
 	var on=list.querySelector(".on");if(on&&(on.offsetLeft<list.scrollLeft||on.offsetLeft+on.offsetWidth>list.scrollLeft+list.clientWidth))list.scrollLeft=Math.max(0,on.offsetLeft-12);

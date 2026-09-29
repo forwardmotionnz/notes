@@ -1093,3 +1093,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-09-29 · N36 · done · (the commit "N36: remove the header's back and forward buttons")
 - 2026-09-29 · N37 · done · 0823ccd and the commit "N37: fixes from review"; merged in forwardmotionnz/notes#23
 - 2026-09-29 · N38 · done · baa1aa9, 58a1107 and the commit "N38: fixes from review"
+- 2026-09-29 · N38 follow-up · fixed · clicking a tab did nothing: a code comment in the middle of a line (added in N38's review fixes) cut off the tab's click handler, title and open mark. note-tabs now clicks tabs by name ("clicking a tab opens its note", "and marks that tab as open"), which fail without the fix.

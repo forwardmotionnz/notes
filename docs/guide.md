@@ -268,6 +268,14 @@ Obsidian would not understand, so both can work on the same repository.
 
 ## Open notes
 
+Choose **Outline** above the note to see its headings, including underlined
+headings and headings inside lists or quotes. Select one to jump there in the
+editor or Preview. The outline uses the current unsaved text without fetching
+anything; it does not modify the note. Long outlines have Previous/More controls.
+Escape closes the outline. If the note changes while it is open, reopen it to
+get current positions. If the Markdown library is unavailable, a notice explains
+why the outline cannot load; editing still works.
+
 Expand **Linked from** under a Markdown note to see notes that link to it.
 Wikilinks use the same resolution as opening a link; Markdown paths resolve
 relative to their source note. Reference-style links work too. Code, comments,

@@ -17,6 +17,8 @@ for(const width of [1280,390])for(const theme of ['light','dark']){
  await scan('sign-in');await H.signIn(p);await p.evaluate(()=>openFile('todo.md'));await scan('tasks');
  await p.evaluate(()=>openFile('note.md'));
  t.check(`${width} ${theme}: the editor scanned is CodeMirror`,await p.locator('.CodeMirror').count()===1);await scan('editor');
+ await p.click('#btn-outline');await scan('heading outline');await p.click('#outline-close');
+ await p.evaluate(()=>{document.querySelector('#backlinks').open=true;});await p.waitForFunction(()=>document.querySelector('#backlinks-status').textContent.includes('linking notes'));await scan('backlinks');
  await p.click('#btn-preview');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));await scan('preview');
  if(width===390)await p.click('#btn-tree');await p.fill('#filter','paragraph');await p.click('#btn-search');await p.waitForFunction(()=>!searchRunning);await scan('files/search');
  await c.route('https://api.github.com/**/commits**',r=>r.fulfill({json:[]}));await p.evaluate(()=>{document.querySelector('#tags-panel').open=true;document.querySelector('#recent-notes').open=true;});await p.waitForFunction(()=>!recentLoading&&document.querySelector('#tags-status').textContent.includes('loaded Markdown'));await scan('files/tags/recent');

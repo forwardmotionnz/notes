@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-XVlvrZZXQ6TNxQ1sW2Naqhx6Hsrm2XSnMlpmbko0W/k=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oqg9mY66TT66uO78dRv1124U+gTZZoBGLL7F+uvLyRk=' 'sha256-mAyJobe6enhlybRdzHd9GmUJWiVyc5wvX0WKKo6HF08=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -231,6 +231,7 @@ body.preview-view #editor-pane{display:none;}
 #note-tags[hidden]{display:none;}
 #tag-counts [aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);}
 #backlinks{padding:6px 10px;border-top:1px solid var(--line);font-size:13px;flex-shrink:0;}#backlinks-list{max-height:20vh;overflow:auto;}#backlinks-list button{display:block;margin:4px 0;text-align:left;overflow-wrap:anywhere;max-width:100%;}
+#outline{width:min(90vw,460px);max-height:75vh;padding:16px;}#outline-list{max-height:50vh;overflow:auto;}#outline-list button{display:block;text-align:left;width:100%;overflow-wrap:anywhere;margin:4px 0;}
 #recent-status{color:var(--muted);font-size:12px;}
 @media(max-width:820px){#note-tabs summary{display:list-item;margin-left:18px;}#note-tabs>div{flex-direction:column;}#note-tabs span{max-width:100%;}#note-tabs span button:first-child{flex:1;text-align:left;}}
 </style>
@@ -278,7 +279,7 @@ body.preview-view #editor-pane{display:none;}
 		<div id="sidebar-resize" role="separator" aria-orientation="vertical" aria-controls="sidebar" aria-label="Resize the file list" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Drag to resize; double-click to reset"></div>
 		<section id="note-workspace" aria-label="Open notes">
 		<details id="note-tabs" hidden><summary>Open notes</summary><div role="group" aria-label="Note tabs"></div></details>
-		<div id="note-tags" role="group" aria-label="Note tags" hidden><span id="tag-chips"></span><form id="tag-add"><input id="tag-input" aria-label="New tag" placeholder="Add tag" maxlength="100" autocomplete="off"><button>Add</button></form></div>
+		<div id="note-tags" role="group" aria-label="Note tools" hidden><button id="btn-outline" type="button">Outline</button><span id="tag-chips"></span><form id="tag-add"><input id="tag-input" aria-label="New tag" placeholder="Add tag" maxlength="100" autocomplete="off"><button>Add</button></form></div>
 		<div id="note-content">
 		<section id="editor-pane">
 			<div id="format-toolbar" role="group" aria-label="Markdown formatting" hidden></div>
@@ -306,6 +307,7 @@ body.preview-view #editor-pane{display:none;}
 	<p id="quick-status" role="status"></p>
 	<button id="quick-close">Close</button>
 </dialog>
+<dialog id="outline" aria-labelledby="outline-title"><h2 id="outline-title">Headings</h2><div id="outline-list"></div><p id="outline-status" role="status"></p><button id="outline-close">Close</button></dialog>
 <dialog id="settings">
 	<!-- Signed out -->
 	<div id="view-signin">
@@ -430,7 +432,7 @@ body.preview-view #editor-pane{display:none;}
 <script>
 "use strict";
 var APP_VERSION = "1.0.0";
-/* DEPLOYMENT  -  read from the data block above the script. */
+/* N136 */
 var DEPLOYMENT = { clientId: "", appSlug: "", broker: "" };
 try {
 	Object.assign(DEPLOYMENT, JSON.parse(document.getElementById("deployment").textContent));
@@ -449,7 +451,7 @@ document.getElementById("app-version").textContent = APP_VERSION;
 	}
 	if (support) link("about-support", support.href);
 })();
-// A notice only: never move a person away from an origin holding their drafts.
+/* N137 */
 if (DEPLOYMENT.migrationFrom === location.origin + location.pathname && DEPLOYMENT.migrationTo) {
 	document.getElementById("domain-target").textContent = DEPLOYMENT.migrationTo;
 	document.getElementById("domain-notice").hidden = false;
@@ -479,7 +481,7 @@ function sourceAllows(src, target) {
 	src = src.toLowerCase();
 	if (/^[a-z][a-z0-9+.-]*:$/.test(src)) return target.protocol === src;
 	if (src.charAt(0) === "'") return false;
-	// No scheme: the page's own, or its secure upgrade (CSP3, "scheme-part").
+	/* N138 */
 	if (!/^[a-z][a-z0-9+.-]*:\/\//.test(src)) {
 		var upgrade = location.protocol === "http:" && target.protocol === "https:";
 		src = (upgrade ? "https:" : location.protocol) + "//" + src;
@@ -542,7 +544,7 @@ function forgetStored(key) {
 /* N6 */
 var DRAFT_PREFIX = "notes.draft.v1:";
 var draftWarned = false;
-var draftWritten = {};     // draft key -> last text this tab stored there
+var draftWritten = {};     /* N139 */
 function draftStore() { return sessionOnly ? sessionStorage : localStorage; }
 /* N106 */
 function draftKey(path) {
@@ -742,7 +744,7 @@ function broker(body) {
 function applyTokens(t) {
 	cfg.token = t.access_token;
 	cfg.refresh = t.refresh_token || "";
-	// expires_in is 0 when the GitHub App has token expiry turned off.
+	/* N140 */
 	cfg.expires = t.expires_in ? Date.now() + t.expires_in * 1000 : 0;
 	saveCfg();
 }
@@ -845,7 +847,7 @@ function signOutLocally(spent) {
 	if (!stored.refresh || stored.refresh === spent) forgetStored(CFG_KEY);
 	cfg.token = ""; cfg.refresh = ""; cfg.expires = 0;
 }
-/* Keep tabs in step: a refresh or sign-out in one applies to the others. */
+/* N141 */
 window.addEventListener("storage", function (e) {
 	if (current && (!e.key || e.key === draftKey(current.path))) updateNoteSummary();
 	if (e.key !== CFG_KEY) return;
@@ -873,7 +875,7 @@ function request(path, options, retried) {
 	if (Date.now() < apiRetryAt) return Promise.reject(rateLimitError());
 	var used = "";
 	return currentToken().then(function (token) {
-		// Another request may have hit a limit while this one awaited refresh.
+		/* N142 */
 		if (Date.now() < apiRetryAt) throw rateLimitError();
 		used = token;
 		return fetchJSON(API + path, {
@@ -894,7 +896,7 @@ function request(path, options, retried) {
 		});
 	}).then(function (reply) {
 		var res = reply.res;
-		// A token GitHub no longer accepts: refresh once and try again.
+		/* N143 */
 		if (res.status === 401 && !retried && cfg.refresh) {
 			return refreshTokens(used).then(function () { return request(path, options, true); });
 		}
@@ -940,7 +942,7 @@ function request(path, options, retried) {
 		return reply.data;
 	});
 }
-/* Account-level calls, used only by the settings dialog. */
+/* N144 */
 function fetchUser() {
 	return request("/user");
 }
@@ -966,7 +968,7 @@ function listRepos() {
 		return repos;
 	});
 }
-// fn over items, at most n at once; results in the items' order.
+/* N145 */
 function fewAtATime(items, n, fn) {
 	var results = [], next = 0;
 	function worker() {
@@ -1008,7 +1010,7 @@ function allPages(path, key) {
 function repoPath() {
 	return "/repos/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo);
 }
-// Encode a path for the contents API: slashes must stay literal.
+/* N146 */
 function encodePath(p) {
 	return p.split("/").map(encodeURIComponent).join("/");
 }
@@ -1102,7 +1104,7 @@ function createImage(path, content) {
 		return r.content.sha;
 	});
 }
-// https://docs.github.com/en/rest/commits/commits — bounded last ten commits.
+/* N147 */
 async function recentChanges(live) {
 	if(repoEmpty)return [];
 	var base=repoPath(), list=await request(base+"/commits?sha="+encodeURIComponent(cfg.branch)+"&per_page=10"), result=[];
@@ -1197,7 +1199,7 @@ function moveFile(from, to, sha, mode) {
 function describe() {
 	return cfg.owner + "/" + cfg.repo + "@" + cfg.branch;
 }
-/* ---- base64 that survives UTF-8 and large files ---------------- */
+/* N148 */
 function toBase64(str) {
 	var bytes = new TextEncoder().encode(str);
 	var bin = "", CH = 0x8000;
@@ -1227,7 +1229,7 @@ function baseOf(raw) {
 	var body = bom ? raw.slice(1) : raw;
 	return { body: body, bom: bom, eol: eolOf(body) };
 }
-// [{ text, end }] per line; the last line's end is "".
+/* N149 */
 function splitLines(body) {
 	var out = [], re = /([^\r\n]*)(\r\n|\r|\n|$)/g, m;
 	while ((m = re.exec(body))) {
@@ -1270,7 +1272,7 @@ function pumpNoteReads(){
 		},function(e){job.waiters.forEach(function(w){w.reject(e);});}).finally(function(){noteReadActive--;noteReadPending.delete(job.pendingKey);pumpNoteReads();});
 	}
 }
-// The exact text to commit for editor text `text`, given what was read.
+/* N150 */
 function rawFor(text, base) {
 	if (!base) return text;
 	var old = splitLines(base.body), neu = text.split("\n");
@@ -1312,7 +1314,7 @@ function rawFor(text, base) {
 		if (ends[k] === "\r" && neu[k + 1] === "" && ends[k + 1].charAt(0) === "\n") ends[k + 1] = "\r";
 	}
 	for (k = 0; k < n; k++) out += neu[k] + (k === n - 1 ? "" : ends[k]);
-	// Whatever happens above, what is saved must read back as what was typed.
+	/* N151 */
 	if (out.replace(/\r\n?/g, "\n") !== text) out = text.replace(/\n/g, base.eol);
 	return (base.bom ? "\uFEFF" : "") + out;
 }
@@ -1360,13 +1362,13 @@ function applyAccess(reason) {
 }
 var treeState = "ok";
 var treeError = "";            /* N118 */
-var loadNote = "";             // said once the next file list is in (it clears the status line)
+var loadNote = "";             /* N152 */
 /* N42 */
 var pinWriting = Promise.resolve(); // all pinned commits so far, settled
 var pinNext = pathMap(); // path -> job waiting for the one before
-var pinBusy = pathMap();   // path -> true while a commit to it is on its way
+var pinBusy = pathMap();   /* N153 */
 var pinReloading = pathMap();
-var pinEpoch = 0; // bumped on changing repository; older replies ignored
+var pinEpoch = 0; /* N154 */
 var accessSeq = 0;
 var accessPending = false;
 function checkAccess() {
@@ -1392,7 +1394,7 @@ function refreshTree() {
 	return listTree().then(function (list) {
 		if (sequence !== treeSeq || epoch !== pinEpoch || !configured()) return;
 		if (list.movedTo) {
-			// Follow the repository to its default branch, as if chosen in settings.
+			/* N155 */
 			var changed = pointAt(cfg.owner, cfg.repo, list.movedTo, cfg.pins);
 			saveCfg();
 			persist(UI_KEY, ui);
@@ -1412,7 +1414,7 @@ function refreshTree() {
 		treeState = "failed";
 		treeError = err.unreachable ? err.message : "";
 		if (err.unreachable) {
-			files = [];                        // nothing listed may look as if it were still there
+			files = [];                        /* N156 */
 			accessSeq++;                       // and nothing is written to it
 			accessPending = false;
 			applyAccess(err.message);
@@ -1477,7 +1479,7 @@ async function searchContents() {
 				var draft = readDraft(path);
 				var text = current && current.path === path ? editor.getValue() : draft ? draft.text : (await sharedRead(path,live)).text;
 				if (!live()) return;
-				// Read the current draft again: typing may have continued during the request.
+				/* N157 */
 				draft = readDraft(path);
 				if (current && current.path === path) text = editor.getValue(); else if (draft) text = draft.text;
 				if (text.toLowerCase().indexOf(term) !== -1) matches.push(path);
@@ -1530,7 +1532,7 @@ function renderTree() {
 		host.appendChild(e);
 		return;
 	}
-	// Filtering flattens the view: it is a search result, not a tree.
+	/* N158 */
 	if (term) {
 		blobs.slice(0, 300).forEach(function (f) {
 			host.appendChild(fileRow(f.path, f.path, 0));
@@ -1629,7 +1631,7 @@ function textareaEditor(host) {
 			mirror.style.width = ta.getBoundingClientRect().width + "px";
 			var caret = ta.selectionDirection === "backward" ? ta.selectionStart : ta.selectionEnd;
 			mirror.textContent = ta.value.slice(0, caret);
-			// Keep the suffix: truncating the word can move it to the line above.
+			/* N159 */
 			marker.textContent = ta.value.slice(caret) || "\u200b";
 			mirror.appendChild(marker);
 			document.body.appendChild(mirror);
@@ -1645,7 +1647,7 @@ function textareaEditor(host) {
 		caret: function () { return ta.selectionStart; }
 	};
 }
-// Formatting edits source text through each editor's normal edit history.
+/* N160 */
 var imageUploading = false;
 function imageFolder(setting, note) {
 	var parent = note.includes("/") ? note.slice(0,note.lastIndexOf("/")) : "";
@@ -1796,7 +1798,7 @@ function ensureEditor() {
 			viewportMargin: 30,
 			inputStyle: "contenteditable",
 			spellcheck: true,
-			// Ctrl/Cmd-click follows a wikilink; it must not add a second cursor.
+			/* N161 */
 			configureMouse: function () { return { addNew: false }; },
 			extraKeys: {
 				"Cmd-S": function () { saveCurrent(); },
@@ -1856,7 +1858,7 @@ function linkAt(text, at) {
 	while ((m = re.exec(line))) {
 		/* N51 */
 		if (at - start <= m.index || at - start >= m.index + m[0].length) continue;
-		// In a table the alias bar is written \| so it does not end the cell.
+		/* N162 */
 		var target = m[1].split("|")[0].replace(/\\$/, "").split("#")[0].split("^")[0].trim();
 		return target ? target.replace(/^\/+/, "") : null;
 	}
@@ -1882,7 +1884,7 @@ function openLink(target) {
 	var path = resolveLink(target);
 	if (path) { openFile(path); return; }
 	var name = target.split("/").pop();
-	// Unresolved against a list not (or not freshly) loaded is not "missing".
+	/* N163 */
 	if (treeState !== "ok") {
 		flash("The list of notes is not loaded, so " + name + " cannot be looked up yet. " +
 					"Try again in a moment, or press \u21bb.", true);
@@ -1899,7 +1901,7 @@ function openLink(target) {
 		return;
 	}
 	if (!confirm("There is no note called \u201c" + name + "\u201d yet. Create it?")) return;
-	// As Obsidian does, a link makes a note: [[Release 1.2]] is Release 1.2.md.
+	/* N164 */
 	startNote(spelledLikeFolders(/\.md$/i.test(target) ? target : target + ".md"));
 }
 /* N53 */
@@ -1945,7 +1947,7 @@ function showDiscard(on, copy) {
 	$("btn-copy").hidden = !copy;
 }
 function setCrumb(path, tag) {
-	// Rename and Delete are for a file that exists on GitHub (not a new one yet).
+	/* N165 */
 	$("btn-rename").hidden = $("btn-delete").hidden = !(current && current.sha && current.path === path);
 	var el = $("crumb");
 	el.textContent = "";
@@ -1977,7 +1979,7 @@ function setCrumb(path, tag) {
 /* N56 */
 var openSeq = 0, openingPath = null;
 function openFile(path, discarding, navigating) {
-	// Guards the restore-on-boot path as well as a click.
+	/* N166 */
 	if (!isTextFile(path)) {
 		flash(path.split("/").pop() + " is not a text file.", true);
 		return;
@@ -1986,7 +1988,7 @@ function openFile(path, discarding, navigating) {
 	openingPath=path;
 	function stillHere() { return sequence === openSeq && epoch === pinEpoch && signedIn(); }
 	if (discarding) {
-		// Nothing on screen may be committed while GitHub's version loads.
+		/* N167 */
 		if (current) current.leaving = true;
 		clearTimeout(autosaveTimer);
 	} else {
@@ -2042,7 +2044,7 @@ function openFile(path, discarding, navigating) {
 		if (!stillHere()) return;
 		var draft = err.refused && readDraft(path);
 		if (draft) { rescueDraft(path, draft, err.message); return; }
-		// Still on the old file after all: it is live again.
+		/* N168 */
 		if (left && current === left) left.leaving = false;
 		fail(err);
 		if (navigating && current) recordNavigation(current.path, true);
@@ -2126,17 +2128,17 @@ function leaveCurrent() {
 var AUTOSAVE_MS = 2000;
 var autosaveTimer = null;
 var saving = false;        // a commit is in flight
-var inflight = null;       // { key, done }: that commit, settling either way
+var inflight = null;       /* N169 */
 var saveAgain = null;      // asked to save meanwhile: { doc, auto }
 function scheduleAutosave() {
 	clearTimeout(autosaveTimer);
 	autosaveTimer = setTimeout(function () { saveCurrent(true); }, AUTOSAVE_MS);
 }
-// `auto` is true only for autosave; a click passes an event.
+/* N170 */
 function saveCurrent(auto) {
 	auto = auto === true;
 	if (readOnly) { if (!auto) flash(readOnly, true); return; }
-	if (moving) return;                  // a rename or delete is in flight for the open note
+	if (moving) return;                  /* N171 */
 	if (accessPending) {
 		if (auto) scheduleAutosave(); else flash("Checking whether this repository can be changed...");
 		return;
@@ -2180,7 +2182,7 @@ function saveCurrent(auto) {
 		throw err;
 	}) : null;
 	function write() {
-		// Recovery waits for a read: settings may have changed while it waited.
+		/* N172 */
 		if (draftKey(path) !== key) throw new Error("The repository changed before retrying. Reopen the draft in its original repository and try again. If a conflict appears, copy your text before using Discard.");
 		attempted = true;
 		return writeFile(path, raw, doc.sha);
@@ -2189,7 +2191,7 @@ function saveCurrent(auto) {
 	var done = (ready ? ready.then(write) : write()).then(function (r) {
 		doc.savedAt = Date.now(); doc.saveError = ""; doc.conflict = false; doc.stale = false;
 		doc.unsure = null;
-		doc.base = baseOf(raw);              // the next save compares with what this wrote
+		doc.base = baseOf(raw);              /* N173 */
 		if (current === doc) {
 			current.sha = r.sha;
 			current.saved = text;
@@ -2271,7 +2273,7 @@ function replaceText(text) {
 	if (editor.caret) editor.getWrapperElement().setSelectionRange(at, at); else editor.setCursor(editor.posFromIndex(at));
 	syncDraft();
 }
-// Where each line of `o` is in `x` (LCS), or -1; null if too large.
+/* N174 */
 function keptLines(o, x) {
 	var m = [], s = 0, e = 0, n = o.length, k = x.length, L = [], i, j;
 	while (s < n && s < k && o[s] === x[s]) { m[s] = s; s++; }
@@ -2289,12 +2291,12 @@ function keptLines(o, x) {
 	for (i = 0; i < n; i++) if (m[i] === undefined) m[i] = -1;
 	return m;
 }
-// Three-way line merge: what one side changed, or null if both did.
+/* N175 */
 function merge3(base, mine, theirs) {
 	var o = base.split("\n"), a = mine.split("\n"), b = theirs.split("\n");
 	var ma = keptLines(o, a), mb = keptLines(o, b), out = [], io = 0, ia = 0, ib = 0, i;
 	if (!ma || !mb) return null;
-	// Both removing from one run of identical lines: which copy is unknowable.
+	/* N176 */
 	for (i = 0; i < o.length; i = j) {
 		for (var j = i + 1, da = ma[i] < 0, db = mb[i] < 0; o[j] === o[i] && j < o.length; j++) { da = da || ma[j] < 0; db = db || mb[j] < 0; }
 		if (j - i > 1 && da && db) return null;
@@ -2312,7 +2314,7 @@ function merge3(base, mine, theirs) {
 	}
 	return out.join("\n");
 }
-// Keep both: mine as a new note beside theirs, which the note then shows.
+/* N177 */
 function saveCopy() {
 	var doc = current;
 	if (!doc || !doc.conflict || saving) return;
@@ -2341,7 +2343,7 @@ function newFile() {
 	if (!path) return;
 	path = path.replace(/^\/+/, "").trim();
 	if (!path) return;
-	// "Release 1.2" is a note, not a file this app could never open again.
+	/* N178 */
 	if (!/\.[a-z0-9]+$/i.test(path) || !isTextFile(path)) path += ".md";
 	startNote(path);
 }
@@ -2374,7 +2376,7 @@ function dailyPath(path) {
 }
 async function todayNote() {
 	var sequence = ++openSeq, epoch = pinEpoch, date = new Date(), notice = "", left = current;
-	// Cancelling an earlier open must not leave its still-visible note unsaveable.
+	/* N179 */
 	if (left) left.leaving = false;
 	function here() { return sequence === openSeq && epoch === pinEpoch && signedIn(); }
 	try {
@@ -2397,7 +2399,7 @@ async function todayNote() {
 			flash(notice);
 			return;
 		}
-		// A cached or truncated tree cannot prove absence.
+		/* N180 */
 		var existing = await readFile(path);
 		if (!here()) return;
 		if (existing.sha || readDraft(path)) {
@@ -2447,7 +2449,7 @@ function startNote(path, text) {
 	$("btn-save").disabled = false;
 	setCrumb(path, "(new)");
 	showDiscard(false);
-	ui.last = path;                      // so a reload finds its way back to the draft
+	ui.last = path;                      /* N181 */
 	rememberNote(path);
 	recordNavigation(path);
 	persist(UI_KEY, ui);
@@ -2463,7 +2465,7 @@ function renameCurrent() {
 	var to = prompt("Rename or move to (the full path in the repository)", from);
 	if (!to) return;
 	to = to.replace(/^\/+/, "").trim();
-	// No extension given: keep the note's own, so it stays a note.
+	/* N182 */
 	var ext = (from.match(/\.[^./]+$/) || [""])[0];
 	if (ext && !/\.[^./]+$/.test(to.split("/").pop())) to += ext;
 	if (!to || to === from) return;
@@ -2491,7 +2493,7 @@ function renameCurrent() {
 		editorLock();
 	});
 }
-// Why a note cannot be moved to `to` here, or "".
+/* N183 */
 function renameProblem(from, to) {
 	if (files.some(function (f) { return f.path === to; })) return to + " already exists.";
 	var parts = to.split("/");
@@ -2539,7 +2541,7 @@ if (moveChannel) {
 		refreshTree();
 	};
 }
-/* Delete the open note, after saying plainly what that means. */
+/* N184 */
 function deleteCurrent() {
 	if (!current || !current.sha || readOnly || moving) return;
 	if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
@@ -2592,7 +2594,7 @@ function followDelete(path, fromElsewhere) {
 		if (fromElsewhere && dirty()) {
 			current.sha = null;
 			current.saved = "\u0000";
-			current.touched = false;         // no autosave: bringing it back is their call
+			current.touched = false;         /* N185 */
 			syncDraft();                     // their words, kept as a draft of a new note
 			setCrumb(path, "(new: deleted in another tab, not saved)");
 			loadNote = path.split("/").pop() + " was deleted in another tab. Your unsaved words are still " +
@@ -2711,21 +2713,23 @@ function previewView(show, force) {
 	}
 	try {
 		var images = [], renderer = new marked.Renderer(), taskMarker = randomString(12), taskNumber = 0;
+		previewHeadingMarker=taskMarker;var headingRender=renderer.heading.bind(renderer),headingNumber=0;
+		renderer.heading=function(token){return headingRender(token).replace(/^<h([1-6])>/,'<h$1 data-note-heading="'+taskMarker+'-'+headingNumber+++'">');};
 	renderer.checkbox = function (token) { return '<input type="checkbox" disabled data-task="' + taskMarker + '-' + taskNumber++ + '"' + (token.checked ? ' checked' : '') + '>'; };
 		renderer.image = function (token) {
 			images.push({ ref: token.href, alt: token.text });
 			return '<span data-note-image="' + (images.length - 1) + '"></span>';
 		};
-		var text = source, front = /^(?:\uFEFF)?---\n([\s\S]*?)\n(?:---|\.\.\.)(?:\n|$)/.exec(text);
+		var text = source.replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n"), front = frontOf(text);
 		if (front) {
 			var box = document.createElement("pre"); box.className = "frontmatter";
-			box.textContent = front[1]; host.appendChild(box); text = text.slice(front[0].length);
+			box.textContent = front[1] || ""; host.appendChild(box); text = text.slice(front[0].length);
 		}
-		// Keep the sanitised fragment: never serialise or reparse untrusted markup.
+		/* N186 */
 		var fragment = DOMPurify.sanitize(marked.parse(text, { gfm: true, renderer: renderer }), {
 			RETURN_DOM_FRAGMENT: true,
 			ALLOWED_TAGS: ["span","p","br","hr","h1","h2","h3","h4","h5","h6","blockquote","pre","code","em","strong","del","ul","ol","li","table","thead","tbody","tr","th","td","a","input"],
-			ALLOWED_ATTR: ["data-note-image","data-task","href","title","type","checked","disabled","start"], ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false
+			ALLOWED_ATTR: ["data-note-heading","data-note-image","data-task","href","title","type","checked","disabled","start"], ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false
 		});
 		fragment.querySelectorAll("[data-note-image]").forEach(function (el) {
 			var key = el.getAttribute("data-note-image"), item = /^\d+$/.test(key) ? images[Number(key)] : null; el.removeAttribute("data-note-image");
@@ -2740,7 +2744,7 @@ function previewView(show, force) {
 			if (!/^https?:\/\//i.test(href)) a.removeAttribute("href");
 			else { a.target = "_blank"; a.rel = "noopener noreferrer"; }
 		});
-		// Wikilinks are built only from text nodes, outside code and existing links.
+		/* N187 */
 		var walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT), nodes = [], node;
 		while ((node = walker.nextNode())) if (!node.parentElement || !node.parentElement.closest("pre,code,a,[data-loading]")) nodes.push(node);
 		nodes.forEach(function (node) {
@@ -2813,7 +2817,7 @@ function checklistLines(source) {
 function bindChecklist(source, path, marker, count) {
 	var host = $("pin-list"), tasks = checklistLines(source), controls = Array.from(host.querySelectorAll("input[data-task]"));
 	controls = controls.filter(function (box) { return box.getAttribute("data-task").startsWith(marker + "-"); });
-	// Unsupported blockquotes/HTML/indented code cannot shift line addresses.
+	/* N188 */
 	if (tasks.length !== count || controls.length !== count) {
 		if (count) host.appendChild(emptyNote("Use Edit for this checklist's source formatting."));
 		return;
@@ -2847,7 +2851,7 @@ function bindChecklist(source, path, marker, count) {
 		box.onchange = function () { var lines = source.split("\n"); lines[task.index] = task.line.replace(/\[([ xX])\]/, box.checked ? "[x]" : "[ ]"); write(lines.join("\n")); };
 		var row = document.createElement("div"), lab = document.createElement("label"), text = document.createElement("span"), tools = document.createElement("div");
 		row.className = "task" + (task.checked ? " done" : ""); tools.className = "task-tools";
-		// Preserve nested lists; rebuild the task's own first line from text only.
+		/* N189 */
 		box.remove();
 		while (li.firstChild && !(li.firstChild.nodeType === 1 && /^(UL|OL)$/.test(li.firstChild.tagName))) text.appendChild(li.firstChild);
 		if (!text.textContent.trim()) text.textContent = task.text;
@@ -2944,9 +2948,31 @@ function pins() {
 }
 function isPinned(path) { return pins().indexOf(path) !== -1; }
 function inNote(path) { return /\.(md|markdown)$/i.test(path) && !readOnly; }
-// Frontmatter: YAML between a first line "---" and a line "---" or "...".
-function frontOf(text) { return text.match(/^---\n([\s\S]*?\n)?(---|\.\.\.)(?:\n|$)/); }
+/* N190 */
+function frontOf(text) { return text.startsWith("---\n") ? /^---\n([\s\S]*?)^(---|\.\.\.)(?:\n|$)/m.exec(text) : null; }
 var backlinkSeq=0,backlinkDoc=null,backlinkScope="";
+var previewHeadingMarker="";
+function noteHeadings(text){
+	var body=noteBody(text),offset=text.slice(0,text.length-body.length).split("\n").length-1,out=[],order=0;
+	function childMap(raw,child,map){var lines=raw.split("\n"),next=0;return child.split("\n").map(function(line){var want=line.trim();for(;next<lines.length;next++){var got=lines[next].trimEnd();if(want?got.endsWith(want):/^[\s>]*$/.test(got))return map[next++];}return null;});}
+	function walk(tokens,source,map){var cursor=0,line=0;for(var t of tokens){var at=source.indexOf(t.raw,cursor);if(at<0)continue;var start=line+source.slice(cursor,at).split("\n").length-1;line=start+t.raw.split("\n").length-1;cursor=at+t.raw.length;
+		if(t.type==="heading")out.push({text:t.text,depth:t.depth,line:map[start],order:order++});
+		else if(t.type==="blockquote"||t.type==="list_item")walk(t.tokens,t.text,childMap(t.raw,t.text,map.slice(start,line+1)));
+		else if(t.type==="list")walk(t.items,t.raw,map.slice(start,line+1));
+	}}
+	walk(marked.lexer(body),body,body.split("\n").map((_,i)=>i+offset));return out;
+}
+function showOutline(){
+	if(!current||!editor||!signedIn())return;var doc=current,path=doc.path,scope=recentScope(),text=editor.getValue(),host=$("outline-list");host.replaceChildren();
+	var entries=window.marked?noteHeadings(text):[];$("outline-status").textContent=!window.marked?"Outline unavailable: the Markdown library could not load.":entries.length?"Choose a heading.":"No headings in this note.";
+	function page(start){host.replaceChildren();if(entries.length>500)$("outline-status").textContent="Headings "+(start+1)+"–"+Math.min(start+500,entries.length)+" of "+entries.length+".";
+	entries.slice(start,start+500).forEach(function(entry){var b=document.createElement("button");b.textContent=entry.text;b.style.paddingLeft=(8+(entry.depth-1)*12)+"px";b.setAttribute("aria-label","Heading "+entry.depth+": "+entry.text);b.onclick=function(){
+		$("outline").close();if(current!==doc||doc.path!==path||scope!==recentScope()||!signedIn()||editor.getValue()!==text){flash("The note changed. Open Outline again.");return;}
+		if(document.body.classList.contains("preview-view")){var h=$("pin-list").querySelector('[data-note-heading="'+previewHeadingMarker+'-'+entry.order+'"]');if(h){h.scrollIntoView({block:"start"});h.tabIndex=-1;h.focus({preventScroll:true});}else flash("Preview unavailable. Switch to Edit to find this heading.");}
+		else if(Number.isInteger(entry.line)){var at=text.split("\n").slice(0,entry.line).join("\n").length+(entry.line?1:0);editor.focus();if(editor.caret)editor.getWrapperElement().setSelectionRange(at,at);else editor.setCursor({line:entry.line,ch:0});editor.scrollIntoView();}else flash("This heading's source position is unavailable.");
+	};host.appendChild(b);});[[-500,"Previous headings"],[500,"More headings"]].forEach(function(pair){var next=start+pair[0];if(next<0||next>=entries.length)return;var b=document.createElement("button");b.textContent=pair[1];b.onclick=function(){page(next);host.firstChild.focus();};host.appendChild(b);});}page(0);if(!$("outline").open)$("outline").showModal();
+}
+$("btn-outline").onclick=showOutline;$("outline-close").onclick=()=>$("outline").close();
 function noteBody(text){text=text.replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n");var f=frontOf(text);return f?text.slice(f[0].length):text;}
 function markdownTarget(href,source){
 	try{href=href.split(/[?#]/)[0];if(!href)return source;href=decodeURIComponent(href);if(/[:\\\x00-\x1f]/.test(href)||href.startsWith("//"))return null;
@@ -2977,7 +3003,7 @@ async function loadBacklinks(){
 	catch(e){if(seq===backlinkSeq&&scope===recentScope()){ $("backlinks-status").textContent="Links unavailable.";fail(e);}}
 }
 $("backlinks").ontoggle=function(){if(this.open)loadBacklinks();else backlinkSeq++;};
-// Obsidian tags/properties: https://obsidian.md/help/tags
+/* N191 */
 var tagSeq=0,tagIndex=pathMap(),tagChoice="",tagSignature="";
 function validTag(t){return typeof t==="string"&&/^[\p{L}\p{N}\p{M}\p{Extended_Pictographic}\u200d\ufe0f_\/-]+$/u.test(t)&&!/^[0-9]+$/.test(t);}
 function tagFront(text){
@@ -3061,7 +3087,7 @@ function withPin(text, on) {
 	if (on) return "---\n" + rest + "pinned: true\n" + end + "\n" + after;
 	return rest ? "---\n" + rest + end + "\n" + after : after;
 }
-// Pinned notes found change the list: the one shown stays the one shown.
+/* N192 */
 function setPins(fn) {
 	var shown = activePin();
 	fn();
@@ -3069,7 +3095,7 @@ function setPins(fn) {
 	renderPinTabs();
 	if (activePin() !== shown) renderPins();
 }
-// What this tab saw in a note's own text is newer than any scan.
+/* N193 */
 function notePinned(path, text) {
 	setPins(function () { pinSeen[path] = pinFound[path] = pinnedText(text); });
 }
@@ -3095,7 +3121,7 @@ async function scanPins() {
 				if (r.sha) known[r.sha] = pinnedText(r.text) ? 1 : 0;
 				if (live() && r.sha === f.sha) setPins(function () { found(f); });
 			} catch (e) {
-				if (!e.refused) return;                // offline, or the page closing: stop, carry on next time
+				if (!e.refused) return;                /* N194 */
 				known[f.sha] = 0;                      // not text it can open: not pinned
 			}
 			persist(UI_KEY, ui);                     // a page closed mid-scan keeps it too
@@ -3118,7 +3144,7 @@ async function scanPins() {
 function togglePin() {
 	if (!current || !signedIn()) return;
 	var path = current.path, text = editor.getValue(), at = cfg.pins.indexOf(path);
-	// A restored draft is saved only when the person chooses to.
+	/* N195 */
 	if (inNote(path) && dirty() && !current.touched && !current.template) { flash("Save or Discard your restored changes first, then pin.", true); return; }
 	var on = !(at !== -1 || (inNote(path) ? pinnedText(text) : isPinned(path))), next = inNote(path) && withPin(text, on);
 	if (at !== -1) cfg.pins.splice(at, 1);
@@ -3223,7 +3249,7 @@ function hideUndo() {
 	pinUndo = null;
 	$("pin-undo").hidden = true;
 }
-// A tick is not a move: text compares with its boxes cleared.
+/* N196 */
 function untick(text) { return text.replace(/^(\s*[-*]\s+)\[[xX]\]/gm, "$1[ ]"); }
 function undoRemove() {
 	var u = pinUndo;
@@ -3238,7 +3264,7 @@ function undoRemove() {
 		return;
 	}
 	var lines = cached.text.split("\n");
-	// In order, so each line goes back where it was.
+	/* N197 */
 	u.gone.forEach(function (g) { lines.splice(g.index, 0, g.line); });
 	// A refusal or failure offers it again.
 	var ok = commitPin(u.path, lines.join("\n"), function () { showUndo(u); });
@@ -3262,7 +3288,7 @@ function addTask() {
 		});
 		lines.splice(captureTarget.at, 0, ...added); next = lines.join("\n");
 	}
-	// Refused, or failed to save: the task goes back in the box.
+	/* N198 */
 	var ok = commitPin(path, next, function () {
 		input.value = (input.value ? input.value + "\n" : "") + text;
 		input.rows = Math.min(4, input.value.split("\n").length);
@@ -3306,7 +3332,7 @@ function sendPin(path) {
 	return writeFile(path, job.raw, sha).then(function (r) {
 		if (pinEpoch !== epoch) return;      // another repository by now
 		if (pinCache[path]) pinCache[path].sha = r.sha;
-		// The open note follows every commit, lest a later failure leave it behind.
+		/* N199 */
 		if (current && current.path === path && !dirty()) {
 			current.sha = r.sha;
 			current.saved = job.text;
@@ -3323,7 +3349,7 @@ function sendPin(path) {
 		if (!files.some(function (f) { return f.path === path; })) refreshTree();   // a new file
 		flash("Saved");
 	}).catch(function (err) {
-		// What was waiting was built on this commit: not sent on a guess.
+		/* N200 */
 		if (pinEpoch !== epoch) { fail(err); return; }
 		var waiting = pinNext[path];
 		delete pinNext[path];
@@ -3353,6 +3379,7 @@ function openDialog() {
 	if (!d.open) d.showModal();
 }
 function showSignIn(message, info) {
+	$("outline").close();$("outline-list").replaceChildren();
 	backlinkSeq++;backlinkDoc=null;$("backlinks").hidden=true;$("backlinks-list").replaceChildren();$("backlinks-status").textContent="";
 	resetTags();
 	resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-notes").open=false;
@@ -3370,7 +3397,7 @@ function showSignIn(message, info) {
 	err.textContent = message || "";          // may come from the address bar: text
 	openDialog();
 }
-/* The account view: who you are, which repository, which pinned files. */
+/* N201 */
 function openSettings() {
 	if (!signedIn()) { showSignIn(); return; }
 	$("view-signin").hidden = true;
@@ -3379,7 +3406,7 @@ function openSettings() {
 	$("f-install").href = $("fr-install").href = "https://github.com/apps/" +
 		encodeURIComponent(DEPLOYMENT.appSlug) + "/installations/new";
 	$("who-login").textContent = cfg.login ? "@" + cfg.login : "";
-	// An image source loads a picture and never runs script.
+	/* N202 */
 	if (cfg.avatar) $("who-avatar").src = cfg.avatar;
 	var sel = $("f-repo");
 	sel.textContent = "";
@@ -3483,7 +3510,7 @@ function listFailed(why) {
 	$("repos-failed-text").textContent = why + " ";
 	accountView("failed");
 }
-// Save is for a real choice, and a public repository is named as such.
+/* N203 */
 function repoPicked() {
 	var pick = $("f-repo").value === "" ? null : repoChoices[Number($("f-repo").value)];
 	$("f-save").disabled = !pick;
@@ -3501,7 +3528,7 @@ function accountView(mode) {
 	$("account-form").hidden = mode !== "form";
 	$("f-save").hidden = mode !== "form";
 }
-// The app is on no repository: the two steps, nothing else.
+/* N204 */
 var firstRunShown = false;
 function firstRun() {
 	$("fr-status").textContent = firstRunShown
@@ -3558,16 +3585,17 @@ function pointAt(owner, repo, branch, pins, prepared) {
 	return changedRepo;
 }
 function showPointed(changedRepo) {
+	if(changedRepo){$("outline").close();$("outline-list").replaceChildren();}
 	if(changedRepo){resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-status").textContent="";$("recent-notes").open=false;}
 	renderTabs();
-	// Same repository: a pinned file being written keeps its state and queue.
+	/* N205 */
 	var keep = pathMap();
 	if (!changedRepo) Object.keys(pinBusy).forEach(function (p) { if (pinCache[p]) keep[p] = pinCache[p]; });
 	pinCache = keep;
 	if (changedRepo) { pinEpoch++; pinNext = pathMap(); pinBusy = pathMap(); pinReloading = pathMap(); pinActive = pathMap(); pinFound = pathMap(); pinSeen = pathMap(); hideUndo(); }
 	ui.pin = 0;
 	if (changedRepo) {
-		files = [];                  // the old repository's list is not this one's
+		files = [];                  /* N206 */
 		applyAccess("");             // until this one's access is known
 		current = null;
 		resetTags();
@@ -3635,7 +3663,7 @@ function forget() {
 	forgetStored(UI_KEY);
 	try { sessionStorage.removeItem("notes.navigation"); } catch (e) {}
 	forgetDrafts();
-	current = null;                      // nothing may write a draft back on the way out
+	current = null;                      /* N207 */
 	location.replace(redirectUri());
 }
 /* WIRING */
@@ -3649,7 +3677,7 @@ function forget() {
 		/* N96 */
 		var top = vv.pageTop != null ? vv.pageTop : vv.offsetTop + (window.scrollY || 0);
 		var whole = Math.abs(window.innerHeight - vv.height) < 1 && !top;
-		// Pinch zoom also shrinks the visible area; that is not a keyboard.
+		/* N208 */
 		if (whole || vv.scale > 1.01) {
 			shell.style.height = "";
 			shell.style.transform = "";
@@ -3668,9 +3696,9 @@ function forget() {
 	vv.addEventListener("resize", fit);
 	vv.addEventListener("scroll", fit);
 })();
-// Phones never show a title: tapping the badge says why, again.
+/* N209 */
 $("readonly").onclick = function () { flash(readOnly, true); };
-// Not an onerror attribute: the policy allows no inline handlers.
+/* N210 */
 $("who-avatar").addEventListener("error", function () { this.style.visibility = "hidden"; });
 $("btn-save").onclick     = saveCurrent;
 $("btn-discard").onclick  = discardDraft;
@@ -3724,7 +3752,7 @@ function sideLayout(refresh) {
 	if (refresh !== false && editor) editor.refresh();
 }
 function sideWidth(w) {
-	ui.sideWidth = Math.round(w);                 // the stylesheet keeps it within 180-600 px, 60% of the window
+	ui.sideWidth = Math.round(w);                 /* N211 */
 	persist(UI_KEY, ui);
 	sideLayout();
 }
@@ -3771,7 +3799,7 @@ $("scrim").onclick = function () {
 		sideLayout();
 	});
 	window.addEventListener("resize", function () { sideLayout(false); });
-	// Many places close the phone drawer; the button follows whichever did.
+	/* N212 */
 	new MutationObserver(function () { sideLayout(false); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 	sideLayout(false);
 })();
@@ -3914,7 +3942,7 @@ $("quick-query").onkeydown = function (e) {
 		e.preventDefault(); quickIndex = (quickIndex + (e.key === "ArrowDown" ? 1 : -1) + quickMatches.length) % quickMatches.length; quickSelect();
 	}
 };
-// Capture before CodeMirror's macOS Ctrl-K binding can delete a line.
+/* N213 */
 document.addEventListener("keydown", function (e) {
 	if (!e.isComposing && !e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && configured() && !$("settings").open) { e.preventDefault(); e.stopPropagation(); quickOpen(); }
 }, true);
@@ -3924,17 +3952,17 @@ document.addEventListener("keydown", function (e) {
 		saveCurrent();
 	}
 });
-// A phone may never bring a hidden page back; commit what is there now.
+/* N214 */
 document.addEventListener("visibilitychange", function () {
 	updateNoteSummary();
 	if (document.visibilityState === "hidden") saveCurrent(true);
-	// Back from GitHub's repository settings in the other tab.
+	/* N215 */
 	else if ($("settings").open && !$("view-account").hidden && signedIn()) loadRepoList();
 });
 window.addEventListener("beforeunload", function (e) {
 	if (dirty()) { e.preventDefault(); e.returnValue = ""; }
 });
-/* ---- boot ------------------------------------------------------ */
+/* N216 */
 function start() {
 	taskView(true);
 	document.body.classList.toggle("session-only", sessionOnly);
@@ -3997,7 +4025,7 @@ function start() {
 		start();
 		if (r && r.orphan) { if (!signedIn()) showSignInAgain(ORPHAN_SIGNIN); return; }
 		if (!r || !r.installed) return;
-		// start() has already opened settings when no repository is chosen yet.
+		/* N217 */
 		if (signedIn()) { if (configured()) openSettings(); return; }
 		showSignIn("", "Back from GitHub. If you started in another Padgit tab, or in the Padgit app on " +
 							 "your home screen, close this and carry on there. Otherwise sign in to use the " +

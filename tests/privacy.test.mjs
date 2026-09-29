@@ -116,7 +116,7 @@ for (const remember of [true, false]) {
   const all = [...k.local, ...k.session].map(family);
   t.check(`${label}: every key in storage is named in the note`, all.length >= 3 && all.every(inTable),
     JSON.stringify(k));
-  t.check(`${label}: and kept where the note says`, remember ? k.session.length === 0 : k.local.length === 0,
+  t.check(`${label}: and kept where the note says`, remember ? k.session.every(key => key === 'notes.navigation') && !k.local.includes('notes.navigation') : k.local.length === 0,
     JSON.stringify(k));
   const ever = [...written].map(w => w.split(' '));
   t.check(`${label}: every key ever written, even for a moment, is named too`,

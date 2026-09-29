@@ -7,6 +7,12 @@ on trusting whoever runs the copy you are using.
 
 ## The short version
 
+Note links include the repository, branch and filename in the address fragment.
+The static host does not receive the fragment, but browser history and copied
+links can retain it after sign-out. Clear browser history separately if needed.
+An in-progress sign-in temporarily keeps that link in session storage so it
+can reopen the note afterwards; it is removed with the sign-in state.
+
 Preview runs in your browser using pinned Marked and DOMPurify scripts from
 cdnjs.cloudflare.com, alongside the editor library. Every file from the CDN,
 editor included, is pinned to an integrity hash, so a changed file is
@@ -109,6 +115,8 @@ All of this stays on your device, in the browser's storage for this site:
 | `notes.ui.v1` | which folders are open, the note you last had open, up to 30 recently opened paths for the last-used repository and branch, the pinned list you last looked at, the file list's width and whether it is hidden, and which versions of your notes are pinned (by their GitHub version id, so each is read only once to find pins) | you sign out |
 | `notes.draft.v1:` followed by the repository, branch and file | the words you have typed but not yet saved in that file, which version they were based on, and when | the change is saved, you press Discard, or you sign out |
 | `notes.theme` | Light or Dark, if you chose one in Settings (nothing for *Same as this device*) | you choose *Same as this device* again; signing out keeps it, as it says nothing about you |
+| `notes.navigation` | a random history identifier and the number of forward steps, in this tab's session storage; no paths or note text | you sign out or the tab closes |
+| `notes.textSize` | Smaller, Normal or Larger note text, stored in this browser like the theme | browser data is cleared; signing out keeps it |
 | `notes.signin` | for a sign-in in progress: a random value that ties GitHub's answer to this sign-in, the proof value sent to the broker, and whether to remember you | you come back from GitHub; if you never do, when the tab closes |
 
 Normally these are in local storage, so you stay signed in on this browser.

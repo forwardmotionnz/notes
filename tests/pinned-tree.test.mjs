@@ -15,7 +15,7 @@ for (const width of [1280,390]) {
  await p.locator('#pin-list input').first().check();
  await p.waitForFunction(()=>!pinBusy['todo.md']);
  t.check(`${width}: task tick commits the right note`,gh.files['todo.md'].includes('[x] One'));
- await p.click('#btn-source');
+ await p.click('#btn-preview');
  t.check(`${width}: Edit note exposes Markdown`,await p.locator('#editor-pane').isVisible());
  await p.click('#btn-pin');
  t.check(`${width}: unpin removes only the local pin`,await p.locator('#pin-tabs button').count()===0 && gh.files['todo.md'].includes('[x] One'));
@@ -55,10 +55,10 @@ for (const width of [1280,390]) {
  const ctx=await H.context(gh),p=await H.page(ctx);await H.signIn(p);p.setDefaultTimeout(5000);
  await p.evaluate(()=>openFile('todo.md'));await H.setEditor(p,'- [ ] A\nMY UNSAVED WORDS');
  await p.route('**/contents/todo.md',r=>r.request().method()==='PUT'?r.fulfill({status:503,body:'{}'}):r.fallback());
- await p.click('#btn-tasks');
+ await p.evaluate(()=>showTasks());
  await p.waitForFunction(()=>!saving);
  t.check('Tasks cannot hide edits after a failed save',await p.locator('#editor-pane').isVisible() && (await H.editorValue(p)).includes('MY UNSAVED WORDS'));
- await p.unroute('**/contents/todo.md');await p.click('#btn-tasks');
+ await p.unroute('**/contents/todo.md');await p.evaluate(()=>showTasks());
  await p.waitForFunction(()=>document.body.classList.contains('task-view'));
  t.check('Tasks saves source edits before changing views',gh.files['todo.md'].includes('MY UNSAVED WORDS'));
  await ctx.close();

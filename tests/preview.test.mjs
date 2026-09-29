@@ -15,7 +15,7 @@ for(const noCdn of [false,true]) {
  else {
  t.check('headings and table render',await p.locator('#preview h1').count()===1&&await p.locator('#preview td').count()===2);
  t.check('frontmatter shown as text', (await p.textContent('#preview .frontmatter')).includes('<img src=x'));
- t.check('tasks are read only',await p.locator('#preview input:disabled').count()===2);
+ t.check('tasks are editable in Preview',await p.locator('#preview input[type=checkbox]:enabled').count()===2);
  t.check('code stays literal',(await p.textContent('#preview pre code')).includes('<script>'));
  t.check('dangerous markup and images absent',await p.locator('#preview script,#preview iframe,#preview svg,#preview form,#preview img,#preview [onerror],#preview a[href^="javascript:"]').count()===0);
  t.check('payload never executes',await p.evaluate(()=>!window.pwned));

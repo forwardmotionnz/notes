@@ -3,6 +3,23 @@
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
 ## Finding and saving notes
+The editor's formatting bar inserts or toggles Markdown around selected text
+or lines: bold, italic, heading, bulleted/numbered/task lists, links, quotes and
+code. With no selection, inline actions select a placeholder to replace.
+Ctrl/Cmd+B and I format text; Ctrl/Cmd+Shift+K inserts a link. Ctrl/Cmd+K
+continues to open the note switcher. Undo works in both editors.
+
+Editor and Preview use a centred reading column on wide screens. Settings →
+**Note text size** changes both at once (Smaller, Normal or Larger), remembers
+the choice in this browser and keeps it after sign-out. Phone text stays at
+least 16 pixels to avoid focus zoom.
+
+Opening a note updates the address. Bookmark or copy it to return after
+sign-in; choose the same repository and branch in Settings. Browser Back and
+Forward, phone back gestures and the header arrows move between notes.
+Leaving still saves edits or keeps their draft. Filenames are in the address
+fragment (not sent to the static host), and may remain in browser history.
+
 Settings includes **About Padgit**, with the version, GitHub repository,
 privacy note, changelog and **Report a bug**. Links open in a new tab.
 
@@ -64,9 +81,8 @@ invalid settings show an explanation and leave the current note alone.
   copy it back. If it changed elsewhere since you opened it, it is not
   deleted. On a phone, Rename and Delete are the ✎ and 🗑 buttons.
 - Pin or unpin the open note using the star beside its name. Pinned files
-  appear at the top of Files and open as a checklist in the main area.
-  **Edit note** opens the Markdown source; **Tasks** returns to the checklist
-  after saving any edits. A pin is saved in the note itself, as the property
+  appear at the top of Files and open in Preview, with the same checklist
+  controls as any note. **Edit** opens the Markdown source. A pin is saved in the note itself, as the property
   `pinned: true` at its top (Obsidian shows it as a property; other editors
   keep it), so it shows on every device; pinning saves the note, unsaved
   edits included, and unpinning removes only that line. Each browser reads
@@ -75,7 +91,10 @@ invalid settings show an explanation and leave the current note alone.
   or in a read-only repository), and pins made before this change, stay
   pinned in this browser only; unpinning one and pinning it again moves it
   into the note.
-- Pinned files have a live task list with a one-line capture box. Ticks and
+- Any note's Preview has live checklists with an Add box after each list.
+  Edit a task's text, drag its handle or use ↑/↓ to reorder siblings; moving
+  or removing a parent includes its nested tasks and continuation paragraphs.
+  Ticks and
   captures go to GitHub one at a time; clicks made while one is on its way
   share the next commit. × removes a task (always shown on a phone, on
   hover on a computer) and **Clear done** removes every ticked one, each
@@ -116,7 +135,7 @@ merged when the changes are on different lines, or reported as a conflict
 
 Use **Preview** beside Save to read the current note, including unsaved edits,
 as rendered Markdown. **Edit** returns to the unchanged source. Frontmatter
-appears as text above the note; task boxes are read-only and wikilinks open
+appears as text above the note; checklists are editable and wikilinks open
 notes. Repository PNG, JPEG, GIF and WebP images appear in Markdown image
 references and Obsidian `![[image.png]]` embeds. Relative paths resolve from the
 note's folder; `/` starts at the repository root. Up to 20 images, each no larger
@@ -125,6 +144,13 @@ and known symlinks show a notice instead. Missing or undecodable images also
 show an explanation. Images never become editable notes.
 If the preview libraries cannot load,
 Padgit explains this and keeps the editor available.
+
+Save or resolve source changes before editing a checklist. Read-only
+repositories keep every checklist control read-only. Unusual or ambiguous
+Markdown (such as quoted checklists) stays read-only in Preview with a notice;
+use Edit for its source. Failed task text edits are kept as drafts and return
+when the note is reopened. Clear done removes checked lines only, leaving
+unchecked children; × removes the whole task and its children. Both offer Undo.
 
 In **Files**, typing filters filenames instantly. Press **Enter** or **Search
 contents** to search note text as well, including local drafts. Opening a result

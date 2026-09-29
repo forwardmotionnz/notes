@@ -1,16 +1,59 @@
 # MVP ledger
 
-Iterations: 37 (cap extended by the owner's requests; latest batch N20, N21, N34 preparation, N31)
+Iterations: 41 (cap extended by the owner's requests; current batch N22, N23, N32, N25)
 
 ## Current handover — 2026-09-29
 
-The requested four-item batch is N20 quick switcher, N21 persistent save
-status/word count, N34 Padgit/domain preparation, then N31 About. N20 and N21
-are committed as `58278fa` and `2d9edb9`; N34 preparation is `45b3e4c`.
-N31 completes the batch's app work. The final combined PR runs the complete
-two-engine suite once before merge. The owner's package-lock.json edit stays
-untouched. N34 stays doing until its owner-only name/domain/account cutover;
-the old URL is intentionally still the working Try it link.
+The requested four-item batch is N22 note navigation/bookmarks, N23 reading
+width/text size, N32 editable checklists in Preview, then N25 formatting.
+The first three are committed as `40fe608`, `22359a0`, and `15a9c9d`.
+All four are implemented and independently reviewed. The final combined PR
+runs all 55 suites in both engines before merge. Next by priority is N16,
+adding images to a note.
+N34 stays doing until its owner-only name/domain/account cutover; the old URL
+is intentionally still the working Try it link.
+
+Focused checks cover real CodeMirror and its plain-text fallback. N25 passes
+52/52 in each engine, including native Undo, selection boundaries, literal
+backticks/brackets, initial blank lines, draft recovery and read-only mode.
+Related keyboard-editor 24/24, quick-switcher 19/19 and axe 45/45 pass in both
+engines. Desktop/phone light/dark screenshots were inspected for every item.
+Mutations of navigation scope, checklist read-only/subtree handling and
+formatting selection replacement all caused the intended assertions to fail.
+
+N32's old Tasks tests now exercise the retained transition helper or visible
+Preview/Edit controls; source-save and race assertions remain intact. Two
+release-races calls previously awaited an intentionally held request, causing
+a test deadlock; they now launch the operation without awaiting that gate.
+The complete release-races suite passes 14/14 in both engines. Development
+used focused suites rather than repeated full runs.
+
+The first full CI run caught a missing refusal message for an unreadable pin;
+Preview now shows the read error, with stale-read guards. The existing large
+file overwrite protections still pass (large 20/20 both engines). Two Padgit
+URL assertions now allow the note bookmark fragment while retaining exact
+origin/path and OAuth redirect checks (11/11). Hostile content checks open
+the pin's Preview and assert sanitised task text and no executable elements,
+instead of expecting raw HTML to be displayed as literal text (28/28). These
+three focused suites pass in both engines; the corrected PR repeats full CI.
+That repeat exposed an error-rendering regression under rate limiting: the
+shared task capture must be detached before replacing Preview contents, or
+its recovered text field disappears. The node is now preserved, and the
+capture-recovery fixture keeps the rate limit active until explicitly reset,
+instead of depending on completing within one second. Capture recovery 6/6,
+checklists 20/20 and large files 20/20 pass in both engines; review is clear.
+
+Linux WebKit 1.56 repeatedly crashed on the navigation reload test. Playwright
+documents the matching regression and its 1.57 fix in
+[upstream issue 37766](https://github.com/microsoft/playwright/issues/37766).
+The test dependency is upgraded to 1.57.0, retaining every reload assertion.
+Before updating the lockfile, comparison with Git confirmed the pre-existing
+local difference was line endings only; its original bytes are backed up in
+the ignored `tests/screens/package-lock-before-browser-update.json`.
+With the fixed browser, all new feature suites passed on Linux. An older
+auth-renewal sign-out wait dereferenced the Settings dialog while the reload
+briefly had no document; it now waits for the element to exist and be open.
+Storage-clearing, sign-in visibility and other-tab sign-out assertions remain.
 
 The original SHOULD list was completed and merged in PR #9. Older handover
 details below are historical, including the pre-merge S3/S4 wording.
@@ -219,11 +262,11 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N21 | 32 | done | `note-status` 14/14 both engines, autosave 22/22, conflict 53/53 and axe 33/33 both engines. Four safeguard mutations caught. Review fixes: replaced drafts withdraw local-copy reassurance; lost save replies after undo remain uncertain; an absent empty note is not called Saved. Screens `tests/screens/n21-{1280,390}-{light,dark}.png` viewed. |
 | N34 | 33 | doing | Padgit branding and pre-move notice prepared; custom-domain sign-in/save 11/11 both engines; axe 41/41 and privacy 41/41 both engines. Review fixes: wait across mocked auth navigation; cap notice height with phone keyboard open. Eight screenshots viewed. Awaiting owner name confirmation and coordinated DNS/Pages/App/broker cutover; see `docs/padgit-migration.md`. No domain/secret/account changes made. |
 | N31 | 34 | done | About 9/9 both engines; version 1.0.0 agrees with changelog, fork links configurable, unsafe links omitted, mutation caught. Independent review clear; 320/390 px keyboard access verified; `tests/screens/n31-{1280,390}-{light,dark}.png` viewed. |
-| N22 | 35 | todo | UX review 2026-09-28: back and forward between notes |
-| N23 | 36 | todo | UX review 2026-09-28: readable width and text size |
-| N32 | 37 | todo | Owner's request 2026-09-28: checklists in any note (tick, add, edit, reorder, remove); the Tasks screen folds in |
+| N22 | 35 | done | Browser/header history and scoped note bookmarks; navigation tests both engines, switching 33/33 both. Review fixed reload history and failed sign-in retry. Scope-guard mutation caught. Desktop/phone light/dark screenshots `tests/screens/n22-*.png` viewed. |
+| N23 | 36 | done | Centred editor/Preview and remembered 16/18/20px sizes. Reading 12/12, keyboard-editor 24/24 and app 70/70 both engines; independent real-CodeMirror review clear. Desktop/phone light/dark screenshots `tests/screens/n23-*.png` viewed. N22 committed as `40fe608`; navigation 14/14 and privacy 41/41 both engines. Privacy test now distinguishes the documented tab-only history metadata; all sign-out assertions retained. |
+| N32 | 37 | done | Shared Preview checklists; checklists 20/20, app 70/70, release-races 14/14, tasks 52/52, preview 15/15, images 15/15 both engines; axe 45/45. Independent review clear after source-map, loose subtree, formatting, conflict refresh, ordered-list and Cancel fixes. Read-only/subtree mutations caught; `tests/screens/n32-*.png` viewed. N23 commit `22359a0`. |
 | N24 | 37 | moved | Folded into N32 |
-| N25 | 38 | todo | UX review 2026-09-28: formatting toolbar |
+| N25 | 38 | done | Formatting toolbar and scoped shortcuts; formatting 52/52 both engines, keyboard-editor 24/24, quick-switcher 19/19, axe 45/45; review fixes covered by rendered-Markdown assertions; selection mutation caught; four screenshots inspected. N32 commit `15a9c9d`. |
 | N16 | 39 | todo | Owner's request 2026-09-27, 4 of 5 |
 | N33 | 40 | todo | Owner's request 2026-09-28: tabs |
 | N26 | 41 | todo | UX review 2026-09-28: recent notes with previews (with the shared note reader) |
@@ -521,7 +564,7 @@ Each keeps the rules: notes stay plain Markdown files, nothing app-specific is w
 - Ticking tasks in Preview is now part of N32, which also adds, edits, reorders and removes them.
 
 ### N25: plan: formatting toolbar
-- A small toolbar for the editor (bold, italic, heading, bulleted, numbered and task lists, link, quote, code), most useful on phones: each inserts or toggles the Markdown itself around the selection, so the note stays plain text. Keyboard shortcuts for the same (Ctrl/Cmd+B, I, K).
+- A small toolbar for the editor (bold, italic, heading, bulleted, numbered and task lists, link, quote, code), most useful on phones: each inserts or toggles the Markdown itself around the selection, so the note stays plain text. Ctrl/Cmd+B and I format text; Ctrl/Cmd+Shift+K inserts links, keeping Ctrl/Cmd+K for the quick switcher.
 
 ### N26: plan: recent notes with previews (with the shared note reader)
 - First the shared note reader from the clean-up assessment: one bounded, cancellable reader, with results kept by blob sha, used by search, the pin scan and what follows. Then a "Recent" section in Files: notes opened recently on this device, and notes changed recently in the repository, each with its title (first heading), a short preview and when it changed.

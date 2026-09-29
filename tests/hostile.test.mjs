@@ -55,7 +55,11 @@ const dangerous = p => p.evaluate(() => {
   let n = 0;
   inside.forEach(id => {
     const el = document.getElementById(id);
-    if (el) n += el.querySelectorAll('img, svg, script, iframe, a[href^="javascript"]').length;
+    // N38: the app's own icons (an <svg class="i"> holding one <use href="#i-name">) are not payloads.
+    const ours = e => e.localName === 'svg' && e.getAttribute('class') === 'i' && e.attributes.length === 2 &&
+      e.getAttribute('aria-hidden') === 'true' && e.children.length === 1 && e.firstElementChild.localName === 'use' &&
+      e.firstElementChild.attributes.length === 1 && /^#i-[a-z]+$/.test(e.firstElementChild.getAttribute('href') || '');
+    if (el) n += [...el.querySelectorAll('img, svg, script, iframe, a[href^="javascript"]')].filter(e => !ours(e)).length;
   });
   return n;
 });

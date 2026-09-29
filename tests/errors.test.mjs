@@ -93,7 +93,7 @@ for (const status of [409, 422]) {
   blocked = false; await save(p);
   t.check(`${status} repository rule: can retry once permitted`, gh.files['todo.md'] === 'kept despite repository rules');
   blocked = true;
-  await p.click('#btn-delete'); await p.waitForFunction(() => !moving);
+  await H.noteAction(p, '#btn-delete'); await p.waitForFunction(() => !moving);
   const deletion = await H.status(p);
   t.check(`${status} protected delete: explains the rules without Discard`, /rules/i.test(deletion) && !/discard/i.test(deletion), deletion);
   t.check(`${status} protected delete: keeps the note open and unchanged`, await p.evaluate(() => current?.path === 'todo.md') && gh.files['todo.md'] === 'kept despite repository rules');
@@ -188,7 +188,7 @@ for (const action of ['rename', 'delete']) {
     return r.fulfill({ status: 503, body: '{}' });
   });
   p.removeAllListeners('dialog'); p.on('dialog', d => d.accept(action === 'rename' ? 'moved.md' : undefined));
-  await p.click('#btn-' + action); await p.waitForFunction(() => !moving);
+  await H.noteAction(p, '#btn-' + action); await p.waitForFunction(() => !moving);
   t.check(`${action}: recognises an operation that landed before a server error`, action === 'rename'
     ? await p.evaluate(() => current?.path === 'moved.md') && !!gh.files['moved.md'] && !gh.files['todo.md']
     : await p.evaluate(() => !current) && !gh.files['todo.md'], await H.status(p));
@@ -210,7 +210,7 @@ for (const part of ['tree', 'installations', 'rename', 'rename-head', 'rename-tr
   else if (part === 'installations') message = await p.evaluate(() => listRepos().then(() => '', e => e.message));
   else if (part.startsWith('rename')) {
     p.removeAllListeners('dialog'); p.on('dialog', d => d.accept('moved.md'));
-    await p.click('#btn-rename'); await p.waitForFunction(() => !moving); message = await H.status(p);
+    await H.noteAction(p, '#btn-rename'); await p.waitForFunction(() => !moving); message = await H.status(p);
   } else { await H.setEditor(p, 'safe from empty response'); await save(p); message = await H.status(p); }
   t.check(`malformed ${part}: human retry message instead of success or a raw exception`, human(message), message);
   t.check(`malformed ${part}: repository files are untouched`, gh.files['todo.md'] === '# Today\n\n- [ ] one\n' && Object.keys(gh.files).length === 1);

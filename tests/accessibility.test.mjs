@@ -17,13 +17,13 @@ for(const width of [1280,390])for(const theme of ['light','dark']){
  await scan('sign-in');await H.signIn(p);await H.preview(p,'todo.md');await p.waitForSelector('#pin-list .task');await scan('checklist preview');
  await p.evaluate(()=>openFile('note.md'));
  t.check(`${width} ${theme}: the editor scanned is CodeMirror`,await p.locator('.CodeMirror').count()===1);await scan('editor');
- await p.click('#btn-outline');await scan('heading outline');await p.click('#outline-close');
+ await H.noteAction(p, '#btn-outline');await scan('heading outline');await p.click('#outline-close');
  await p.evaluate(()=>{document.querySelector('#backlinks').open=true;});await p.waitForFunction(()=>document.querySelector('#backlinks-status').textContent.includes('linking notes'));await scan('backlinks');
  await p.click('#btn-preview');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));await scan('preview');
  if(width===390)await p.click('#btn-tree');await p.fill('#filter','paragraph');await p.click('#btn-search');await p.waitForFunction(()=>!searchRunning);await scan('files/search');
  await c.route('https://api.github.com/**/commits**',r=>r.fulfill({json:[]}));await p.evaluate(()=>{document.querySelector('#tags-panel').open=true;document.querySelector('#recent-notes').open=true;});await p.waitForFunction(()=>!recentLoading&&document.querySelector('#tags-status').textContent.includes('loaded Markdown'));await scan('files/tags/recent');
  if(width===390)await p.click('#btn-tree');
- await p.click('#btn-switcher');await scan('quick switcher');await p.click('#quick-close');
+ /* N38: phones search from the Files sheet; the switcher button shows on wider screens */await (width===390?p.evaluate(()=>quickOpen()):p.click('#btn-switcher'));await scan('quick switcher');await p.click('#quick-close');
  await p.evaluate(()=>{document.querySelector('#domain-target').textContent='https://padgit.com/';document.querySelector('#domain-notice').hidden=false;document.querySelector('#domain-notice').open=true;});await scan('move notice');
  await p.click('#btn-settings');await scan('settings');await p.click('#app-about summary');await scan('about');
  // The audit itself must notice a broken accessible name; no rule exclusions.

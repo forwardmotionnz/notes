@@ -54,7 +54,7 @@ for (const i of tabIcons) {
 }
 t.check('the browser bar takes the app\'s colour, light and dark',
   new RegExp(`<meta name="theme-color" content="${m.theme_color}" media="\\(prefers-color-scheme: light\\)">`).test(head) &&
-  /<meta name="theme-color" content="#16181c" media="\(prefers-color-scheme: dark\)">/.test(head) && page.includes('--bg: #16181c'));
+  /<meta name="theme-color" content="#151816" media="\(prefers-color-scheme: dark\)">/.test(head) && page.includes('--bg: #151816'));
 t.check('the first-run steps do not assume a browser tab (a home-screen app has none)',
   (page.match(/come back to this tab/g) || []).length === 0 && (page.match(/this tab or the Padgit app/g) || []).length === 2);
 const policy = (head.match(/Content-Security-Policy" content="(default-src[^"]+)"/) || [])[1] || '';

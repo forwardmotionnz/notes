@@ -55,7 +55,7 @@ try {
     await H.tick(p, 'one');
     await hold.started;
     await H.clickRow(p, 'inbox.md');
-    await p.click('#btn-delete');
+    await H.noteAction(p, '#btn-delete');
     await p.waitForFunction(() => moving);
     await pickBeta(p);
     hold.release();
@@ -146,7 +146,7 @@ try {
     const hold = await gate(p, 'https://api.github.com/**/contents/todo.md', 'PUT');
     // N37: queued checklist edits in Preview (the capture box is gone).
     await H.preview(p, 'todo.md');
-    const edit = async (from, to) => { await p.getByRole('button', { name: 'Edit task: ' + from, exact: true }).click(); await p.locator('.task-edit').fill(to); await p.locator('.task-edit').press('Enter'); };
+    const edit = async (from, to) => { await H.taskAction(p, 'Edit task: ' + from); await p.locator('.task-edit').fill(to); await p.locator('.task-edit').press('Enter'); };
     await edit('one', 'FIRST EDIT');
     await hold.started;
     await H.tick(p, 'FIRST EDIT');

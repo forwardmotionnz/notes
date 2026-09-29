@@ -273,7 +273,7 @@ const tag = p => p.evaluate(() => document.querySelector('#crumb .tag')?.textCon
   t.check('ticking keeps CRLF and changes one line',
     gh.files['todo.md'] === '# Today\r\n\r\n- [x] ring the panelbeater\r\n- [x] swap the spare\r\n', JSON.stringify(gh.files['todo.md']));
   // N37: the capture box is gone; editing a task's text in Preview keeps CRLF.
-  await p.getByRole('button', { name: 'Edit task: swap the spare', exact: true }).click();
+  await H.taskAction(p, 'Edit task: swap the spare');
   await p.locator('.task-edit').fill('swap the spare tyre');
   await p.locator('.task-edit').press('Enter');
   await H.settle(p, 400);

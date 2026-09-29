@@ -20,7 +20,11 @@ async function ready(opts = {}) {
   return { gh, ctx, p };
 }
 const tasks = p => p.$$eval('#pin-list .task span', e => e.map(s => s.textContent));
-const removeBtn = (p, i) => p.locator('#pin-list .task .rm').nth(i);
+// N38: Remove sits in each task's ⋯ menu.
+const removeBtn = (p, i) => ({
+  click: async () => { await p.locator('#pin-list .task-more').nth(i).click(); await p.locator('#pin-list .task .rm').nth(i).click(); },
+  getAttribute: name => p.locator('#pin-list .task .rm').nth(i).getAttribute(name),
+});
 const undoShown = p => p.isVisible('#pin-undo');
 
 /* ===== remove one task ===== */
@@ -150,7 +154,7 @@ const undoShown = p => p.isVisible('#pin-undo');
   await p.selectOption('#f-repo', { label: 'roldaof/alpha' });
   await p.click('#f-save');
   await H.preview(p, 'todo.md');
-  await p.waitForSelector('#pin-list .task .rm');
+  await p.waitForSelector('#pin-list .task .task-more');
   await removeBtn(p, 0).click();
   await H.settle(p, 600);
   await p.click('#btn-settings');
@@ -282,7 +286,7 @@ const undoShown = p => p.isVisible('#pin-undo');
   await H.settle(p, 1500);
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('tasks.md') : d.accept());
-  await p.click('#btn-rename');
+  await H.noteAction(p, '#btn-rename');
   await H.settle(p, 2000);
   t.check('renamed: setup', 'tasks.md' in gh.files && !('todo.md' in gh.files) && await undoShown(p));
   await p.click('#pin-undo button');
@@ -381,16 +385,16 @@ const undoShown = p => p.isVisible('#pin-undo');
 /* ===== phone: the control is there without hovering ===== */
 {
   const { ctx, p } = await ready({ ctx: { viewport: { width: 390, height: 780 } } });
-  const opacity = await p.evaluate(() => getComputedStyle(document.querySelector('#pin-list .task .rm')).opacity);
-  t.check('phone: remove always shown', opacity === '1', opacity);
+  const opacity = await p.evaluate(() => getComputedStyle(document.querySelector('#pin-list .task .task-tools')).opacity);
+  t.check('phone: task actions always shown', opacity === '1', opacity);
   await ctx.close();
 }
 {
   const { ctx, p } = await ready();
-  const hidden = await p.evaluate(() => getComputedStyle(document.querySelector('#pin-list .task .rm')).opacity);
+  const hidden = await p.evaluate(() => getComputedStyle(document.querySelector('#pin-list .task .task-tools')).opacity);
   await p.hover('#pin-list .task >> nth=0');
-  const shown = await p.evaluate(() => getComputedStyle(document.querySelector('#pin-list .task .rm')).opacity);
-  t.check('desktop: remove shown on hover', hidden === '0' && shown === '1', hidden + ' -> ' + shown);
+  const shown = await p.evaluate(() => getComputedStyle(document.querySelector('#pin-list .task .task-tools')).opacity);
+  t.check('desktop: task actions shown on hover', hidden === '0' && shown === '1', hidden + ' -> ' + shown);
   await ctx.close();
 }
 

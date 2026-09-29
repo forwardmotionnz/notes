@@ -160,12 +160,12 @@ async function device(gh, opts = {}) {
   await H.settle(p, 3000);
   p.removeAllListeners('dialog');
   p.on('dialog', d => d.type() === 'prompt' ? d.accept('b.md') : d.accept());
-  await p.click('#btn-rename');
+  await H.noteAction(p, '#btn-rename');
   await H.settle(p, 3000);
   const tabs = await pinTabs(p);
   t.check('renamed: listed under the new name only', tabs.includes('b.md') && !tabs.includes('a.md'), JSON.stringify(tabs));
   // Deleted: gone from the list.
-  await p.click('#btn-delete');
+  await H.noteAction(p, '#btn-delete');
   await H.settle(p, 3000);
   t.check('deleted: gone from the list', !(await pinTabs(p)).includes('b.md') && !('b.md' in gh.files), JSON.stringify(await pinTabs(p)));
   await p.reload();

@@ -52,7 +52,7 @@ await H.start();
   await p.click('#btn-refresh');
   // A refused refresh waits up to 2 s for another tab's tokens before
   // signing out (WebKit's storage can lag); wait for the outcome itself.
-  await p.waitForFunction(() => document.getElementById('settings').open &&
+  await p.waitForFunction(() => document.getElementById('settings')?.open &&
     !document.getElementById('view-signin').hidden, null, { timeout: 5000 }).catch(() => {});
   t.check('dead refresh token signs you out cleanly', await H.dialogOpen(p) &&
     await p.evaluate(() => !document.getElementById('view-signin').hidden));
@@ -460,12 +460,12 @@ for (const how of ['forget me', 'sign out']) {
   await H.settle(a, 300);
   await a.click('#f-forget');
   await a.waitForFunction(() => localStorage.getItem('notes.config.v2') === null &&
-    document.getElementById('settings').open && !document.getElementById('view-signin').hidden,
+    document.getElementById('settings')?.open && document.getElementById('view-signin')?.hidden === false,
     null, { timeout: 5000 });
   t.check('sign out clears storage', (await H.stored(a)).local === null);
   t.check('sign out lands on the sign-in view', await H.dialogOpen(a));
-  await b.waitForFunction(() => document.getElementById('settings').open &&
-    !document.getElementById('view-signin').hidden, null, { timeout: 5000 });
+  await b.waitForFunction(() => document.getElementById('settings')?.open &&
+    document.getElementById('view-signin')?.hidden === false, null, { timeout: 5000 });
   t.check('other open tabs are signed out too', await H.dialogOpen(b));
   await ctx.close();
 }

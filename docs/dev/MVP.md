@@ -50,6 +50,10 @@ The test dependency is upgraded to 1.57.0, retaining every reload assertion.
 Before updating the lockfile, comparison with Git confirmed the pre-existing
 local difference was line endings only; its original bytes are backed up in
 the ignored `tests/screens/package-lock-before-browser-update.json`.
+With the fixed browser, all new feature suites passed on Linux. An older
+auth-renewal sign-out wait dereferenced the Settings dialog while the reload
+briefly had no document; it now waits for the element to exist and be open.
+Storage-clearing, sign-in visibility and other-tab sign-out assertions remain.
 
 The original SHOULD list was completed and merged in PR #9. Older handover
 details below are historical, including the pre-merge S3/S4 wording.

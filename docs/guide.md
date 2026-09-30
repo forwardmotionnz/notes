@@ -160,7 +160,8 @@ text; checklists are editable and wikilinks open
 notes. Repository PNG, JPEG, GIF and WebP images appear in Markdown image
 references and Obsidian `![[image.png]]` embeds. Relative paths resolve from the
 note's folder; `/` starts at the repository root. Up to 20 images, each no larger
-than 1 MB, load with four requests at a time. External images, SVGs, hidden paths
+than 10 MB, load with four requests at a time (images over 1 MB are read as Git
+blobs, as GitHub only hands smaller files over with their contents). External images, SVGs, hidden paths
 and known symlinks show a notice instead. Missing or undecodable images also
 show an explanation. Images never become editable notes.
 If the preview libraries cannot load,
@@ -259,8 +260,8 @@ Obsidian would not understand, so both can work on the same repository.
   saving would corrupt them, so the app refuses. Images (PNG, JPEG, GIF, WebP)
   open in a viewer instead, from the file list: it shows the image, links to
   it on GitHub and has **Add to note**, which puts a link to it at the cursor
-  of the open note. Images over 1 MB are not shown here; the viewer links to
-  GitHub. Other attachments, such as PDFs, stay unopenable.
+  of the open note. Images up to 10 MB are shown; larger ones are not
+  downloaded, and the viewer links to GitHub instead. Other attachments, such as PDFs, stay unopenable.
 - `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are.
 - A wikilink opens the note it names: `Ctrl`+click (`Cmd`+click on a Mac),
   or tap it on a phone. `[[Note]]`, `[[Note|shown text]]`,

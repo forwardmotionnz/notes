@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-h6EIYFeIkrKBBfiqaZVb6h84IeXLPeWxp7qI2am2RPs=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-//XmH1ne03ImrVcGtAzEH6F+2JtWnUJYKrBQdcJfzoE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -164,7 +164,6 @@ body.preview-view #editor-pane{display:none;}
 #note-summary[hidden]{display:none;}
 #note-save-time{color:var(--fg-soft);}
 #note-word-count{margin-left:auto;}
-#domain-notice{flex:none;max-height:20%;overflow:auto;padding:7px 12px;background:var(--accent-soft);font-size:12px;}
 #app-about{border-top:1px solid var(--line);padding-top:12px;font-size:13px;}
 #app-about summary{cursor:pointer;font-weight:600;}
 #app-about nav{display:flex;flex-wrap:wrap;gap:8px 16px;}
@@ -484,7 +483,6 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 		</div>
 		<button class="plain ib" id="btn-settings" title="Settings" aria-label="Settings"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg></button>
 	</header>
-	<details id="domain-notice" hidden><summary>Notes is now Padgit. Save your notes before the planned address change.</summary><p>The planned address is <span id="domain-target"></span>. Save all notes and copy out any unsaved drafts before the move. Sign-ins and local drafts do not move between addresses. Keep using this address until the move is announced.</p></details>
 	<main>
 		<aside id="sidebar">
 			<div id="sidebar-tools">
@@ -666,9 +664,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 	"appSlug":  "forwardmotion-notes",
 	"broker":   "https://notes-token-broker.forwardmotionnz.workers.dev",
 	"repository": "https://github.com/forwardmotionnz/notes",
-	"support": "",
-	"migrationFrom": "https://forwardmotionnz.github.io/notes/",
-	"migrationTo": "https://padgit.com/"
+	"support": ""
 }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js" integrity="sha384-J1VD5X/E72gORmmXiADelqS192/84qho9IALLC3d5oxjp1RgEN3He4ANyjqXyz10" crossorigin="anonymous"></script>
@@ -695,11 +691,6 @@ document.getElementById("app-version").textContent = APP_VERSION;
 	}
 	if (support) link("about-support", support.href);
 })();
-/* N137 */
-if (DEPLOYMENT.migrationFrom === location.origin + location.pathname && DEPLOYMENT.migrationTo) {
-	document.getElementById("domain-target").textContent = DEPLOYMENT.migrationTo;
-	document.getElementById("domain-notice").hidden = false;
-}
 function filledIn() {
 	return !!(DEPLOYMENT.clientId && DEPLOYMENT.appSlug && DEPLOYMENT.broker) &&
 		!/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);
@@ -1327,11 +1318,20 @@ function readFile(path) {
 	});
 }
 /* N34 */
+/* Images up to 1 MB come with their contents; larger ones (up to IMAGE_MAX) are read as
+   a Git blob, which GitHub serves up to 100 MB, always Base64. */
+var IMAGE_MAX = 10 * 1024 * 1024;
 function readImage(path) {
-	return request(repoPath() + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(cfg.branch)).then(function (data) {
-		if (!data || data.encoding !== "base64" || data.size > 1048576 || typeof data.content !== "string" || data.content.length > 1500000) throw new Error("Image exceeds 1 MB or is unavailable");
+	var entry = files.filter(function (f) { return f.path === path && f.type === "blob"; })[0];
+	if (entry && entry.size > IMAGE_MAX) return Promise.reject(new Error("Larger than 10 MB, too large to show here"));
+	var read = entry && entry.size > MAX_BYTES && entry.sha ? readBlob(entry.sha) :
+		request(repoPath() + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(cfg.branch)).then(function (data) {
+			return data && data.encoding === "none" && data.sha && data.size <= IMAGE_MAX ? readBlob(data.sha) : data;   // grew past 1 MB since the list
+		});
+	return read.then(function (data) {
+		if (!data || data.encoding !== "base64" || data.size > IMAGE_MAX || typeof data.content !== "string" || data.content.length > IMAGE_MAX * 1.4) throw new Error("Image is too large or unavailable");
 		var b64 = data.content.replace(/\s/g, ""), bytes = atob(b64), mime;
-		if (bytes.length > 1048576) throw new Error("Image exceeds 1 MB");
+		if (bytes.length > IMAGE_MAX) throw new Error("Larger than 10 MB, too large to show here");
 		if (bytes.slice(0, 8) === "\x89PNG\r\n\x1a\n") mime = "png";
 		else if (bytes.slice(0, 3) === "\xff\xd8\xff") mime = "jpeg";
 		else if (/^GIF8[79]a/.test(bytes)) mime = "gif";
@@ -1339,6 +1339,9 @@ function readImage(path) {
 		else throw new Error("Not a supported raster image");
 		return "data:image/" + mime + ";base64," + b64;
 	});
+}
+function readBlob(sha) {
+	return request(repoPath() + "/git/blobs/" + encodeURIComponent(sha));
 }
 function createImage(path, content) {
 	var body = {message:"Add " + path,content:content,branch:cfg.branch};
@@ -1705,7 +1708,6 @@ function openImage(path) {
 	};
 	frame.replaceChildren(); frame.textContent = "Loading " + name + "…";
 	if (!$("image-view").open) $("image-view").showModal();
-	if (tooLarge(path)) { frame.textContent = name + " is larger than 1 MB, so it is not shown here. Open it on GitHub to see it."; return; }
 	readImage(path).then(function (src) {
 		if (seq !== imageViewSeq || !$("image-view").open) return;
 		var img = document.createElement("img"); img.alt = name;
@@ -1713,7 +1715,7 @@ function openImage(path) {
 		frame.replaceChildren(img); img.src = src;
 	}).catch(function (err) {
 		if (err.signedOut) { $("image-view").close(); fail(err); return; }
-		if (seq === imageViewSeq) frame.textContent = name + " could not be shown: " + (err.message || "could not reach GitHub.");
+		if (seq === imageViewSeq) frame.textContent = name + " could not be shown: " + (err.message || "could not reach GitHub.") + (/10 MB/.test(err.message || "") ? ". Open it on GitHub to see it." : "");
 	});
 }
 function isTextFile(path) {

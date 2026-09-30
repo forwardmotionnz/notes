@@ -66,8 +66,9 @@ the name before switching the public service.
    address redirects correctly and the homepage shortcut works. Only then
    announce the new address and replace the README's working Try it link.
 7. Copy the verified cutover values into the default `broker/wrangler.toml`
-   so the next ordinary deploy cannot restore the old origin. Keep the
-   `migrationFrom` notice configuration for old copies. Pull any `CNAME` commit
+   so the next ordinary deploy cannot restore the old origin. (The pre-move
+   notice was removed on 2026-09-30 at the owner's request, once the move was
+   done.) Pull any `CNAME` commit
    made by Pages settings. The preparation change omitted CNAME; adding it
    during cutover connects this repository to the new address.
 

@@ -127,10 +127,11 @@ export function fakeGitHub(opts = {}) {
   };
   gh.expireAll = () => { for (const v of gh.access.values()) v.expired = true; };
   // Blob shas map back to their content, so a tree entry can name one.
-  gh.blobs = {};
+  gh.blobs = {}; gh.blobRaw = {};
   gh.sha = p => {
     const s = 'sha' + createHash('sha1').update(gh.files[p] ?? '').digest('hex').slice(0, 12);
     gh.blobs[s] = gh.files[p];
+    gh.blobRaw[s] = !!gh.raw[p];
     return s;
   };
   // The branch head: every change to the files is a new commit. Tests that
@@ -474,6 +475,20 @@ export async function context(gh, opts = {}) {
         ...shown.map(k => ({ path: k, mode: (gh.modes || {})[k] || '100644', type: 'blob', sha: gh.sha(k),
           size: Buffer.byteLength(gh.files[k], gh.raw[k] ? 'latin1' : 'utf-8') })),
       ]});
+    }
+    // Get a blob: GET /repos/{owner}/{repo}/git/blobs/{file_sha}. "The content in the
+    // response will always be Base64 encoded", blobs up to 100 MB; fields sha, url,
+    // node_id, size, content, encoding; 404 when unknown.
+    // https://docs.github.com/en/rest/git/blobs#get-a-blob (checked against
+    // github/rest-api-description, operation git/get-blob and schema "blob").
+    const bm = p.match(/^\/repos\/([^/]+\/[^/]+)\/git\/blobs\/([^/]+)$/);
+    if (bm && req.method() === 'GET') {
+      const sha = decodeURIComponent(bm[2]);
+      if (!(sha in gh.blobs)) return json({ message: 'Not Found' }, 404);
+      const bytes = Buffer.from(gh.blobs[sha], gh.blobRaw[sha] ? 'latin1' : 'utf-8');
+      gh.log.blobReads = (gh.log.blobReads || 0) + 1;
+      return json({ sha, node_id: 'B_' + sha, size: bytes.length, url: 'https://api.github.com/repos/' + bm[1] + '/git/blobs/' + sha,
+        content: bytes.toString('base64').replace(/.{60}/g, '$&\n'), encoding: 'base64' });
     }
     const m = p.match(/^\/repos\/([^/]+\/[^/]+)\/contents\/(.*)$/);
     if (m) {

@@ -23,6 +23,9 @@ async function save(p) {
   await H.settle(p, 60);
   await p.click('#btn-save');
   await H.settle(p, 3000);
+  // A merge ends in a second save; a quiet network alone can come before it on a slow engine (WebKit CI, 2026-09-30).
+  await p.waitForFunction(() => !saving, null, { timeout: 5000 }).catch(() => {});
+  await H.settle(p, 300);
 }
 const crumb = p => p.textContent('#crumb');
 const status = p => p.textContent('#status');

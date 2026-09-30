@@ -20,7 +20,7 @@ anyone else.
 
 ## What is in scope
 
-- The app, `index.html`, as published at https://forwardmotionnz.github.io/notes/
+- The app, `index.html`, as published at https://padgit.com/
   and in this repository: anything that could leak a token, run a script
   from a note, a file name or a GitHub response, reach a host other than
   GitHub and the broker, or lose or corrupt someone's notes.

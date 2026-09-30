@@ -5,9 +5,11 @@ import { readFileSync } from 'node:fs';
 const t = H.suite('images'); await H.start();
 const PNG = readFileSync(new URL('../icon-180.png', import.meta.url)).toString('latin1');
 const IMG = '<img src=x onerror=window.__pwned=1>';
-const BIG = 'x'.repeat(1100 * 1024);
+// A real PNG made larger than 1 MB (and 10 MB) by bytes after its end, which browsers ignore.
+const BIG = PNG + '\0'.repeat(1200 * 1024), HUGE = PNG + '\0'.repeat(10 * 1024 * 1024 + 1000);
 const gh = H.fakeGitHub({ files: { 'Garden/Plan.md': '# Plan\n\nhello\n', 'Garden/Pasted image 1.png': PNG, [`${IMG}.png`]: 'not really a png',
-  'Big photo.jpg': BIG, 'notes.pdf': 'pdf' }, raw: { 'Garden/Pasted image 1.png': true } });
+  'Big photo.png': BIG, 'Huge photo.png': HUGE, 'Big.md': '# Big\n\n![a big one](Big%20photo.png)\n', 'notes.pdf': 'pdf' },
+  raw: { 'Garden/Pasted image 1.png': true, 'Big photo.png': true, 'Huge photo.png': true } });
 const c = await H.context(gh, { noCdn: true }), p = await H.page(c); p.setDefaultTimeout(5000);
 await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
 await p.evaluate(() => openFile('Garden/Plan.md')); await p.waitForFunction(() => current?.path === 'Garden/Plan.md');
@@ -27,14 +29,22 @@ t.check('Add to note puts a link at the cursor', await H.editorValue(p) === '# P
   JSON.stringify(await H.editorValue(p)));
 t.check('and the note is saved like any edit', await p.evaluate(() => dirty()));
 // a large one, and a hostile name
-await H.clickRow(p, 'Big photo.jpg');
-t.check('an image over 1 MB says so and points to GitHub', /larger than 1 MB/.test(await p.textContent('#iv-frame')) && await p.locator('#iv-frame img').count() === 0);
+// Over 1 MB: read as a Git blob; over 10 MB: not fetched at all.
+await H.clickRow(p, 'Big photo.png');
+await p.waitForSelector('#iv-frame img', { timeout: 8000 }).catch(() => {});
+t.check('an image over 1 MB is shown too, read as a blob', await p.locator('#iv-frame img').evaluate(i => i.complete && i.naturalWidth === 180).catch(() => false) &&
+  gh.log.blobReads === 1, String(gh.log.blobReads) + ' ' + await p.textContent('#iv-frame'));
+await p.click('#iv-close');
+await H.clickRow(p, 'Huge photo.png');
+t.check('an image over 10 MB says so, points to GitHub and is not downloaded', /10 MB.*GitHub/.test(await p.textContent('#iv-frame')) &&
+  await p.locator('#iv-frame img').count() === 0 && gh.log.blobReads === 1, await p.textContent('#iv-frame'));
 await p.click('#iv-close');
 await H.clickRow(p, `${IMG}.png`);
 await p.waitForFunction(() => /could not be shown/.test(document.getElementById('iv-frame').textContent));
 t.check('a hostile image name is only text', (await p.textContent('#iv-title')) === `${IMG}.png` && await p.evaluate(() => !window.__pwned) &&
   await p.locator('#image-view img').count() === 0);
 await p.click('#iv-close');
+await p.evaluate(() => openFile('Garden/Plan.md')); await p.waitForFunction(() => current?.path === 'Garden/Plan.md');
 await H.clickRow(p, 'notes.pdf');
 t.check('other attachments are still left alone', /not a text file/.test(await H.status(p)) && await p.locator('#image-view').isHidden());
 
@@ -67,4 +77,13 @@ t.check('an error is shown as a coloured label', await p.evaluate(() => {
   return document.getElementById('status').classList.contains('err') && s.fontWeight >= 600 && s.backgroundColor !== 'rgba(0, 0, 0, 0)' && parseFloat(s.fontSize) >= 13;
 }));
 t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));
-await c.close(); await H.stop(); t.finish();
+await c.close();
+{
+  // Preview (with its libraries) shows an image over 1 MB too.
+  const c2 = await H.context(gh), q = await H.page(c2); q.setDefaultTimeout(5000);
+  await H.signIn(q); await q.waitForFunction(() => treeState === 'ok');
+  await H.preview(q, 'Big.md');
+  await q.waitForFunction(() => { const i = document.querySelector('#preview img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 }).catch(() => {});
+  t.check('Preview shows an image over 1 MB too', await q.locator('#preview img').evaluate(i => i.naturalWidth === 180).catch(() => false), await q.textContent('#preview'));
+  await c2.close();
+} await H.stop(); t.finish();

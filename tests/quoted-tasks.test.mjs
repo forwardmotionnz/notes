@@ -48,6 +48,18 @@ t.check('removing a quoted task removes its line', gh.files['jobs.md'] === expec
 await box('top task').click(); await settled();
 t.check('a task outside any quote still works', gh.files['jobs.md'] === expect('- [ ] top task', '- [x] top task'), JSON.stringify(gh.files['jobs.md']));
 
+// Review: a tab after ">" is read differently by marked, so a box could be matched to the wrong line.
+const TAB = '>\t- [ ] call mum\n>\n>\t```\n> - [ ] example only\n>\t```\n> - [ ] pay rent\n';
+// Review: in a quote, a line starting with a long number is text, not a list item, and keeps its number.
+const PHONE = '>  1. [ ] a\n> 0211234567. is the number\n>  2. [ ] b\n';
+gh.files['tab.md'] = TAB; gh.files['phone.md'] = PHONE; gh.touch();
+await p.evaluate(() => refreshTree()); await p.waitForFunction(() => files.some(f => f.path === 'phone.md'));
+await H.preview(p, 'tab.md'); await p.waitForSelector('#pin-list li');
+t.check('a tab after ">" leaves the checklist to Edit', /Use Edit for this checklist/.test(await p.textContent('#pin-list')) &&
+  await p.locator('#pin-list input[type=checkbox]:not(:disabled)').count() === 0 && gh.files['tab.md'] === TAB);
+await H.preview(p, 'phone.md'); await settled();
+await H.taskAction(p, 'Move up: b'); await settled();
+t.check('renumbering in a quote touches only list items', gh.files['phone.md'] === '>  1. [ ] b\n>  2. [ ] a\n> 0211234567. is the number\n', JSON.stringify(gh.files['phone.md']));
 // A line carried on without its ">" is not read as a quote line, so that checklist stays for Edit (nothing is written).
 const commits = gh.commits.length;
 await H.preview(p, 'lazy.md');

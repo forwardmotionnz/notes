@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-//XmH1ne03ImrVcGtAzEH6F+2JtWnUJYKrBQdcJfzoE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-o+JcoJ0keRwlBd8zmEsytofUZ14DeMUtDlb+cdzPxBE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -196,7 +196,12 @@ body.preview-view #editor-pane{display:none;}
 #tag-counts [aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);}
 #backlinks{padding:6px 10px;border-top:1px solid var(--line);font-size:13px;flex-shrink:0;}#backlinks-list{max-height:20vh;overflow:auto;}#backlinks-list button{display:block;margin:4px 0;text-align:left;overflow-wrap:anywhere;max-width:100%;}
 #outline{width:min(90vw,460px);max-height:75vh;padding:16px;}#outline-list{max-height:50vh;overflow:auto;}#outline-list button{display:block;text-align:left;width:100%;overflow-wrap:anywhere;margin:4px 0;}
-#recent-status{color:var(--muted);font-size:12px;}
+#recent-status, #deleted-status{color:var(--muted);font-size:12px;}
+#deleted-list{max-height:25vh;overflow:auto;}
+#deleted-status{padding:0 8px;}
+#deleted-list div{display:flex;align-items:center;gap:8px;padding:3px 8px;}
+#deleted-list span{flex:1;min-width:0;overflow-wrap:anywhere;}
+#deleted-list small{display:block;color:var(--muted);font-size:12px;}
 /* N38: design pass. Green-tinted neutrals, one button family, line icons. */
 [hidden]{display:none !important;}
 svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;}
@@ -265,11 +270,11 @@ body:not(.tags-open) #note-tags{display:none;}
 #pin-tabs button.active{background:var(--accent-soft);color:var(--accent);font-weight:500;}
 #pin-tabs button.active svg{color:var(--accent);fill:currentColor;}
 #pin-help{font-size:11.5px;padding:2px 8px 2px;margin:4px 0;}
-#recent-notes, #tags-panel{padding:0;border:0;font-size:13.5px;}
-#recent-notes summary, #tags-panel summary{list-style:none;display:flex;align-items:center;gap:6px;margin:10px 0 2px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-soft);cursor:pointer;}
-#recent-notes summary::-webkit-details-marker, #tags-panel summary::-webkit-details-marker{display:none;}
-#recent-notes summary::before, #tags-panel summary::before{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);margin:0 2px;transition:transform .12s;}
-#recent-notes[open] summary::before, #tags-panel[open] summary::before{transform:rotate(45deg);}
+#recent-notes, #deleted-notes, #tags-panel{padding:0;border:0;font-size:13.5px;}
+#recent-notes summary, #deleted-notes summary, #tags-panel summary{list-style:none;display:flex;align-items:center;gap:6px;margin:10px 0 2px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-soft);cursor:pointer;}
+#recent-notes summary::-webkit-details-marker, #deleted-notes summary::-webkit-details-marker, #tags-panel summary::-webkit-details-marker{display:none;}
+#recent-notes summary::before, #deleted-notes summary::before, #tags-panel summary::before{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);margin:0 2px;transition:transform .12s;}
+#recent-notes[open] summary::before, #deleted-notes[open] summary::before, #tags-panel[open] summary::before{transform:rotate(45deg);}
 #recent-list button{display:block;}
 #recent-list small{font-size:12px;}
 #tag-counts button{min-height:26px;border-radius:999px;padding:0 10px;background:var(--bg-sunk);border:0;font-size:12.5px;}
@@ -500,6 +505,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 				<p id="pin-help">Pinned notes say so in their properties, so they show on every device.</p>
 			</section>
 			<details id="recent-notes"><summary>Recent</summary><div id="recent-list"></div><p id="recent-status" role="status"></p></details>
+			<details id="deleted-notes"><summary>Recently deleted</summary><div id="deleted-list"></div><p id="deleted-status" role="status"></p></details>
 			<details id="tags-panel"><summary>Tags</summary><div id="tags-results"><div id="tag-counts"></div><div id="tag-notes"></div></div><p id="tags-status" role="status"></p></details>
 			<h2 class="side-head" id="files-head">Files</h2>
 			<div id="tree"></div>
@@ -3236,48 +3242,67 @@ function propertyChips(raw) {
 	return box;
 }
 /* N74 */
+/* One level of quote: [marks, rest], or null. A tab after ">" is refused: marked reads it differently. */
+function unquote(line) {
+	var q = / {0,3}> ?/y.exec(line);
+	return q && line.charAt(q[0].length) !== "\t" ? [q[0], line.slice(q[0].length)] : null;
+}
 function checklistLines(source) {
-	var lines = source.split("\n"), tasks = [];
-	function match(raw, at, indent) {
-		var want = raw.replace(/\n+$/, "").split("\n");
-		return want.every(function (line, n) { return (lines[at + n] || "").slice(Math.min(indent, /^ */.exec(lines[at + n] || "")[0].length)) === line; });
-	}
-	function nested(list, begin, end) {
-		var candidates = [];
-		for (var i = begin; i < end; i++) {
-			var indent = /^ */.exec(lines[i])[0].length;
-			if (match(list.raw, i, indent)) candidates.push({at:i, indent:indent});
+	var all = source.split("\n"), tasks = [];
+	/* A quote (a callout too) is read without its ">" marks; each line still maps to the note's own line. */
+	function scan(text, map, depth) {
+		var lines = text.split("\n");
+		function match(raw, at, indent) {
+			var want = raw.replace(/\n+$/, "").split("\n");
+			return want.every(function (line, n) { return (lines[at + n] || "").slice(Math.min(indent, /^ */.exec(lines[at + n] || "")[0].length)) === line; });
 		}
-		if (candidates.length !== 1) throw new Error("Ambiguous list source");
-		parse(list, candidates[0].at, candidates[0].indent);
-	}
-	function parse(list, at, indent) {
-		list.items.forEach(function (item) {
-			while (at < lines.length && !lines[at].trim()) at++;
-			if (!match(item.raw, at, indent)) throw new Error("Unsupported list source");
-			var end = at + item.raw.replace(/\n+$/, "").split("\n").length;
-			var m = /^( *)([-*+]|\d+[.)])\s+\[([ xX])\] ?(.*)$/.exec(lines[at]);
-			if (item.task) {
-				if (!m) throw new Error("Unsupported task source");
-				tasks.push({index:at,end:end,indent:m[1].length,text:m[4],line:lines[at],checked:m[3].toLowerCase()==="x"});
+		function nested(list, begin, end) {
+			var candidates = [];
+			for (var i = begin; i < end; i++) {
+				var indent = /^ */.exec(lines[i])[0].length;
+				if (match(list.raw, i, indent)) candidates.push({at:i, indent:indent});
 			}
-			(item.tokens || []).forEach(function (token) { if (token.type === "list") nested(token, at + 1, end); });
-			at = end;
+			if (candidates.length !== 1) throw new Error("Ambiguous list source");
+			parse(list, candidates[0].at, candidates[0].indent);
+		}
+		function parse(list, at, indent) {
+			list.items.forEach(function (item) {
+				while (at < lines.length && !lines[at].trim()) at++;
+				if (!match(item.raw, at, indent)) throw new Error("Unsupported list source");
+				var end = at + item.raw.replace(/\n+$/, "").split("\n").length;
+				var m = /^( *)([-*+]|\d+[.)])\s+\[([ xX])\] ?(.*)$/.exec(lines[at]);
+				if (item.task) {
+					if (!m) throw new Error("Unsupported task source");
+					tasks.push({index:map[at],end:map[at]+end-at,indent:m[1].length,depth:depth,text:m[4],line:all[map[at]],checked:m[3].toLowerCase()==="x"});
+				}
+				(item.tokens || []).forEach(function (token) { if (token.type === "list") nested(token, at + 1, end); });
+				at = end;
+			});
+		}
+		var offset = 0;
+		marked.lexer(text).forEach(function (token) {
+			if (!token.raw) return;
+			if (text.slice(offset, offset + token.raw.length) !== token.raw) throw new Error("Unsupported Markdown source");
+			var first = text.slice(0, offset).split("\n").length - 1;
+			if (token.type === "list") parse(token, first, 0);
+			else if (token.type === "blockquote") {
+				var inner = token.raw.replace(/\n+$/, "").split("\n").map(function (line) {
+					var q = unquote(line);
+					if (!q) throw new Error("Unsupported quote source");   // a line carried on without ">", or a tab after it
+					return q[1];
+				});
+				scan(inner.join("\n"), map.slice(first, first + inner.length), depth + 1);
+			}
+			offset += token.raw.length;
 		});
 	}
 	try {
-		var offset = 0, front = frontOf(source.replace(/^\uFEFF/, "")), body = front ? source.slice(front[0].length) : source;
-		offset = source.length - body.length;
-		marked.lexer(body).forEach(function (token) {
-			if (!token.raw) return;
-			if (source.slice(offset, offset + token.raw.length) !== token.raw) throw new Error("Unsupported Markdown source");
-			if (token.type === "list") parse(token, source.slice(0, offset).split("\n").length - 1, 0);
-			offset += token.raw.length;
-		});
+		var front = frontOf(source.replace(/^\uFEFF/, "")), body = front ? source.slice(front[0].length) : source;
+		var skip = source.slice(0, source.length - body.length).split("\n").length - 1;
+		scan(body, all.map(function (_, i) { return i; }).slice(skip), 0);
 	} catch (e) { return []; }
 	return tasks.sort(function (a,b) { return a.index-b.index; });
 }
-
 function bindChecklist(source, path, marker, count) {
 	var host = $("pin-list"), tasks = checklistLines(source), controls = Array.from(host.querySelectorAll("input[data-task]"));
 	controls = controls.filter(function (box) { return box.getAttribute("data-task").startsWith(marker + "-"); });
@@ -3299,9 +3324,11 @@ function bindChecklist(source, path, marker, count) {
 	function keepNumbers(lines, list) {
 		var siblings = tasks.filter(function (t) { return t.list === list; }), first = siblings[0], last = siblings[siblings.length - 1], markers = [];
 		var original = source.split("\n"), re = new RegExp("^( {" + first.indent + "})(\\d+[.)])(?=\\s)");
-		for (var i = first.index; i < last.end; i++) { var m = re.exec(original[i]); if (m) markers.push(m[2]); }
+		/* Inside a quote, the marks come off first, as the checklist read them, so the indent is exact. */
+		function split(line) { var marks = ""; for (var d = 0; d < first.depth; d++) { var q = unquote(line); if (!q) return null; marks += q[0]; line = q[1]; } return [marks, line]; }
+		for (var i = first.index; i < last.end; i++) { var q = split(original[i]), m = q && re.exec(q[1]); if (m) markers.push(m[2]); }
 		var n = 0;
-		for (var i = first.index; i < last.end; i++) lines[i] = lines[i].replace(re, function (all, space) { return space + markers[n++]; });
+		for (var i = first.index; i < last.end; i++) { var q = split(lines[i]); if (q) lines[i] = q[0] + q[1].replace(re, function (all, space) { return space + markers[n++]; }); }
 		return lines.join("\n");
 	}
 	controls.forEach(function (box, n) {
@@ -3651,7 +3678,7 @@ function hideUndo() {
 	$("pin-undo").hidden = true;
 }
 /* N196 */
-function untick(text) { return text.replace(/^(\s*[-*]\s+)\[[xX]\]/gm, "$1[ ]"); }
+function untick(text) { return text.replace(/^((?: {0,3}> ?)*[ \t]*[-*]\s+)\[[xX]\]/gm, "$1[ ]"); }
 function undoRemove() {
 	var u = pinUndo;
 	if (!u) return;
@@ -3759,7 +3786,7 @@ function showSignIn(message, info) {
 	$("outline").close();$("outline-list").replaceChildren();
 	backlinkSeq++;backlinkDoc=null;$("backlinks").hidden=true;$("backlinks-list").replaceChildren();$("backlinks-status").textContent="";
 	resetTags();
-	resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-notes").open=false;
+	resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-notes").open=false;deletedSeq++;$("deleted-list").replaceChildren();$("deleted-notes").open=false;
 	$("view-signin").hidden = false;
 	$("view-account").hidden = true;
 	$("f-signin").disabled = !deployed();
@@ -3958,7 +3985,7 @@ function pointAt(owner, repo, branch, pins, prepared) {
 }
 function showPointed(changedRepo) {
 	if(changedRepo){$("outline").close();$("outline-list").replaceChildren();}
-	if(changedRepo){resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-status").textContent="";$("recent-notes").open=false;}
+	if(changedRepo){resetNoteReads();recentSeq++;$("recent-list").replaceChildren();$("recent-status").textContent="";$("recent-notes").open=false;deletedSeq++;$("deleted-list").replaceChildren();$("deleted-status").textContent="";$("deleted-notes").open=false;}
 	renderTabs();
 	/* N205 */
 	var keep = pathMap();
@@ -4251,6 +4278,88 @@ async function loadRecent(){
 	}catch(e){if(seq===recentSeq&&scope===recentScope()){ $("recent-status").textContent="Recent notes unavailable.";fail(e);}}finally{if(seq===recentSeq)recentLoading=false;}
 }
 $("recent-notes").ontoggle=function(){if(this.open)loadRecent();else{recentSeq++;recentLoading=false;}};
+/* N30: notes deleted in the last 30 commits, read from history (nothing is written to keep them).
+   Walking newest first, a path's first appearance is its latest change: only a removal that is
+   still gone counts. A moved note is "renamed", not removed. Restore commits its last version. */
+var deletedSeq=0,deletedLoading=false,deletedSha=/^[a-f0-9]{40}$/i;
+/* A commit's files come a page at a time (GitHub lists up to 3000). */
+async function commitFiles(sha,live){
+	var out=[];
+	for(var page=1;page<=30&&live();page++){
+		var d=await request(repoPath()+"/commits/"+sha+"?per_page=100&page="+page);
+		if(!d||!Array.isArray(d.files))throw incompleteReply();
+		out=out.concat(d.files);if(d.files.length<100)break;
+	}
+	return out;
+}
+async function loadDeleted(){
+	var seq=++deletedSeq,scope=recentScope(),list=$("deleted-list"),status=$("deleted-status"),found=[],seen={};
+	function live(){return seq===deletedSeq&&scope===recentScope()&&signedIn()&&$("deleted-notes").open;}
+	deletedLoading=true;list.replaceChildren();status.textContent="Looking through recent changes…";
+	try{
+		if(!repoEmpty){
+			var commits=await request(repoPath()+"/commits?sha="+encodeURIComponent(cfg.branch)+"&per_page=30");
+			if(!Array.isArray(commits)||!commits.every(function(c){return c&&deletedSha.test(c.sha);}))throw incompleteReply();
+			/* Four at a time, then read newest first. */
+			var details=new Array(commits.length),next=0;
+			async function worker(){while(live()&&next<commits.length){var i=next++;details[i]=await commitFiles(commits[i].sha,live);}}
+			await Promise.all([worker(),worker(),worker(),worker()]);
+			if(!live())return;
+			commits.forEach(function(c,i){
+				details[i].forEach(function(f){
+					[f.filename,f.previous_filename].forEach(function(p,j){
+						if(typeof p!=="string"||seen[p])return;seen[p]=1;
+						if(!j&&f.status==="removed"&&/\.(md|markdown)$/i.test(p)&&!isHidden(p)&&!files.some(function(x){return x.path===p;}))found.push({path:p,at:Date.parse(c.commit&&c.commit.committer&&c.commit.committer.date)});
+					});
+				});
+			});
+		}
+		if(!live())return;
+		found.forEach(function(item){
+			var row=document.createElement("div"),name=document.createElement("span"),info=document.createElement("small"),b=document.createElement("button");
+			name.textContent=item.path.split("/").pop().replace(/\.(md|markdown)$/i,"");info.textContent=item.path+(Number.isFinite(item.at)?" · deleted "+new Date(item.at).toLocaleString():"");name.append(info);
+			b.textContent="Restore";b.setAttribute("aria-label","Restore "+item.path);b.onclick=function(){restoreNote(item,row,b);};
+			row.append(name,b);list.append(row);
+		});
+		status.textContent=(found.length?"Notes":"No notes")+" deleted in the last 30 changes. Older ones stay in the repository's history on GitHub.";
+	}catch(e){if(seq===deletedSeq&&scope===recentScope()){status.textContent="Recently deleted notes unavailable.";fail(e);}}finally{if(seq===deletedSeq)deletedLoading=false;}
+}
+/* Restore asks GitHub for the note's latest change when pressed (the list may be old): its version
+   just before that deletion comes back. Folders keep their current spelling. */
+async function restoreNote(item,row,b){
+	var scope=recentScope(),path=spelledLikeFolders(item.path),base=repoPath()+"/contents/"+encodePath(path);
+	function taken(){flash(path+" exists already, so nothing was restored.",true);}
+	/* A refusal may be our own restore whose reply was lost: the same text there means it worked. */
+	function ours(){return item.sent?request(base+"?ref="+encodeURIComponent(cfg.branch)).then(function(r){return r&&r.encoding==="base64"&&r.content.replace(/\s/g,"")===item.sent;},function(){return false;}):Promise.resolve(false);}
+	if(!signedIn()||b.disabled)return;
+	if(readOnly){flash("Nothing can be restored: "+readOnly+".",true);return;}
+	if(files.some(function(f){return f.path.toLowerCase()===path.toLowerCase();}))return taken();
+	b.disabled=true;
+	try{
+		var last=await request(repoPath()+"/commits?sha="+encodeURIComponent(cfg.branch)+"&path="+encodeURIComponent(item.path)+"&per_page=1");
+		var parent=Array.isArray(last)&&last[0]&&last[0].parents&&last[0].parents[0]&&last[0].parents[0].sha;
+		if(!deletedSha.test(parent||""))throw incompleteReply();
+		var old=await request(repoPath()+"/contents/"+encodePath(item.path)+"?ref="+encodeURIComponent(parent),{allow404:true});
+		/* No version before its latest change: that change made it, so it is there now (ours, if a reply was lost). */
+		if(!old){if(await ours())return restored();b.disabled=false;return taken();}
+		if(old.encoding==="none"&&old.size>IMAGE_MAX)throw new Error("This note is over 10 MB, too large to restore here. Its history on GitHub has it.");
+		if(old.encoding==="none"&&old.sha)old=await readBlob(old.sha);   // over 1 MB
+		if(!old||old.encoding!=="base64"||typeof old.content!=="string")throw incompleteReply();
+		if(scope!==recentScope()||readOnly)return;
+		item.sent=old.content.replace(/\s/g,"");
+		/* No sha: GitHub creates the file, and refuses if one is there now. */
+		await request(base,{method:"PUT",body:{message:"Restore "+path,content:item.sent,branch:cfg.branch}});
+	}catch(e){
+		if(!((e.status===409||e.status===422)&&await ours())){b.disabled=false;if(e.status===409||e.status===422)taken();else fail(e);return;}
+	}
+	return restored();
+	async function restored(){
+		resetNoteReads();row.remove();
+		await refreshTree();if(scope!==recentScope())return;
+		await openFile(path);flash("Restored "+path+".");
+	}
+}
+$("deleted-notes").ontoggle=function(){if(this.open)loadDeleted();else{deletedSeq++;deletedLoading=false;}};
 function tabPaths() {
 	var saved=ui.openNotes;
 	return saved&&saved.scope===recentScope()&&Array.isArray(saved.paths)?saved.paths.filter(function(p){return typeof p==="string"&&isTextFile(p)&&!isHidden(p)&&!/[\\\x00-\x1f]/.test(p)&&!p.split("/").some(function(x){return !x||x==="."||x==="..";});}).slice(-12):[];

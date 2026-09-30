@@ -24,7 +24,9 @@ for(const [label,body] of [
  ['format','- [ ] **bold** [link](https://example.com)\n\n  continuation\n'],
  ['ordered','1. [ ] first\n2. [ ] second\n']]){
  const gh=H.fakeGitHub({files:{'probe.md':body}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await p.evaluate(()=>openFile('probe.md'));await p.click('#btn-preview');
- if(label==='ambiguous')t.check('ambiguous code and quoted task cannot mutate source',await p.locator('#preview input[type=checkbox]:enabled').count()===0&&gh.commits.length===0);
+ // N39: quoted tasks are supported now; the indented code example must still never change.
+ if(label==='ambiguous'){await p.waitForSelector('#preview input[type=checkbox]:enabled');await p.locator('#preview input[type=checkbox]:enabled').click();await p.waitForFunction(()=>!Object.keys(pinBusy).length);
+  t.check('ambiguous code and quoted task cannot mutate source',await p.locator('#preview input[type=checkbox]').count()===1&&gh.files['probe.md']==='    - [ ] code example\n\n> - [x] quoted task\n',JSON.stringify(gh.files['probe.md']));}
  if(label==='loose'){
   await H.taskAction(p, 'Move down: parent');await p.waitForFunction(()=>!Object.keys(pinBusy).length);
   t.check('loose parent keeps paragraphs and nested tasks',gh.files['probe.md']==='- [ ] second\n- [ ] parent\n\n  paragraph\n  - [ ] child\n');

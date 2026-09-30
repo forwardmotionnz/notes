@@ -62,13 +62,16 @@ async function ready(pins) {
   const { gh, ctx, p } = await ready();
   await H.expand(p, 'attachments');
   const bin = await p.$$eval('#tree .row.binary', e => e.map(x => x.textContent.trim()));
-  t.check('images and PDFs marked unopenable',
-    bin.includes('Pasted image 20260822112523.png') && bin.includes('datasheet.pdf'), JSON.stringify(bin));
+  // Since 2026-09-30 images open in a viewer (the owner's request); other attachments stay unopenable.
+  t.check('PDFs marked unopenable, images shown as images',
+    bin.includes('datasheet.pdf') && !bin.includes('Pasted image 20260822112523.png') &&
+    await p.locator('#tree .row.image', { hasText: 'Pasted image 20260822112523.png' }).count() === 1, JSON.stringify(bin));
   t.check('.excalidraw stays openable', !bin.includes('sketch.excalidraw'));
   const before = gh.files['attachments/Pasted image 20260822112523.png'];
   await H.clickRow(p, 'Pasted image 20260822112523.png');
   t.check('clicking a PNG loads nothing', (await H.editorValue(p)) === null);
-  t.check('and says why', (await H.status(p)).includes('not a text file'));
+  t.check('it opens in the image viewer instead', await p.locator('#image-view').isVisible() && (await p.textContent('#iv-title')) === 'Pasted image 20260822112523.png');
+  await p.click('#iv-close');
   t.check('PNG untouched, no commit', gh.files['attachments/Pasted image 20260822112523.png'] === before &&
     gh.commits.length === 0);
 

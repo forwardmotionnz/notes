@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Images in the file list open in a viewer, with Add to note and a link to GitHub. Photos and screenshots over 1 MB are made smaller in the browser before upload instead of being refused, and error messages now stand out as a red label.
 - Obsidian callouts in Preview: `> [!tip] Title`, `> [!warning]` and the other kinds show as coloured boxes; `-` and `+` make them fold shut or open. The note's text is unchanged.
 - A + on each folder in Files makes a new note in it; Rename or move uses the New note dialog's folder picker, and works on a note before its first save (without a commit).
 - New note asks for a name and a folder (starting in the folder you are in, with New folder… for a new one) and shows where the note will be saved, instead of the browser's plain prompt.

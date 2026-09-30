@@ -138,7 +138,9 @@ const pwned = p => p.evaluate(() => window.__pwned || 0);
   t.check('its name is text in the header', (await p.textContent('#crumb .name')) === `${IMG}.md`);
 
   await H.clickRow(p, `${IMG}.png`);
-  t.check('refusing a hostile attachment names it as text', (await H.status(p)).includes(`${IMG}.png`));
+  // Since 2026-09-30 an image opens in a viewer: its hostile name must still be only text.
+  t.check('a hostile image name is shown as text', (await p.textContent('#iv-title')) === `${IMG}.png` && await pwned(p) === 0);
+  await p.click('#iv-close');
 
   // A hostile error message from GitHub.
   await p.route('https://api.github.com/**/contents/**', r => r.request().method() === 'PUT'

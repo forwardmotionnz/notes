@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-0FiUBZ+X6OLqRzFL9BUq7ievt9ctdkF5axEzBpbQIuU=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-h6EIYFeIkrKBBfiqaZVb6h84IeXLPeWxp7qI2am2RPs=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -306,6 +306,21 @@ body.read-only .row-add{display:none;}
 #format-toolbar{align-items:center;gap:2px;min-height:44px;padding:4px 16px;}
 #format-toolbar button{min-height:30px;width:30px;}
 #format-toolbar .sep{flex:none;width:1px;height:18px;background:var(--line);margin:0 6px;}
+#image-view{width:min(900px, calc(100vw - 24px));}
+#iv-title{overflow-wrap:anywhere;}
+.iv-path{margin:0 0 12px !important;overflow-wrap:anywhere;}
+#iv-frame{display:grid;place-items:center;min-height:120px;max-height:65vh;overflow:auto;border-radius:var(--radius);background:var(--bg-sunk);color:var(--fg-soft);font-size:13px;padding:12px;text-align:center;}
+#iv-frame img{max-width:100%;max-height:calc(65vh - 24px);object-fit:contain;display:block;}
+#image-view .dlg-foot{align-items:center;flex-wrap:wrap;}
+#iv-github{color:var(--accent);font-size:13px;}
+.iv-grow{flex:1;}
+#image-view .dlg-foot button+button{margin-left:6px;}
+/* Errors are easy to miss in a status line: they stand out. */
+#status.err{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;color:var(--danger);background:var(--bg-sunk);background:color-mix(in srgb, var(--danger) 12%, var(--bg));white-space:normal;max-width:min(520px, 60vw);animation:err-in .25s ease-out;}
+#status.err::before{content:"!";display:inline-grid;place-items:center;width:16px;height:16px;flex:none;border-radius:50%;background:var(--danger);color:var(--bg);font-size:11px;font-weight:700;}
+@keyframes err-in{from{transform:translateY(-3px);opacity:.3;}to{transform:none;opacity:1;}}
+@media (prefers-reduced-motion:reduce){#status.err{animation:none;}}
+@media (max-width:820px){#status.err{max-width:none;}}
 .nn-path{margin:4px 0 0 !important;font-size:12.5px;color:var(--fg-soft);overflow-wrap:anywhere;}
 #note-summary{background:var(--bg);color:var(--fg-soft);padding:6px 16px;gap:6px 16px;}
 #note-word-count{font-variant-numeric:tabular-nums;}
@@ -527,6 +542,14 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 		<p id="nn-path" class="nn-path" role="status"></p>
 	</div>
 	<div class="dlg-foot"><button type="button" id="nn-cancel">Cancel</button><button type="button" id="nn-go" class="primary">Create</button></div>
+</dialog>
+<dialog id="image-view" aria-labelledby="iv-title">
+	<div class="dlg-body">
+		<h2 id="iv-title"></h2>
+		<p id="iv-path" class="iv-path"></p>
+		<div id="iv-frame" role="status"></div>
+	</div>
+	<div class="dlg-foot"><a id="iv-github" target="_blank" rel="noopener noreferrer">Open on GitHub</a><span class="iv-grow"></span><button type="button" id="iv-insert">Add to note</button><button type="button" id="iv-close" class="primary" autofocus>Close</button></div>
 </dialog>
 <dialog id="outline" aria-labelledby="outline-title"><h2 id="outline-title">Headings</h2><div id="outline-list"></div><p id="outline-status" role="status"></p><button id="outline-close">Close</button></dialog>
 <dialog id="settings">
@@ -1661,6 +1684,38 @@ function overLimitMessage(path) {
 function tooLargeMessage(path) {
 	return path.split("/").pop() + " is larger than 1 MB, too large to edit here, so it is left alone.";
 }
+function isImagePath(path) { return /\.(png|jpe?g|gif|webp)$/i.test(path) && !isHidden(path); }
+/* Shows an image from the repository, with a way to link it from the open note. */
+var imageViewSeq = 0;
+function openImage(path) {
+	var seq = ++imageViewSeq, name = path.split("/").pop(), frame = $("iv-frame");
+	$("iv-title").textContent = name;                    // a file name: text
+	$("iv-path").textContent = path;
+	$("iv-github").href = "https://github.com/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo) + "/blob/" + encodePath(cfg.branch) + "/" + encodePath(path);
+	var note = current && editor && !readOnly && !moving && !current.leaving && /\.(md|markdown)$/i.test(current.path) ? current.path : "";
+	$("iv-insert").hidden = !note;
+	$("iv-insert").title = note ? "Add a link to this image in " + note : "";
+	$("iv-insert").onclick = function () {
+		if (!current || current.path !== note || readOnly || moving) { $("image-view").close(); return; }
+		if (document.body.classList.contains("preview-view")) previewView(false);
+		var before = editor.getValue(), at = editor.caret ? editor.caret() : editor.indexFromPos(editor.getCursor("from"));
+		insertLink(imageLink(note, path), at, before);
+		$("image-view").close();
+		flash("Link to " + name + " added to " + note.split("/").pop() + ".");
+	};
+	frame.replaceChildren(); frame.textContent = "Loading " + name + "…";
+	if (!$("image-view").open) $("image-view").showModal();
+	if (tooLarge(path)) { frame.textContent = name + " is larger than 1 MB, so it is not shown here. Open it on GitHub to see it."; return; }
+	readImage(path).then(function (src) {
+		if (seq !== imageViewSeq || !$("image-view").open) return;
+		var img = document.createElement("img"); img.alt = name;
+		img.onerror = function () { if (seq === imageViewSeq) frame.textContent = name + " could not be shown: the image could not be decoded."; };
+		frame.replaceChildren(img); img.src = src;
+	}).catch(function (err) {
+		if (err.signedOut) { $("image-view").close(); fail(err); return; }
+		if (seq === imageViewSeq) frame.textContent = name + " could not be shown: " + (err.message || "could not reach GitHub.");
+	});
+}
 function isTextFile(path) {
 	var name = path.split("/").pop();
 	return name.indexOf(".") === -1 || TEXT_FILE.test(name);
@@ -1821,8 +1876,15 @@ function fileRow(label, path, depth) {
 		(text ? "" : " binary");
 	row.style.paddingLeft = (8 + depth * 14) + "px";
 	row.appendChild(twisty(null));
-	row.appendChild(icon("file"));
+	var picture = isImagePath(path);
+	row.appendChild(icon(picture ? "image" : "file"));
 	row.appendChild(document.createTextNode(label));        // a file name: text, never markup
+	if (picture) {
+		row.className = "row image" + (current && current.path === path ? " active" : "");
+		row.title = "Image: open to view it";
+		row.onclick = function () { document.body.classList.remove("tree-open"); openImage(path); };
+		return row;
+	}
 	if (!text) {
 		row.title = big ? "Larger than 1 MB: too large to edit here, so it is left alone."
 										: "Not a text file. Attachments are left alone so they cannot be corrupted.";
@@ -1897,8 +1959,9 @@ async function uploadImage(file, dropAt) {
 	var doc = current, path = doc.path, scope = draftKey(""), before = editor.getValue();
 	var at = dropAt == null ? editor.caret ? editor.caret() : editor.indexFromPos(editor.getCursor("from")) : dropAt;
 	function here() { return current === doc && doc.path === path && !doc.leaving && scope === draftKey("") && signedIn() && !readOnly; }
-	imageUploading = true; var destination = "";
+	imageUploading = true; var destination = "", shrunk = false;
 	try {
+		if (file && file.size > MAX_BYTES) { flash("Making the image smaller to fit 1 MB…"); file = await fitImage(file); shrunk = true; }
 		if (!file || !file.size || file.size > MAX_BYTES) throw new Error("Choose an image up to 1 MB.");
 		var bytes = new Uint8Array(await file.arrayBuffer()), bin = "";
 		for (var i=0;i<bytes.length;i+=32768) bin += String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
@@ -1912,19 +1975,45 @@ async function uploadImage(file, dropAt) {
 		flash("Uploading image…");
 		await createImage(destination,btoa(bin));
 		if (!here()) { flash("Image saved as " + destination + ". Open " + path + " to add its link."); return; }
-		var parent = path.split("/"); parent.pop(); var target = destination.split("/");
-		while (parent.length && target.length && parent[0] === target[0]) { parent.shift(); target.shift(); }
-		var link = "![Image](" + "../".repeat(parent.length) + target.map(function(s){return encodeURIComponent(s).replace(/[!'()*]/g,function(c){return "%"+c.charCodeAt(0).toString(16);});}).join("/") + ")";
-		var now = editor.getValue(), prefix=0,suffix=0;
-		while(prefix<before.length && prefix<now.length && before[prefix]===now[prefix]) prefix++;
-		while(suffix<before.length-prefix && suffix<now.length-prefix && before[before.length-1-suffix]===now[now.length-1-suffix]) suffix++;
-		if(at>prefix) at = at>=before.length-suffix ? at+now.length-before.length : prefix;
-		at = Math.max(0,Math.min(at,now.length));
-		if (editor.caret) { var ta=editor.getWrapperElement();ta.focus();ta.setSelectionRange(at,at); if(!document.execCommand("insertText",false,link))ta.setRangeText(link,at,at,"end");ta.dispatchEvent(new Event("input",{bubbles:true})); }
-		else editor.replaceRange(link,editor.posFromIndex(at),editor.posFromIndex(at),"+image");
-		current.touched=true;syncDraft();scheduleAutosave();flash("Image saved and linked.");
+		insertLink(imageLink(path, destination), at, before);
+		flash(shrunk ? "Image made smaller to fit 1 MB, saved and linked." : "Image saved and linked.");
 	} catch (e) { if(scope===draftKey("")) fail(e); }
 	finally { imageUploading=false; }
+}
+/* A Markdown image link from a note to an image, relative and percent-encoded. */
+function imageLink(notePath, imagePath) {
+	var parent = notePath.split("/"); parent.pop(); var target = imagePath.split("/");
+	while (parent.length && target.length && parent[0] === target[0]) { parent.shift(); target.shift(); }
+	return "![Image](" + "../".repeat(parent.length) + target.map(function(s){return encodeURIComponent(s).replace(/[!'()*]/g,function(c){return "%"+c.charCodeAt(0).toString(16);});}).join("/") + ")";
+}
+/* Inserts text where the caret was when `before` was the note's text, allowing for typing since. */
+function insertLink(link, at, before) {
+	var now = editor.getValue(), prefix=0,suffix=0;
+	while(prefix<before.length && prefix<now.length && before[prefix]===now[prefix]) prefix++;
+	while(suffix<before.length-prefix && suffix<now.length-prefix && before[before.length-1-suffix]===now[now.length-1-suffix]) suffix++;
+	if(at>prefix) at = at>=before.length-suffix ? at+now.length-before.length : prefix;
+	at = Math.max(0,Math.min(at,now.length));
+	if (editor.caret) { var ta=editor.getWrapperElement();ta.focus();ta.setSelectionRange(at,at); if(!document.execCommand("insertText",false,link))ta.setRangeText(link,at,at,"end");ta.dispatchEvent(new Event("input",{bubbles:true})); }
+	else editor.replaceRange(link,editor.posFromIndex(at),editor.posFromIndex(at),"+image");
+	current.touched=true;syncDraft();scheduleAutosave();
+}
+/* Photos and screenshots are often over 1 MB: redraw them smaller in the browser (nothing leaves it). */
+async function fitImage(file) {
+	if (/gif/i.test(file.type)) throw new Error("GIFs over 1 MB cannot be made smaller here. Choose one up to 1 MB.");
+	var picture;
+	try { picture = await createImageBitmap(file); } catch (e) { throw new Error("This image could not be read. Choose a PNG, JPEG, GIF or WebP image."); }
+	var scale = Math.min(1, 2400 / Math.max(picture.width, picture.height)), type = /png/i.test(file.type) ? "image/png" : "image/jpeg", quality = 0.85;
+	for (var tries = 0; tries < 8; tries++) {
+		var canvas = document.createElement("canvas");
+		canvas.width = Math.max(1, Math.round(picture.width * scale)); canvas.height = Math.max(1, Math.round(picture.height * scale));
+		var ctx = canvas.getContext("2d");
+		if (type === "image/jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); }   // JPEG has no transparency
+		ctx.drawImage(picture, 0, 0, canvas.width, canvas.height);
+		var blob = await new Promise(function (done) { canvas.toBlob(done, type, quality); });
+		if (blob && blob.size <= MAX_BYTES) return blob;
+		if (type === "image/png") type = "image/jpeg"; else if (quality > 0.7) quality -= 0.1; else scale *= 0.8;
+	}
+	throw new Error("This image could not be made small enough. Choose one up to 1 MB.");
 }
 function imageDropOffset(e) {
 	if(!editor.caret)return clickOffset(e);
@@ -2008,6 +2097,7 @@ function formatNote(kind) {
 	b.onclick = function () { formatNote(item[0]); }; $("format-toolbar").appendChild(b);
 });
 var imagePicker=document.createElement("input"), imageButton=document.createElement("button");
+// iPhones hand over HEIC photos as JPEG.
 imagePicker.type="file";imagePicker.accept="image/png,image/jpeg,image/gif,image/webp";imagePicker.hidden=true;
 imagePicker.onchange=function(){var file=this.files[0];this.value="";if(file)uploadImage(file);};
 imageButton.className="plain ib";imageButton.appendChild(icon("image"));imageButton.title="Add image";imageButton.setAttribute("aria-label","Add image");imageButton.onclick=function(){imagePicker.click();};
@@ -4024,6 +4114,7 @@ $("btn-new").onclick      = newFile;
 });
 $("nn-folder").addEventListener("change", function () { newNoteCheck(); if (this.value === NEW_FOLDER) $("nn-new-folder").focus(); });
 $("nn-go").onclick = newNoteGo;
+$("iv-close").onclick = function () { $("image-view").close(); };
 $("nn-cancel").onclick = function () { $("new-note").close(); };
 $("btn-today").onclick    = todayNote;
 $("btn-refresh").onclick  = refreshTree;

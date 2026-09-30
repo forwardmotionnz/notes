@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Images up to 10 MB now show in the viewer and in Preview (larger than 1 MB are read as Git blobs). The address-change notice is gone: Padgit lives at padgit.com.
 - Images in the file list open in a viewer, with Add to note and a link to GitHub. Photos and screenshots over 1 MB are made smaller in the browser before upload instead of being refused, and error messages now stand out as a red label.
 - Obsidian callouts in Preview: `> [!tip] Title`, `> [!warning]` and the other kinds show as coloured boxes; `-` and `+` make them fold shut or open. The note's text is unchanged.
 - A + on each folder in Files makes a new note in it; Rename or move uses the New note dialog's folder picker, and works on a note before its first save (without a commit).

@@ -13,7 +13,8 @@ const first = readme.match(/^## (.+)$/m)?.[1];
 const intro = readme.split(/^## /m)[1] || '';
 const firstNote = intro.split('\n3. ')[1]?.split('\n\n')[0] || '';
 t.check('README opens with Try it', first === 'Try it');
-t.check('Try it links the shared app', /\]\(https:\/\/forwardmotionnz.github.io\/notes\/\)/.test(intro));
+// Moved to padgit.com (owner, 2026-09-30).
+t.check('Try it links the shared app', /\]\(https:\/\/padgit.com\/\)/.test(intro));
 t.check('a beginner reaches the first saved note', /GitHub account/.test(intro) && /Sign in with GitHub/.test(intro) &&
   /private repository/i.test(intro) && /New/.test(intro) && /Save/.test(intro));
 t.check('a repository is explained and creation help is linked', /repository[^\n]*folder|folder[^\n]*repository/i.test(intro) &&

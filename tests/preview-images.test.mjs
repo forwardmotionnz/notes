@@ -40,14 +40,17 @@ await c.close();
  await c.close();
 }
 {
- const gh=H.fakeGitHub({files:{'note.md':'![Large](large.png)\n\n![Hidden](.private/p.png)\n\n![Symlink](link.png)','large.png':'x'.repeat(1048577),'link.png':png,'.private/p.png':png},raw:{'link.png':true,'.private/p.png':true}});gh.modes={'link.png':'120000'};
+ const gh=H.fakeGitHub({files:{'note.md':'![Large](large.png)\n\n![Hidden](.private/p.png)\n\n![Symlink](link.png)','large.png':'x'.repeat(10*1024*1024+1),'link.png':png,'.private/p.png':png},raw:{'link.png':true,'.private/p.png':true}});gh.modes={'link.png':'120000'};
  const c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length);await p.evaluate(()=>openFile('note.md'));await p.click('#btn-preview');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));
- t.check('large files, hidden paths and symlinks are refused',await p.locator('#preview img').count()===0&&/1 MB/.test(await p.textContent('#preview'))&&/symlinks/.test(await p.textContent('#preview')));
+ // Since 2026-09-30 images up to 10 MB are shown (read as Git blobs over 1 MB); the limit is now 10 MB.
+ t.check('large files, hidden paths and symlinks are refused',await p.locator('#preview img').count()===0&&/10 MB/.test(await p.textContent('#preview'))&&/symlinks/.test(await p.textContent('#preview')));
  await p.click('#btn-preview');
- const oversized=Buffer.concat([Buffer.from(png,'latin1'),Buffer.alloc(1048577)]).toString('base64');
+ // The list now says large.png is small; GitHub's reply claims size 0 but carries over 10 MB.
+ gh.files['large.png']=png;gh.raw['large.png']=true;gh.touch();await p.click('#btn-refresh');await p.waitForFunction(()=>files.some(f=>f.path==='large.png'&&f.size<2000));
+ const oversized=Buffer.concat([Buffer.from(png,'latin1'),Buffer.alloc(10*1024*1024+1)]).toString('base64');
  await p.route('**/contents/large.png?*',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({size:0,encoding:'base64',content:oversized})}));
  await p.click('#btn-preview');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));
- t.check('decoded byte limit does not trust reported size',await p.locator('#preview img').count()===0&&/Large: Image exceeds 1 MB/.test(await p.textContent('#preview')));
+ t.check('decoded byte limit does not trust reported size',await p.locator('#preview img').count()===0&&/Large: Larger than 10 MB/.test(await p.textContent('#preview')));
  await p.click('#btn-preview');
  await p.evaluate(()=>{readImage=async function(){cfg.token='';cfg.refresh='';throw signedOutError();};});await p.click('#btn-preview');await p.waitForFunction(()=>document.querySelector('#settings').open);
  t.check('image authentication failure offers sign-in',await H.dialogOpen(p)&&await p.locator('#preview [data-loading]').count()===0);

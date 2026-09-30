@@ -13,12 +13,11 @@ a single web page.
 The shared copy below is ready to use: sign-in is configured and its
 GitHub App is public.
 
-Notes is now **Padgit**. The planned address is [padgit.com](https://padgit.com/);
-the working link below stays in use until the coordinated move. Save your
-notes and copy out any unsaved drafts before then: browser sign-ins and
-drafts do not transfer to a new address. [Move details](docs/padgit-migration.md).
+Notes is now **Padgit**, at [padgit.com](https://padgit.com/). If you used
+the old address, sign in again there: browser sign-ins and unsaved drafts
+stay with the address they were made at. [Move details](docs/padgit-migration.md).
 
-1. Open [Padgit](https://forwardmotionnz.github.io/notes/) on your computer or
+1. Open [Padgit](https://padgit.com/) on your computer or
    phone. You need a GitHub account and an internet connection.
 2. Choose **Sign in with GitHub**. When GitHub asks where to install Padgit,
    choose only the private repository you want to use for notes.

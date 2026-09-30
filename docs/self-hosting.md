@@ -6,9 +6,6 @@ your own page, your own GitHub App and your own sign-in broker. The
 [privacy note](../PRIVACY.md) explains what each part sees.
 
 ## How it fits together
-Remove `migrationFrom` and `migrationTo` from the deployment block for your
-own copy unless you are planning your own address change. They control a
-notice only; they do not set the OAuth callback or redirect visitors.
 Set `repository` to your copy's GitHub repository URL for About and bug
 reports. Leave `support` empty unless you want an HTTPS support link shown.
 For static hosts without Markdown rendering, publish `CHANGELOG.md` as

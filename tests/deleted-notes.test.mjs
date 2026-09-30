@@ -71,14 +71,52 @@ await p.waitForFunction(() => !current);
 await open();
 t.check('a note deleted in Padgit is listed', (await rows())[0] === 'Garden/Plan.md', JSON.stringify(await rows()));
 
-// Read-only: listed, but nothing to restore with.
-await p.evaluate(() => { readOnly = 'archived'; });
-await open();
-t.check('read-only: no Restore', await p.locator('#deleted-list button:visible').count() === 0 && (await rows()).length > 0);
+// Read-only: Restore says why and sends nothing (review: a button hidden or shown from a stale answer misled either way).
+await p.evaluate(() => { readOnly = 'this repository is archived'; });
+const writes = gh.commits.length;
+await p.getByRole('button', { name: 'Restore Garden/Plan.md' }).click();
+t.check('read-only: Restore says why and sends nothing', /Nothing can be restored: this repository is archived/.test(await H.status(p)) && gh.commits.length === writes);
 await p.evaluate(() => { readOnly = ''; });
 const errors = p.errors.filter(e => !/status of 409/.test(e));   // GitHub's refusal of the taken name, expected
 t.check('no page errors', errors.length === 0, errors.join(' | '));
 await c.close();
+{
+  // Review of N30.
+  const BIG = '# Big\n\n' + 'words '.repeat(200 * 1024) + '\n';   // over 1 MB
+  const gh = H.fakeGitHub({ files: { 'a.md': 'v1\n', 'big.md': BIG, 'lost.md': 'lost\n', 'Work/x.md': 'x\n', 'Work/y.md': 'y\n' } });
+  const change = (msg, fn) => { fn(gh.files); gh.touch(msg); };
+  change('Delete a.md', f => { delete f['a.md']; });
+  change('Delete big.md', f => { delete f['big.md']; });
+  change('Delete lost.md', f => { delete f['lost.md']; });
+  change('Delete Work/x.md', f => { delete f['Work/x.md']; });
+  change('Rename folder Work to work', f => { f['work/y.md'] = f['Work/y.md']; delete f['Work/y.md']; });
+  change('Delete a folder of 120 notes', f => { for (let i = 0; i < 120; i++) f['bulk/n' + i + '.md'] = 'n' + i; });
+  change('Delete a folder of 120 notes', f => { for (let i = 0; i < 120; i++) delete f['bulk/n' + i + '.md']; });
+  const c = await H.context(gh), p = await H.page(c); p.setDefaultTimeout(8000);
+  await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
+  await p.evaluate(() => { document.getElementById('deleted-notes').open = true; });
+  await p.waitForFunction(() => !deletedLoading && /deleted in the last/.test(document.getElementById('deleted-status').textContent));
+  const listed = await p.$$eval('#deleted-list > div small', e => e.map(s => s.textContent.split(' · ')[0]));
+  t.check('review: a commit with more than 100 files is read in full', listed.includes('bulk/n119.md') && listed.includes('bulk/n0.md'), String(listed.length));
+  // The list is now out of date: a.md came back elsewhere, was written, and deleted again.
+  change('Create a.md', f => { f['a.md'] = 'brand new text written today\n'; });
+  change('Delete a.md again', f => { delete f['a.md']; });
+  await p.getByRole('button', { name: 'Restore a.md' }).click(); await p.waitForFunction(() => current?.path === 'a.md');
+  t.check('review: an out-of-date list still restores the latest version', gh.files['a.md'] === 'brand new text written today\n', JSON.stringify(gh.files['a.md']));
+  await p.getByRole('button', { name: 'Restore big.md' }).click(); await p.waitForFunction(() => /big\.md/.test(document.getElementById('status').textContent) || current?.path === 'big.md').catch(() => {});
+  t.check('review: a note over 1 MB can be restored', gh.files['big.md'] === BIG, String(gh.files['big.md']?.length) + ' ' + await H.status(p));
+  await p.getByRole('button', { name: 'Restore Work/x.md' }).click(); await p.waitForFunction(() => current?.path === 'work/x.md');
+  t.check('review: restoring into a folder renamed since keeps its current spelling', gh.files['work/x.md'] === 'x\n' && !('Work/x.md' in gh.files));
+  // GitHub applies the restore but the reply is lost; pressing Restore again says it worked.
+  let lose = true;
+  await p.route('**/contents/lost.md', async r => { if (r.request().method() === 'PUT' && lose) { lose = false; gh.files['lost.md'] = Buffer.from(JSON.parse(r.request().postData()).content, 'base64').toString(); gh.touch('Restore lost.md'); return r.abort(); } return r.fallback(); });
+  await p.getByRole('button', { name: 'Restore lost.md' }).click();
+  await p.waitForFunction(() => !document.querySelector('[aria-label="Restore lost.md"]')?.disabled);
+  t.check('review: setup: the reply was lost after GitHub restored it', gh.files['lost.md'] === 'lost\n' && !(await H.status(p)).startsWith('Restored'), JSON.stringify(gh.files['lost.md']) + ' ' + await H.status(p) + ' ' + lose);
+  await p.getByRole('button', { name: 'Restore lost.md' }).click(); await p.waitForFunction(() => current?.path === 'lost.md');
+  t.check('review: pressing Restore again says it was restored', /Restored lost\.md/.test(await H.status(p)) && gh.files['lost.md'] === 'lost\n');
+  await c.close();
+}
 {
   // An empty repository has no history to read.
   const gh = H.fakeGitHub({ files: {}, empty: true }), c = await H.context(gh), p = await H.page(c);

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-3eGkbiT84MRdrd8FKXrOGWbpk6+eGbKQS+bKHBATq0Y=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-o+JcoJ0keRwlBd8zmEsytofUZ14DeMUtDlb+cdzPxBE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -4281,52 +4281,83 @@ $("recent-notes").ontoggle=function(){if(this.open)loadRecent();else{recentSeq++
 /* N30: notes deleted in the last 30 commits, read from history (nothing is written to keep them).
    Walking newest first, a path's first appearance is its latest change: only a removal that is
    still gone counts. A moved note is "renamed", not removed. Restore commits its last version. */
-var deletedSeq=0,deletedLoading=false;
+var deletedSeq=0,deletedLoading=false,deletedSha=/^[a-f0-9]{40}$/i;
+/* A commit's files come a page at a time (GitHub lists up to 3000). */
+async function commitFiles(sha,live){
+	var out=[];
+	for(var page=1;page<=30&&live();page++){
+		var d=await request(repoPath()+"/commits/"+sha+"?per_page=100&page="+page);
+		if(!d||!Array.isArray(d.files))throw incompleteReply();
+		out=out.concat(d.files);if(d.files.length<100)break;
+	}
+	return out;
+}
 async function loadDeleted(){
 	var seq=++deletedSeq,scope=recentScope(),list=$("deleted-list"),status=$("deleted-status"),found=[],seen={};
 	function live(){return seq===deletedSeq&&scope===recentScope()&&signedIn()&&$("deleted-notes").open;}
 	deletedLoading=true;list.replaceChildren();status.textContent="Looking through recent changes…";
 	try{
 		if(!repoEmpty){
-			var base=repoPath(),commits=await request(base+"/commits?sha="+encodeURIComponent(cfg.branch)+"&per_page=30"),sha=/^[a-f0-9]{40}$/i;
-			if(!Array.isArray(commits))throw incompleteReply();
-			for(var c of commits){
-				if(!live())return;
-				if(!sha.test(c.sha))throw incompleteReply();
-				var d=await request(base+"/commits/"+c.sha+"?per_page=100"),parent=d&&d.parents&&d.parents[0]&&d.parents[0].sha;
-				if(!d||!Array.isArray(d.files))throw incompleteReply();
-				d.files.forEach(function(f){
-					[f.filename,f.previous_filename].forEach(function(p,i){
+			var commits=await request(repoPath()+"/commits?sha="+encodeURIComponent(cfg.branch)+"&per_page=30");
+			if(!Array.isArray(commits)||!commits.every(function(c){return c&&deletedSha.test(c.sha);}))throw incompleteReply();
+			/* Four at a time, then read newest first. */
+			var details=new Array(commits.length),next=0;
+			async function worker(){while(live()&&next<commits.length){var i=next++;details[i]=await commitFiles(commits[i].sha,live);}}
+			await Promise.all([worker(),worker(),worker(),worker()]);
+			if(!live())return;
+			commits.forEach(function(c,i){
+				details[i].forEach(function(f){
+					[f.filename,f.previous_filename].forEach(function(p,j){
 						if(typeof p!=="string"||seen[p])return;seen[p]=1;
-						if(!i&&f.status==="removed"&&sha.test(parent||"")&&/\.(md|markdown)$/i.test(p)&&!isHidden(p)&&!files.some(function(x){return x.path===p;}))found.push({path:p,parent:parent,at:Date.parse(c.commit&&c.commit.committer&&c.commit.committer.date)});
+						if(!j&&f.status==="removed"&&/\.(md|markdown)$/i.test(p)&&!isHidden(p)&&!files.some(function(x){return x.path===p;}))found.push({path:p,at:Date.parse(c.commit&&c.commit.committer&&c.commit.committer.date)});
 					});
 				});
-			}
+			});
 		}
 		if(!live())return;
 		found.forEach(function(item){
 			var row=document.createElement("div"),name=document.createElement("span"),info=document.createElement("small"),b=document.createElement("button");
 			name.textContent=item.path.split("/").pop().replace(/\.(md|markdown)$/i,"");info.textContent=item.path+(Number.isFinite(item.at)?" · deleted "+new Date(item.at).toLocaleString():"");name.append(info);
-			b.textContent="Restore";b.setAttribute("aria-label","Restore "+item.path);b.hidden=!!readOnly;b.onclick=function(){restoreNote(item,row,b);};
+			b.textContent="Restore";b.setAttribute("aria-label","Restore "+item.path);b.onclick=function(){restoreNote(item,row,b);};
 			row.append(name,b);list.append(row);
 		});
 		status.textContent=(found.length?"Notes":"No notes")+" deleted in the last 30 changes. Older ones stay in the repository's history on GitHub.";
 	}catch(e){if(seq===deletedSeq&&scope===recentScope()){status.textContent="Recently deleted notes unavailable.";fail(e);}}finally{if(seq===deletedSeq)deletedLoading=false;}
 }
+/* Restore asks GitHub for the note's latest change when pressed (the list may be old): its version
+   just before that deletion comes back. Folders keep their current spelling. */
 async function restoreNote(item,row,b){
-	var scope=recentScope(),taken=function(){flash(item.path+" exists already, so nothing was restored.",true);};
-	if(readOnly||!signedIn()||b.disabled)return;
-	if(files.some(function(f){return f.path===item.path;}))return taken();
+	var scope=recentScope(),path=spelledLikeFolders(item.path),base=repoPath()+"/contents/"+encodePath(path);
+	function taken(){flash(path+" exists already, so nothing was restored.",true);}
+	/* A refusal may be our own restore whose reply was lost: the same text there means it worked. */
+	function ours(){return item.sent?request(base+"?ref="+encodeURIComponent(cfg.branch)).then(function(r){return r&&r.encoding==="base64"&&r.content.replace(/\s/g,"")===item.sent;},function(){return false;}):Promise.resolve(false);}
+	if(!signedIn()||b.disabled)return;
+	if(readOnly){flash("Nothing can be restored: "+readOnly+".",true);return;}
+	if(files.some(function(f){return f.path.toLowerCase()===path.toLowerCase();}))return taken();
 	b.disabled=true;
 	try{
-		var old=await request(repoPath()+"/contents/"+encodePath(item.path)+"?ref="+encodeURIComponent(item.parent));
+		var last=await request(repoPath()+"/commits?sha="+encodeURIComponent(cfg.branch)+"&path="+encodeURIComponent(item.path)+"&per_page=1");
+		var parent=Array.isArray(last)&&last[0]&&last[0].parents&&last[0].parents[0]&&last[0].parents[0].sha;
+		if(!deletedSha.test(parent||""))throw incompleteReply();
+		var old=await request(repoPath()+"/contents/"+encodePath(item.path)+"?ref="+encodeURIComponent(parent),{allow404:true});
+		/* No version before its latest change: that change made it, so it is there now (ours, if a reply was lost). */
+		if(!old){if(await ours())return restored();b.disabled=false;return taken();}
+		if(old.encoding==="none"&&old.size>IMAGE_MAX)throw new Error("This note is over 10 MB, too large to restore here. Its history on GitHub has it.");
+		if(old.encoding==="none"&&old.sha)old=await readBlob(old.sha);   // over 1 MB
 		if(!old||old.encoding!=="base64"||typeof old.content!=="string")throw incompleteReply();
 		if(scope!==recentScope()||readOnly)return;
+		item.sent=old.content.replace(/\s/g,"");
 		/* No sha: GitHub creates the file, and refuses if one is there now. */
-		await request(repoPath()+"/contents/"+encodePath(item.path),{method:"PUT",body:{message:"Restore "+item.path,content:old.content.replace(/\s/g,""),branch:cfg.branch}});
-		resetNoteReads();row.remove();flash("Restored "+item.path+".");
-		await refreshTree();if(scope===recentScope())openFile(item.path);
-	}catch(e){b.disabled=false;if(e.status===409||e.status===422)taken();else fail(e);}
+		await request(base,{method:"PUT",body:{message:"Restore "+path,content:item.sent,branch:cfg.branch}});
+	}catch(e){
+		if(!((e.status===409||e.status===422)&&await ours())){b.disabled=false;if(e.status===409||e.status===422)taken();else fail(e);return;}
+	}
+	return restored();
+	async function restored(){
+		resetNoteReads();row.remove();
+		await refreshTree();if(scope!==recentScope())return;
+		await openFile(path);flash("Restored "+path+".");
+	}
 }
 $("deleted-notes").ontoggle=function(){if(this.open)loadDeleted();else{deletedSeq++;deletedLoading=false;}};
 function tabPaths() {

@@ -525,12 +525,16 @@ export async function context(gh, opts = {}) {
           const moved = changed.find(f => f.status === 'added' && c.files[f.filename] === before[gone.filename]);
           if (moved) { moved.status = 'renamed'; moved.previous_filename = gone.filename; changed.splice(changed.indexOf(gone), 1); }
         }
-        return json({ ...shape(c), stats: { total: changed.length, additions: 0, deletions: 0 }, files: changed });
+        // "pagination link headers for the remaining files, up to a limit of 3000": page and per_page apply to files.
+        const fper = Math.min(100, Number(q.get('per_page')) || 300), fpage = Math.max(1, Number(q.get('page')) || 1);
+        return json({ ...shape(c), stats: { total: changed.length, additions: 0, deletions: 0 }, files: changed.slice((fpage - 1) * fper, fpage * fper) });
       }
       const from = q.get('sha') && q.get('sha') !== branchOf(full) ? at(q.get('sha')) : gh.history.length - 1;
       if (from < 0) return json({ message: 'Not Found', status: '404' }, 404);
       const per = Math.min(100, Number(q.get('per_page')) || 30), page = Math.max(1, Number(q.get('page')) || 1), list = [];
-      for (let c = gh.history[from]; c; c = c.parent ? gh.history[at(c.parent)] : null) list.push(c);
+      // path: "Only commits containing this file path will be returned."
+      const touches = (c, f) => { const b = c.parent ? gh.history[at(c.parent)].files : {}; return b[f] !== c.files[f]; };
+      for (let c = gh.history[from]; c; c = c.parent ? gh.history[at(c.parent)] : null) if (!q.get('path') || touches(c, q.get('path'))) list.push(c);
       return json(list.slice((page - 1) * per, page * per).map(shape));
     }
     const m = p.match(/^\/repos\/([^/]+\/[^/]+)\/contents\/(.*)$/);
@@ -544,8 +548,10 @@ export async function context(gh, opts = {}) {
         if (ref && ref !== branchOf(full) && ref !== gh.head() && !then) return json({ message: 'No commit found for the ref ' + ref, status: '404' }, 404);
         if (then) {
           if (!(path in then.files)) return json({ message: 'Not Found' }, 404);
-          const bytes = Buffer.from(then.files[path], 'utf-8');
-          return json({ path, sha: 'sha' + createHash('sha1').update(then.files[path]).digest('hex').slice(0, 12), size: bytes.length, encoding: 'base64', content: bytes.toString('base64') });
+          const bytes = Buffer.from(then.files[path], 'utf-8'), sha = 'sha' + createHash('sha1').update(then.files[path]).digest('hex').slice(0, 12);
+          gh.blobs[sha] = then.files[path]; gh.blobRaw[sha] = false;
+          if (bytes.length > 1024 * 1024) return json({ path, sha, size: bytes.length, encoding: 'none', content: '' });   // as for the branch, above 1 MB
+          return json({ path, sha, size: bytes.length, encoding: 'base64', content: bytes.toString('base64') });
         }
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         // Files between 1 and 100 MB come back with an empty content and

@@ -94,8 +94,9 @@ invalid settings show an explanation and leave the current note alone.
   deleted.
 - **Recently deleted**, under Recent in Files, lists notes deleted in the
   last 30 changes to the repository (here or anywhere else), newest first.
-  **Restore** brings a note back as it was just before it was deleted, in one
-  commit, and opens it. It never overwrites a note made at that name since.
+  **Restore** brings a note back as it was just before its latest deletion,
+  in one commit, and opens it. It never overwrites a note made at that name
+  since, and a read-only repository says why nothing can be restored.
   Nothing extra is kept in your repository: the list is read from its
   history, only when you expand it. Older deletions are still in the
   history on GitHub.

@@ -347,6 +347,7 @@ for (const [label, fail] of [['offline', r => r.abort()],
   const b = await H.page(ctx);
   await H.settle(b, 700);
   await H.clickRow(b, 'inbox.md');
+  await b.waitForFunction(() => current?.path === 'inbox.md');   // under load, typing before the note opens types nowhere
   await H.setEditor(b, 'typed in b before the switch\n');
   await H.settle(b, 60);
 

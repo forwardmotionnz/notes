@@ -255,8 +255,12 @@ Obsidian would not understand, so both can work on the same repository.
 
 - `.obsidian/`, `.trash/` and other dot-folders are hidden. They hold app
   state, not notes.
-- Attachments (images, PDFs) cannot be opened in the text editor: decoding them as
-  text and saving would corrupt them, so the app refuses.
+- Attachments cannot be opened in the text editor: decoding them as text and
+  saving would corrupt them, so the app refuses. Images (PNG, JPEG, GIF, WebP)
+  open in a viewer instead, from the file list: it shows the image, links to
+  it on GitHub and has **Add to note**, which puts a link to it at the cursor
+  of the open note. Images over 1 MB are not shown here; the viewer links to
+  GitHub. Other attachments, such as PDFs, stay unopenable.
 - `[[wikilinks]]`, `#tags` and frontmatter are left exactly as they are.
 - A wikilink opens the note it names: `Ctrl`+click (`Cmd`+click on a Mac),
   or tap it on a phone. `[[Note]]`, `[[Note|shown text]]`,
@@ -337,7 +341,10 @@ leaves the editor empty; it does not delete a file.
 ## Adding images
 
 Use **Image** above the editor, paste an image, or drop one into the text.
-PNG, JPEG, GIF and WebP files up to 1 MB are supported, one at a time.
+PNG, JPEG, GIF and WebP files are supported, one at a time. A photo or
+screenshot over 1 MB is made smaller in your browser before upload (a PNG
+stays a PNG if it fits, otherwise it becomes a JPEG) and the status says so;
+GIFs over 1 MB are refused, since shrinking would stop them moving.
 Padgit reads the vault's `.obsidian/app.json` attachment folder setting;
 without one it puts the image beside the note. Each upload creates a unique
 attachment and inserts an ordinary Markdown link after GitHub confirms it.

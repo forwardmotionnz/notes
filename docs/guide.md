@@ -92,6 +92,13 @@ invalid settings show an explanation and leave the current note alone.
   github.com the file's history (or the commit that deleted it) lets you
   copy it back. If it changed elsewhere since you opened it, it is not
   deleted.
+- **Recently deleted**, under Recent in Files, lists notes deleted in the
+  last 30 changes to the repository (here or anywhere else), newest first.
+  **Restore** brings a note back as it was just before it was deleted, in one
+  commit, and opens it. It never overwrites a note made at that name since.
+  Nothing extra is kept in your repository: the list is read from its
+  history, only when you expand it. Older deletions are still in the
+  history on GitHub.
 - Pin or unpin the open note using the star beside its name. Pinned files
   appear at the top of Files as shortcuts and open like any other note. A pin is saved in the note itself, as the property
   `pinned: true` at its top (Obsidian shows it as a property; other editors
@@ -169,8 +176,10 @@ Padgit explains this and keeps the editor available.
 
 Save or resolve source changes before editing a checklist. Read-only
 repositories keep every checklist control read-only. Unusual or ambiguous
-Markdown (such as quoted checklists) stays read-only in Preview with a notice;
-use Edit for its source. Failed task text edits are kept as drafts and return
+Markdown stays read-only in Preview with a notice; use Edit for its source.
+Tasks inside a quote or a callout (such as `> [!todo]`) work like any other;
+a quote with a line that carries on without its `>` is one of the unusual
+cases. Failed task text edits are kept as drafts and return
 when the note is reopened. Clear done removes checked lines only, leaving
 unchecked children; × removes the whole task and its children. Both offer Undo.
 

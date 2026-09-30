@@ -138,7 +138,12 @@ export function fakeGitHub(opts = {}) {
   // edit gh.files directly to play "someone else" call gh.touch().
   gh.version = 1;
   gh.head = () => 'c' + String(gh.version).padStart(39, '0');
-  gh.touch = () => { gh.version++; };
+  // The branch's history, newest last: each commit's files, parent, message and time.
+  gh.history = [{ sha: gh.head(), parent: null, files: { ...gh.files }, message: 'Initial commit', date: new Date().toISOString() }];
+  gh.touch = (message = 'Change') => {
+    const parent = gh.head(); gh.version++;
+    gh.history.push({ sha: gh.head(), parent, files: { ...gh.files }, message, date: new Date().toISOString() });
+  };
   gh.staged = {};              // tree sha -> { base, changes, files }
   gh.snapshots = {};           // commit sha -> the files at that commit
   gh.pending = {};             // commit sha -> { tree, parent, message }
@@ -153,7 +158,7 @@ export function fakeGitHub(opts = {}) {
     const t = gh.staged[c.tree];
     for (const k of Object.keys(gh.files)) delete gh.files[k];
     Object.assign(gh.files, t.files);
-    gh.touch();
+    gh.touch(c.message);
     gh.commits.push({ repo: full, path: Object.keys(t.changes).join(' -> '), message: c.message,
                       branch, token: auth, moved: t.changes });
     return { status: 200, body: { ref: 'refs/heads/' + branch, object: { type: 'commit', sha: gh.head() } } };
@@ -490,13 +495,58 @@ export async function context(gh, opts = {}) {
       return json({ sha, node_id: 'B_' + sha, size: bytes.length, url: 'https://api.github.com/repos/' + bm[1] + '/git/blobs/' + sha,
         content: bytes.toString('base64').replace(/.{60}/g, '$&\n'), encoding: 'base64' });
     }
+    // List commits (newest first from `sha`, per_page up to 100, 409 when empty) and get
+    // one commit, whose `files` are diff entries: filename, status (added, removed,
+    // modified...) and sha, which may be null. Checked against github/rest-api-description
+    // (operations repos/list-commits and repos/get-commit, schemas commit and diff-entry):
+    // https://docs.github.com/en/rest/commits/commits
+    const cl = p.match(/^\/repos\/([^/]+\/[^/]+)\/commits(?:\/([^/]+))?$/);
+    if (cl && req.method() === 'GET') {
+      if (gh.empty) return json({ message: 'Git Repository is empty.', status: '409' }, 409);
+      const q = new URL(req.url()).searchParams, at = s => gh.history.findIndex(c => c.sha === s);
+      const shape = c => ({ sha: c.sha, node_id: 'C_' + c.sha, url: 'https://api.github.com/repos/' + cl[1] + '/commits/' + c.sha,
+        html_url: 'https://github.com/' + cl[1] + '/commit/' + c.sha, comments_url: '', author: null, committer: null,
+        commit: { message: c.message, author: { name: 'someone', date: c.date }, committer: { name: 'someone', date: c.date } },
+        parents: c.parent ? [{ sha: c.parent, url: 'https://api.github.com/repos/' + cl[1] + '/commits/' + c.parent }] : [] });
+      gh.log.commitReads = (gh.log.commitReads || 0) + 1;
+      if (cl[2]) {
+        const i = at(decodeURIComponent(cl[2]) === branchOf(full) ? gh.head() : decodeURIComponent(cl[2]));
+        if (i < 0) return json({ message: 'No commit found for SHA: ' + cl[2], status: '404' }, 404);
+        const c = gh.history[i], before = c.parent ? gh.history[at(c.parent)].files : {}, changed = [];
+        const blob = t => 'sha' + createHash('sha1').update(t).digest('hex').slice(0, 12);
+        for (const f of new Set([...Object.keys(before), ...Object.keys(c.files)])) {
+          const status = !(f in before) ? 'added' : !(f in c.files) ? 'removed' : before[f] !== c.files[f] ? 'modified' : null;
+          if (status) changed.push({ sha: status === 'removed' ? null : blob(c.files[f]), filename: f, status, additions: 0, deletions: 0, changes: 0,
+            blob_url: '', raw_url: '', contents_url: '' });
+        }
+        // A file removed and one added with the same content is a move: GitHub detects it as
+        // "renamed" with previous_filename (diff-entry schema).
+        for (const gone of changed.filter(f => f.status === 'removed')) {
+          const moved = changed.find(f => f.status === 'added' && c.files[f.filename] === before[gone.filename]);
+          if (moved) { moved.status = 'renamed'; moved.previous_filename = gone.filename; changed.splice(changed.indexOf(gone), 1); }
+        }
+        return json({ ...shape(c), stats: { total: changed.length, additions: 0, deletions: 0 }, files: changed });
+      }
+      const from = q.get('sha') && q.get('sha') !== branchOf(full) ? at(q.get('sha')) : gh.history.length - 1;
+      if (from < 0) return json({ message: 'Not Found', status: '404' }, 404);
+      const per = Math.min(100, Number(q.get('per_page')) || 30), page = Math.max(1, Number(q.get('page')) || 1), list = [];
+      for (let c = gh.history[from]; c; c = c.parent ? gh.history[at(c.parent)] : null) list.push(c);
+      return json(list.slice((page - 1) * per, page * per).map(shape));
+    }
     const m = p.match(/^\/repos\/([^/]+\/[^/]+)\/contents\/(.*)$/);
     if (m) {
       const path = m[2];
       if (req.method() === 'GET') {
         if (gh.empty) return json({ message: 'This repository is empty.', status: '404' }, 404);
         const ref = new URL(req.url()).searchParams.get('ref');
-        if (ref && ref !== branchOf(full) && ref !== gh.head()) return json({ message: 'No commit found for the ref ' + ref, status: '404' }, 404);
+        // ref may name any commit ("The name of the commit/branch/tag"): the file as it was there.
+        const then = ref && ref !== branchOf(full) && ref !== gh.head() ? gh.history.find(c => c.sha === ref) : null;
+        if (ref && ref !== branchOf(full) && ref !== gh.head() && !then) return json({ message: 'No commit found for the ref ' + ref, status: '404' }, 404);
+        if (then) {
+          if (!(path in then.files)) return json({ message: 'Not Found' }, 404);
+          const bytes = Buffer.from(then.files[path], 'utf-8');
+          return json({ path, sha: 'sha' + createHash('sha1').update(then.files[path]).digest('hex').slice(0, 12), size: bytes.length, encoding: 'base64', content: bytes.toString('base64') });
+        }
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         // Files between 1 and 100 MB come back with an empty content and
         // encoding "none": https://docs.github.com/en/rest/repos/contents#get-repository-content
@@ -519,7 +569,7 @@ export async function context(gh, opts = {}) {
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         if (b.sha !== gh.sha(path)) return json({ message: path + ' does not match ' + b.sha }, 409);
         delete gh.files[path];
-        gh.touch();
+        gh.touch(b.message);
         gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth, deleted: true });
         return json({ content: null, commit: { sha: gh.head() } });
       }
@@ -539,7 +589,7 @@ export async function context(gh, opts = {}) {
         if (!exists && b.sha) return json({ message: 'sha given for new file' }, 422);
         gh.files[path] = Buffer.from(b.content, 'base64').toString('utf-8');
         gh.empty = false;
-        gh.touch();
+        gh.touch(b.message);
         gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth });
         gh.log.lastPutHadBranch = 'branch' in b;
         return json({ content: { path, sha: gh.sha(path) } });

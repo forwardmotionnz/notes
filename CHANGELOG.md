@@ -10,6 +10,8 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Recently deleted, under Recent in Files: notes deleted in the last 30 changes, read from the repository's history, with Restore to bring one back in a single commit.
+- Tasks inside a quote or a callout (such as `> [!todo]`) can be ticked, edited, moved and removed in Preview. Before, one quoted task made the whole note's checklist read-only.
 - Images up to 10 MB now show in the viewer and in Preview (larger than 1 MB are read as Git blobs). The address-change notice is gone: Padgit lives at padgit.com.
 - Images in the file list open in a viewer, with Add to note and a link to GitHub. Photos and screenshots over 1 MB are made smaller in the browser before upload instead of being refused, and error messages now stand out as a red label.
 - Obsidian callouts in Preview: `> [!tip] Title`, `> [!warning]` and the other kinds show as coloured boxes; `-` and `+` make them fold shut or open. The note's text is unchanged.

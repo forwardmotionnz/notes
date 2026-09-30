@@ -75,13 +75,18 @@ invalid settings show an explanation and leave the current note alone.
   note you have open, lists every folder in the repository, and offers **New
   folder…** for one that does not exist yet (it is made when the note is first
   saved). The line underneath shows exactly where the note will go; if a note
-  with that name is already there, it offers to open it instead
+  with that name is already there, it offers to open it instead. Each folder
+  in Files also has a **+** (on hover on a computer, always on a phone) that
+  opens New note in that folder
 - Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
 - The note's **⋯** menu, at the top right, holds **Rename or move**,
   **Outline**, **Tags** and **Delete**.
-- **Rename or move** renames or moves the open note (type a new
-  path, folders included) in a single commit: it either happens completely
-  or not at all, and it never overwrites another file
+- **Rename or move** opens the same dialog on the note's name and folder:
+  change either, and the line underneath says where it will go. A saved note
+  moves in a single commit: it either happens completely or not at all, and
+  it never overwrites another file (a name that is taken is refused before
+  anything is sent). A new note you have not saved yet can be renamed or
+  moved too; that only changes where it will be saved, so nothing is sent
 - **Delete** removes the open note in a single commit, after asking. Nothing
   is lost for good: the note stays in the repository's history, and on
   github.com the file's history (or the commit that deleted it) lets you
@@ -147,7 +152,9 @@ merged when the changes are on different lines, or reported as a conflict
 
 Use the **Edit / Preview** switch at the top to read the current note, including unsaved edits,
 as rendered Markdown. **Edit** returns to the unchanged source. Headings use
-your device's book face. Simple properties (frontmatter) appear as chips above
+your device's book face. Obsidian callouts (`> [!tip] Title`, `> [!warning]`,
+and foldable `> [!note]-` or `> [!note]+`) appear as coloured boxes with an
+icon; other editors see an ordinary quote. Simple properties (frontmatter) appear as chips above
 the note, such as *Pinned* and its tags; anything more complex appears as its
 text; checklists are editable and wikilinks open
 notes. Repository PNG, JPEG, GIF and WebP images appear in Markdown image

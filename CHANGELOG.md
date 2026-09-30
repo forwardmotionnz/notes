@@ -10,6 +10,8 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Obsidian callouts in Preview: `> [!tip] Title`, `> [!warning]` and the other kinds show as coloured boxes; `-` and `+` make them fold shut or open. The note's text is unchanged.
+- A + on each folder in Files makes a new note in it; Rename or move uses the New note dialog's folder picker, and works on a note before its first save (without a commit).
 - New note asks for a name and a folder (starting in the folder you are in, with New folder… for a new one) and shows where the note will be saved, instead of the browser's plain prompt.
 - A calmer look (from the owner's review): one set of line icons, one family of buttons, a header with the note's name, a save dot, an Edit / Preview switch and a ⋯ menu for Rename or move, Outline, Tags and Delete; tabs that look like tabs (a row of chips on phones); an icon formatting toolbar; Pinned, Recent, Tags and Files as sidebar sections; headings in Preview in the device's book face; simple properties as chips; checklist rows that edit on tap, with a drag handle and a ⋯ menu. No fonts or images are downloaded.
 - Heading outline with source/Preview navigation, nested headings and paging for long notes; no extra requests.

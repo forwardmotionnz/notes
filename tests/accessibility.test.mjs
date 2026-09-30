@@ -4,7 +4,7 @@ const axeSource=readFileSync(new URL('./fixtures/axe-4.11.3.min.js',import.meta.
 const t=H.suite('accessibility'),reports=[];
 await H.start();
 for(const width of [1280,390])for(const theme of ['light','dark']){
- const c=await H.context(H.fakeGitHub({files:{'todo.md':'# Tasks\n- [ ] Plan tomorrow\n','note.md':'# A note\n\nA paragraph and [a link](https://example.com).\n\n- [x] Done\n\n![Notes icon](image.png)','image.png':readFileSync(new URL('../icon-180.png',import.meta.url)).toString('latin1')},raw:{'image.png':true}}),{viewport:{width,height:844}});
+ const c=await H.context(H.fakeGitHub({files:{'todo.md':'# Tasks\n- [ ] Plan tomorrow\n','note.md':'# A note\n\nA paragraph and [a link](https://example.com).\n\n- [x] Done\n\n![Notes icon](image.png)'+['note','abstract','tip','question','warning','danger','example','quote'].map(k=>'\n\n> [!'+k+'] A '+k+' callout\n> Its text.').join('')+'\n\n> [!tip]- Folded\n> Hidden text.','image.png':readFileSync(new URL('../icon-180.png',import.meta.url)).toString('latin1')},raw:{'image.png':true}}),{viewport:{width,height:844}});
  await c.route('**/codemirror/5.65.16/**',r=>{const n=new URL(r.request().url()).pathname.split('/').pop();return r.fulfill({contentType:n.endsWith('.css')?'text/css':'application/javascript',headers:{'access-control-allow-origin':'*'},body:n.startsWith('codemirror.min.')?readFileSync(new URL('./fixtures/codemirror5/'+n,import.meta.url)):''});});
  const p=await H.page(c);p.setDefaultTimeout(5000);await p.emulateMedia({colorScheme:theme});
  async function scan(view){

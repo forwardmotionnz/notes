@@ -158,9 +158,7 @@ async function device(gh, opts = {}) {
   await H.clickRow(p, 'a.md');
   await p.click('#btn-pin');
   await H.settle(p, 3000);
-  p.removeAllListeners('dialog');
-  p.on('dialog', d => d.type() === 'prompt' ? d.accept('b.md') : d.accept());
-  await H.noteAction(p, '#btn-rename');
+  await H.moveNote(p, 'b.md');
   await H.settle(p, 3000);
   const tabs = await pinTabs(p);
   t.check('renamed: listed under the new name only', tabs.includes('b.md') && !tabs.includes('a.md'), JSON.stringify(tabs));

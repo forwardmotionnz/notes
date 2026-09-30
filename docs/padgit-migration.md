@@ -35,6 +35,12 @@ the name before switching the public service.
 3. Plan a short maintenance window: DNS, certificate issuance and the
    authentication settings are not atomic. In **notes repository Settings →
    Pages**, set the custom domain to `padgit.com`, then configure apex DNS.
+   If Save reports "Unable to commit CNAME because the Pages branch is
+   protected", keep branch protection enabled. Add a root file named `CNAME`
+   containing only `padgit.com` through a pull request to `main`. After it
+   merges and Pages deploys, refresh the repository's Pages settings to check
+   the custom domain and certificate status. Organisation domain verification
+   alone does not assign the domain to this repository.
    GitHub recommends this order rather than pointing DNS at an unclaimed site.
    Use an ALIAS/ANAME to `forwardmotionnz.github.io`, or these four A records:
    `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`.
@@ -42,7 +48,8 @@ the name before switching the public service.
    Avoid wildcard records. Wait for DNS and HTTPS readiness; enforce HTTPS.
    GitHub says DNS and HTTPS availability can take up to 24 hours.
    [GitHub's custom-domain instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
-4. In the existing GitHub App settings, change its display name to **Padgit**,
+4. In the existing GitHub App settings, use an available name such as
+   **Padgit Notes** (`Padgit` is reserved for the existing `@padgit` account),
    homepage to `https://padgit.com/`, and callback to `https://padgit.com/`.
    Check the resulting App installation URL: if its slug changed, update
    `deployment.appSlug` in `index.html` to that actual slug. Keep the client ID.
@@ -61,8 +68,8 @@ the name before switching the public service.
 7. Copy the verified cutover values into the default `broker/wrangler.toml`
    so the next ordinary deploy cannot restore the old origin. Keep the
    `migrationFrom` notice configuration for old copies. Pull any `CNAME` commit
-   made by Pages settings. There is deliberately no CNAME in the preparation
-   change, because that could trigger the move before the notice is published.
+   made by Pages settings. The preparation change omitted CNAME; adding it
+   during cutover connects this repository to the new address.
 
 ## If the cutover fails
 

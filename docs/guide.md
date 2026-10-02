@@ -87,6 +87,13 @@ invalid settings show an explanation and leave the current note alone.
   it never overwrites another file (a name that is taken is refused before
   anything is sent). A new note you have not saved yet can be renamed or
   moved too; that only changes where it will be saved, so nothing is sent
+- With a mouse, you can also drag a note in Files onto a folder to move it
+  there, or onto the **Files** heading to move it to the top level. It is
+  the same single commit as Rename or move, and is refused the same way (a
+  name already taken there, or a note changed on GitHub since the list
+  loaded). Expand a folder first to drop into a folder inside it. Unsaved
+  words go with the note. On a phone or tablet without a mouse, use
+  **Rename or move**: dragging in a list would fight scrolling
 - **Delete** removes the open note in a single commit, after asking. Nothing
   is lost for good: the note stays in the repository's history, and on
   github.com the file's history (or the commit that deleted it) lets you

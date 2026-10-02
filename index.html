@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-PD837Jd3i5y6Nv+km0WDCHHJmBNFhkYrHEmxtJokofA=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-Np3hIKGBkniaqAK5VJusbwXnziCEPHYREnmk/SHgydk=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -1933,31 +1933,40 @@ function dropTarget(el, folder) {
 		moveNote(from, (folder ? folder + "/" : "") + from.split("/").pop());
 	});
 }
+var notesMoving = pathMap();
 function moveNote(from, to) {
-	var epoch = pinEpoch;
-	if (readOnly || moving || !signedIn()) return;
+	var epoch = pinEpoch, f = files.filter(function (x) { return x.path === from && x.type === "blob"; })[0];
+	if (!signedIn() || notesMoving[from]) return;
+	if (readOnly) { flash("Nothing can be moved: " + readOnly + ".", true); return; }
 	if (accessPending) { flash("Checking whether this repository can be changed...", true); return; }
 	if (openingPath) { flash("Wait for the note to open, then move it.", true); return; }
-	if (current && current.path === from) { moveCurrent(current, to); return; }
-	if (pinBusy[from]) { flash("Not moved: a change to it is still being saved.", true); return; }
-	var f = files.filter(function (x) { return x.path === from && x.type === "blob"; })[0];
-	if (!f || !f.sha) return;
+	if (current && current.path === from) { if (!moving) moveCurrent(current, to); return; }
+	if (!f) { flash("Not moved: save it first, then move it.", true); return; }
+	/* A save or checklist change still on its way would land at the old path. */
+	if (pinBusy[from] || (inflight && inflight.key === draftKey(from)) || (saveAgain && saveAgain.doc && saveAgain.doc.path === from)) { flash("Not moved: a change to it is still being saved. Try again in a moment.", true); return; }
 	var why = renameProblem(from, to);
 	if (why) { flash("Not moved: " + why, true); return; }
-	moving = true;
-	editorLock();
+	/* Not the open note: it stays as it is meanwhile. The note moves as it is on GitHub now (this list may
+	   predate a save); a draft of it goes with it and is checked against GitHub when saved, as always. */
+	notesMoving[from] = true;
 	flash("Moving...");
-	moveFile(from, to, f.sha, f.mode).then(function () {
+	readFile(from).then(function (r) {
+		if (!r.sha) throw new Error(from + " is no longer on GitHub.");
+		return moveFile(from, to, r.sha, f.mode);
+	}).then(function () {
 		if (epoch !== pinEpoch || !signedIn()) return;
 		followMove(from, to);
 		if (moveChannel) moveChannel.postMessage({ kind: "moved", repo: describe(), from: from, to: to });
-		loadNote = "Moved to " + to + ".";
+		return "Moved to " + to + ".";
 	}, function (err) {
-		if (epoch === pinEpoch) loadNote = "Not moved: " + (err.message || "could not reach GitHub.");
-	}).then(function () {
-		moving = false;
-		editorLock();
-		if (epoch === pinEpoch && signedIn()) refreshTree();
+		return "Not moved: " + (err.message || "could not reach GitHub.");
+	}).then(function (said) {
+		delete notesMoving[from];
+		if (epoch !== pinEpoch || !signedIn()) return;
+		flash(said, /^Not/.test(said));
+		return refreshTree().then(function () {
+			if (epoch === pinEpoch) flash(said + (treeState === "failed" ? " The file list could not be refreshed; press \u21bb." : ""), /^Not/.test(said) || treeState === "failed");
+		});
 	});
 }
 /* EDITOR */

@@ -46,12 +46,12 @@ await row('Shared.md').count(); await p.locator('#tree .row', { hasText: /^\s*Sh
 t.check('a name already taken in that folder is refused, and it says so', gh.commits.length === commits && gh.files['Shared.md'] === 'top\n' &&
   gh.files['Garden/Shared.md'] === 'in garden\n' && /already exists/.test(await H.status(p)), await H.status(p));
 
-// a note changed on GitHub since the list loaded is not moved in its old form
+// a note changed on GitHub since the list loaded: what is there now moves (nothing of it is lost)
 gh.files['stale.md'] = 'two\n'; gh.touch('Edit stale.md elsewhere');
 commits = gh.commits.length;
 await drag('stale.md', folder('Garden'));
-t.check('a note changed elsewhere since is not moved, and it says so', gh.files['stale.md'] === 'two\n' && !('Garden/stale.md' in gh.files) &&
-  gh.commits.length === commits && /changed on GitHub/.test(await H.status(p)), await H.status(p));
+t.check('a note changed elsewhere since moves as it is on GitHub now', gh.files['Garden/stale.md'] === 'two\n' && !('stale.md' in gh.files) &&
+  gh.commits.length === commits + 1, await H.status(p));
 
 // unsaved words in this browser go with it
 await p.evaluate(() => draftStore().setItem(draftKey('drafted.md'), JSON.stringify({ text: 'new words\n', sha: files.find(f => f.path === 'drafted.md').sha, at: Date.now() })));
@@ -70,6 +70,47 @@ t.check('the open note moves with what was typed', gh.files['Garden/open.md'] ==
 t.check('and stays open at its new place', await H.editorValue(p) === 'open, and typed\n' && await p.evaluate(() => !dirty()));
 t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));
 await c.close();
+{
+  // Review of N40.
+  const gh = H.fakeGitHub({ files: { 'A.md': 'a\n', 'B.md': 'b\n', 'C.md': 'c\n', 'D.md': 'd\n', 'F/x.md': 'x\n' } });
+  const c = await H.context(gh), p = await H.page(c); p.setDefaultTimeout(8000);
+  await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
+  const folderF = p.locator('#tree .row.dir', { hasText: 'F' }).first();
+  const rowOf = n => p.locator('#tree .row', { hasText: new RegExp('^\\s*' + n + '\\.md\\s*$') }).first();
+  // a note saved in this session (the list still has its old version) can be moved
+  await p.evaluate(() => openFile('A.md')); await p.waitForFunction(() => current?.path === 'A.md');
+  await H.setEditor(p, 'a, edited\n'); await p.click('#btn-save'); await p.waitForFunction(() => !saving && !dirty());
+  await p.evaluate(() => openFile('D.md')); await p.waitForFunction(() => current?.path === 'D.md');
+  await rowOf('A').dragTo(folderF); await p.waitForFunction(() => /Moved|Not moved/.test(document.getElementById('status').textContent));
+  t.check('review: a note just saved here can be moved, with its saved words', gh.files['F/A.md'] === 'a, edited\n' && !('A.md' in gh.files), await H.status(p));
+  await p.waitForFunction(() => treeState === 'ok');
+  // moving another note leaves the open one alone: it takes typing, and autosave carries on
+  let release; const gate = new Promise(r => release = r);
+  await p.route('**/git/refs/heads/**', async r => { await gate; return r.fallback(); });
+  await rowOf('B').dragTo(folderF); await p.waitForFunction(() => notesMoving['B.md']);
+  await p.evaluate(() => { editor.setValue('d, typed meanwhile\n'); editor.getInputField?.(); document.querySelector('#cm-stub, .fallback-editor')?.dispatchEvent(new Event('input')); });
+  t.check('review: the open note is not locked while another note moves', await p.evaluate(() => !moving && !(editor.getOption && editor.getOption('readOnly'))));
+  release(); await p.waitForFunction(() => !notesMoving['B.md']);
+  await p.waitForFunction(() => !dirty() && !saving, null, { timeout: 15000 }).catch(() => {});
+  t.check('review: and its autosave still lands', gh.files['D.md'] === 'd, typed meanwhile\n' && gh.files['F/B.md'] === 'b\n', JSON.stringify(gh.files['D.md']));
+  await p.unroute('**/git/refs/heads/**'); await p.waitForFunction(() => treeState === 'ok');
+  // a note whose save is still on its way is not moved
+  let let2; const gate2 = new Promise(r => let2 = r);
+  await p.route('**/contents/C.md', async r => { if (r.request().method() === 'PUT') await gate2; return r.fallback(); });
+  await p.evaluate(() => openFile('C.md')); await p.waitForFunction(() => current?.path === 'C.md');
+  await H.setEditor(p, 'c, saving\n'); await p.click('#btn-save'); await p.waitForFunction(() => saving);
+  await p.evaluate(() => openFile('D.md')); await p.waitForFunction(() => current?.path === 'D.md');
+  const before = gh.commits.length;
+  await rowOf('C').dragTo(folderF);
+  t.check('review: a note still being saved is not moved, and it says so', /still being saved/.test(await H.status(p)) && 'C.md' in gh.files && !('F/C.md' in gh.files), await H.status(p));
+  let2(); await p.waitForFunction(() => !saving);
+  t.check('review: and its save lands where it was', gh.files['C.md'] === 'c, saving\n' && gh.commits.length === before + 1);
+  // read-only, whenever it becomes known: it says so
+  await p.evaluate(() => { readOnly = 'this repository is archived'; moveNote('D.md', 'F/D.md'); });
+  t.check('review: read-only says why nothing moves', /Nothing can be moved: this repository is archived/.test(await H.status(p)) && 'D.md' in gh.files);
+  await p.evaluate(() => { readOnly = ''; });
+  await c.close();
+}
 {
   // read-only: nothing can be picked up
   const gh = H.fakeGitHub({ files: { 'a.md': 'a\n', 'F/b.md': 'b\n' }, repos: [{ owner: { login: 'roldaof' }, name: 'vault',

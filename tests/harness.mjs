@@ -279,7 +279,8 @@ window.CodeMirror.defineMode = function () {};`;
 /* A browser context wired to the fake GitHub. One context is one browser
    profile: tabs in it share localStorage, each tab has its own session. */
 export async function context(gh, opts = {}) {
-  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 820 } });
+  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 820 },
+    ...(opts.touch ? { hasTouch: true, isMobile: true } : {}) });   // a phone: touch, no mouse
   const deploy = opts.deploy === false ? null : { ...DEPLOY, ...(opts.deploy || {}) };
   await ctx.addInitScript(d => { if (d) window.NOTES_DEPLOYMENT = d; }, deploy);
 

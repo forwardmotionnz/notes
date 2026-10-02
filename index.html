@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-Qqa7aEy3uP0sjxI/LkI99hqMD30f/NOYo6Hnpfel7qo=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-Hx2au5/r+BKk7+DeHuqLH6H6tXbkqFa4ZFb8C3hOQew=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -3309,57 +3309,44 @@ function unquote(line) {
 	var q = / {0,3}> ?/y.exec(line);
 	return q && line.charAt(q[0].length) !== "\t" ? [q[0], line.slice(q[0].length)] : null;
 }
-var TASK_LINE = /^([ \t]*)([-*+]|\d+[.)])\s+\[([ xX])\] ?(.*)$/, LIST_LINE = /^[ \t]*([-*+]|\d+[.)])(\s|$)/;
+var TASK_LINE = /^([ \t]*)([-*+]|\d+[.)])\s+\[([ xX])\] ?(.*)$/;
 function columns(space) { var n = 0; for (var i = 0; i < space.length; i++) n = space[i] === "\t" ? n + 4 - n % 4 : n + 1; return n; }
 function checklistLines(source) {
 	var all = source.split("\n"), tasks = [];
 	/* A quote (a callout too) is read without its ">" marks; each line still maps to the note's own line. */
 	function scan(text, map, depth) {
 		var lines = text.split("\n");
-		function match(raw, at, indent) {
-			var want = raw.replace(/\n+$/, "").split("\n");
-			return want.every(function (line, n) { return (lines[at + n] || "").slice(Math.min(indent, /^ */.exec(lines[at + n] || "")[0].length)) === line; });
-		}
-		/* Sub-lists: the Markdown library rewrites their indentation (a tab becomes spaces), so their
-		   tasks are found in the item's own lines instead: each task line there, outside fenced code,
-		   in order, agreeing with the library's tasks in number and in which are ticked. A task's lines
-		   run to the next line indented no deeper than it (a line carried on without indent included). */
-		function nested(item, begin, end) {
-			var want = [], found = [], fence = null;
-			(function walk(tokens) { (tokens || []).forEach(function (t) { if (t.type === "list") t.items.forEach(function (it) { if (it.task) want.push(!!it.checked); walk(it.tokens); }); }); })(item.tokens);
-			if (!want.length) return;
-			for (var i = begin; i < end; i++) {
-				var f = /^[ \t]*(`{3,}|~{3,})/.exec(lines[i]);
-				if (fence) { if (f && f[1].charAt(0) === fence.charAt(0) && f[1].length >= fence.length) fence = null; continue; }
-				if (f) { fence = f[1]; continue; }
-				var m = TASK_LINE.exec(lines[i]);
-				if (m) found.push({at:i, m:m});
-			}
-			if (found.length !== want.length || found.some(function (x, n) { return (x.m[3].toLowerCase() === "x") !== want[n]; })) throw new Error("Unsupported sub-list source");
-			found.forEach(function (x) {
-				var w = columns(x.m[1]), last = x.at, blank = false;
-				for (var j = x.at + 1; j < end; j++) {
-					if (!lines[j].trim()) { blank = true; continue; }
-					if (columns(/^[ \t]*/.exec(lines[j])[0]) > w || (!blank && !LIST_LINE.test(lines[j]))) { last = j; blank = false; continue; }
-					break;
-				}
-				push(x.at, last + 1, x.m);
+		function match(raw, at, indent, loose) {
+			var want = raw.replace(/\n+$/, "").split("\n"), bare = function (l) { return l.replace(/^[ \t]*/, ""); };
+			return want.every(function (line, n) {
+				var have = lines[at + n];
+				if (have == null) return false;
+				return loose ? bare(have) === bare(line) : have.slice(Math.min(indent, /^ */.exec(have)[0].length)) === line;
 			});
+		}
+		/* Sub-lists: the Markdown library rewrites their indentation (a tab becomes spaces) in the text it
+		   reports, so they are matched line for line with the indentation set aside. The match must be
+		   unique within the item; a task's lines are still exactly the library's. */
+		function nested(list, begin, end) {
+			var candidates = [];
+			for (var i = begin; i < end; i++) if (match(list.raw, i, 0, true)) candidates.push(i);
+			if (candidates.length !== 1) throw new Error("Ambiguous list source");
+			parse(list, candidates[0], 0, true);
 		}
 		function push(at, end, m) {
 			tasks.push({index:map[at],end:map[at]+end-at,indent:m[1],depth:depth,text:m[4],line:all[map[at]],checked:m[3].toLowerCase()==="x"});
 		}
-		function parse(list, at, indent) {
+		function parse(list, at, indent, loose) {
 			list.items.forEach(function (item) {
 				while (at < lines.length && !lines[at].trim()) at++;
-				if (!match(item.raw, at, indent)) throw new Error("Unsupported list source");
+				if (!match(item.raw, at, indent, loose)) throw new Error("Unsupported list source");
 				var end = at + item.raw.replace(/\n+$/, "").split("\n").length;
 				var m = TASK_LINE.exec(lines[at]);
 				if (item.task) {
 					if (!m) throw new Error("Unsupported task source");
 					push(at, end, m);
 				}
-				nested(item, at + 1, end);
+				(item.tokens || []).forEach(function (token) { if (token.type === "list") nested(token, at + 1, end); });
 				at = end;
 			});
 		}
@@ -3407,12 +3394,12 @@ function bindChecklist(source, path, marker, count) {
 	var lists = new Map();
 	function keepNumbers(lines, list) {
 		var siblings = tasks.filter(function (t) { return t.list === list; }), first = siblings[0], last = siblings[siblings.length - 1], markers = [];
-		var original = source.split("\n"), re = new RegExp("^(" + first.indent.replace(/\t/g, "\\t") + ")(\\d+[.)])(?=\\s)");
+		var original = source.split("\n"), re = /^([ \t]*)(\d+[.)])(?=\s)/, width = columns(first.indent);
 		/* Inside a quote, the marks come off first, as the checklist read them, so the indent is exact. */
 		function split(line) { var marks = ""; for (var d = 0; d < first.depth; d++) { var q = unquote(line); if (!q) return null; marks += q[0]; line = q[1]; } return [marks, line]; }
-		for (var i = first.index; i < last.end; i++) { var q = split(original[i]), m = q && re.exec(q[1]); if (m) markers.push(m[2]); }
+		for (var i = first.index; i < last.end; i++) { var q = split(original[i]), m = q && re.exec(q[1]); if (m && columns(m[1]) === width) markers.push(m[2]); }
 		var n = 0;
-		for (var i = first.index; i < last.end; i++) { var q = split(lines[i]); if (q) lines[i] = q[0] + q[1].replace(re, function (all, space) { return space + markers[n++]; }); }
+		for (var i = first.index; i < last.end; i++) { var q = split(lines[i]); if (q) lines[i] = q[0] + q[1].replace(re, function (all, space, number) { return columns(space) === width ? space + markers[n++] : all; }); }
 		return lines.join("\n");
 	}
 	controls.forEach(function (box, n) {
@@ -3480,7 +3467,13 @@ function bindChecklist(source, path, marker, count) {
 		text.onclick = function (e) { if (!locked && !e.target.closest("a") && !getSelection().toString()) edit.click(); };
 		tools.append(handle, more, menu);
 	});
-	var ticked = tasks.filter(function (t) { return t.checked; }).map(function (t) { return { index: t.index, line: t.line }; });
+	/* A ticked task whose sub-tasks stay behind, indented a tab or four spaces deeper, stays too:
+	   without it they would read as code. */
+	var all = source.split("\n"), done = tasks.filter(function (t) { return t.checked; }), gone = new Set(done.map(function (t) { return t.index; }));
+	var ticked = done.filter(function (t) {
+		for (var i = t.index + 1; i < t.end; i++) if (!gone.has(i) && all[i].trim() && columns(/^[ \t]*/.exec(all[i])[0]) >= columns(t.indent) + 4) return false;
+		return true;
+	}).map(function (t) { return { index: t.index, line: t.line }; });
 	if (ticked.length && !locked) { var clear = button("Clear completed tasks", "Clear " + ticked.length + " done", function () { if (live()) removeTasks(path, ticked, "Cleared " + ticked.length + " done tasks."); }); clear.className = "clear-done"; clear.prepend(icon("task")); host.append(clear); }
 	if (locked && current && dirty()) host.appendChild(emptyNote("Save or resolve your changes to edit this checklist. You can keep writing in Edit (the pencil)."));
 }

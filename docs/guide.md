@@ -185,11 +185,14 @@ Padgit explains this and keeps the editor available.
 Save or resolve source changes before editing a checklist. Read-only
 repositories keep every checklist control read-only. Unusual or ambiguous
 Markdown stays read-only in Preview with a notice; use Edit for its source.
-Tasks inside a quote or a callout (such as `> [!todo]`) work like any other;
+Sub-tasks indented with tabs (as Obsidian writes them) or spaces, and tasks
+inside a quote or a callout (such as `> [!todo]`), work like any other;
 a quote with a line that carries on without its `>` is one of the unusual
 cases. Failed task text edits are kept as drafts and return
 when the note is reopened. Clear done removes checked lines only, leaving
-unchecked children; × removes the whole task and its children. Both offer Undo.
+unchecked children (a ticked task stays when its unchecked sub-tasks are
+indented a tab or four spaces, which would otherwise read as code); × removes
+the whole task and its children. Both offer Undo.
 
 In **Files**, typing filters filenames instantly. Press **Enter** or **Search
 contents** to search note text as well, including local drafts. Opening a result

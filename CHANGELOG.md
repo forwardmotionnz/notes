@@ -107,6 +107,7 @@ in the [development ledger](docs/dev/MVP.md)).
   result.
 
 ### Fixed
+- Checklists with sub-tasks indented by tabs (Obsidian's default) or four spaces can be ticked, edited, moved and removed in Preview again. Before, one such sub-task made the whole note's checklist read-only.
 
 - Signing out invalidates the current page immediately. Delayed account or
   repository replies cannot restore credentials or forgotten preferences

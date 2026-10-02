@@ -108,6 +108,7 @@ in the [development ledger](docs/dev/MVP.md)).
 
 ### Fixed
 - Checklists with sub-tasks indented by tabs (Obsidian's default) or four spaces can be ticked, edited, moved and removed in Preview again. Before, one such sub-task made the whole note's checklist read-only.
+- A space or tab left at the end of a checklist's last line no longer makes the whole checklist read-only in Preview.
 - Clear done leaves a ticked task in place when its unticked sub-tasks are indented a tab or four spaces: without it they would turn into a code block.
 
 - Signing out invalidates the current page immediately. Delayed account or

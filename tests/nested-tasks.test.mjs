@@ -19,8 +19,11 @@ const COMMENTED = '- [ ] a\n  <!--\n  - [ ] old\n  -->\n  - [ ] b\n';
 const MIXED = '1. [ ] a\n\t1. [ ] x\n    2. [ ] y\n\t3. [ ] z\n';
 const TWICE = '- [ ] a\n\t```\n\t- [ ] x\n\t```\n\t- [ ] x\n';   // the same line in a code example and as a sub-task
 const DEEPER = '1. [ ] a\n\t1. [ ] x\n\t\t1. [ ] child\n\t2. [ ] y\n';
+// The owner's todo.md again: a space or tab left at the end of a list's last line (the library trims it).
+const TRAILING = '---\npinned: true\n---\nWORK 1\n\n- [ ] AI Foundry\n- [x] slides\n- [ ] usage vs return. \n\nRANDOM\n\n- [ ] video padgit / post ?\t\n';
+const TRAILING_SUB = '- [ ] a\n\t- [ ] sub \n- [ ] b\n';
 const FENCE = '- [ ] a\n\t```\n\t- [ ] only an example\n\t```\n\t- [ ] real\n- [ ] b\n';
-const gh = H.fakeGitHub({ files: { 'todo.md': OBSIDIAN, 'spaces.md': SPACES, 'numbered.md': NUMBERED, 'fence.md': FENCE, 'decoy.md': DECOY, 'release.md': RELEASE, 'parent-code.md': PARENT_CODE, 'groceries.md': GROCERIES, 'empty-sub.md': EMPTY_SUB, 'commented.md': COMMENTED, 'mixed.md': MIXED, 'twice.md': TWICE, 'deeper.md': DEEPER } });
+const gh = H.fakeGitHub({ files: { 'todo.md': OBSIDIAN, 'spaces.md': SPACES, 'numbered.md': NUMBERED, 'fence.md': FENCE, 'decoy.md': DECOY, 'release.md': RELEASE, 'parent-code.md': PARENT_CODE, 'groceries.md': GROCERIES, 'empty-sub.md': EMPTY_SUB, 'commented.md': COMMENTED, 'mixed.md': MIXED, 'twice.md': TWICE, 'deeper.md': DEEPER, 'trailing.md': TRAILING, 'trailing-sub.md': TRAILING_SUB } });
 const c = await H.context(gh), p = await H.page(c); p.setDefaultTimeout(5000);
 await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
 const settled = () => p.waitForFunction(() => !Object.keys(pinBusy).length && !!document.querySelector('#pin-list .task')).catch(() => {});
@@ -84,5 +87,13 @@ t.check('review: a sub-task that could be either of two lines is left to Edit', 
 await H.preview(p, 'deeper.md'); await settled();
 await H.taskAction(p, 'Move down: x'); await settled();
 t.check('review: renumbering leaves deeper numbered lines alone', gh.files['deeper.md'] === '1. [ ] a\n\t1. [ ] y\n\t2. [ ] x\n\t\t1. [ ] child\n', JSON.stringify(gh.files['deeper.md']));
+await H.preview(p, 'trailing.md'); await settled();
+t.check('a space at the end of a list\'s last line leaves every task working', !await readOnlyNotice() && await p.locator('#pin-list .task input[type=checkbox]:not(:disabled)').count() === 4);
+await box('usage vs return').click(); await settled();
+await box('video padgit').click(); await settled();
+t.check('ticking those writes only their lines, the trailing space and tab kept', gh.files['trailing.md'] === TRAILING.replace('- [ ] usage', '- [x] usage').replace('- [ ] video', '- [x] video'), JSON.stringify(gh.files['trailing.md']));
+await H.preview(p, 'trailing-sub.md'); await settled();
+await box('sub').click(); await settled();
+t.check('and at the end of a sub-list', gh.files['trailing-sub.md'] === TRAILING_SUB.replace('\t- [ ] sub', '\t- [x] sub'), JSON.stringify(gh.files['trailing-sub.md']));
 t.check('no page errors', p.errors.length === 0, p.errors.join(' | '));
 await c.close(); await H.stop(); t.finish();

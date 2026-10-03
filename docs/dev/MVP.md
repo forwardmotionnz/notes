@@ -303,6 +303,12 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 | N39 | 47a | done | Tasks inside a quote or callout work in Preview (was: one quoted task made the whole checklist read-only). `tests/quoted-tasks.test.mjs` 13/13 (after review): tick, edit, move (numbers kept) and remove inside a callout, a quote and a quote in a quote; a task outside still works; a quote line carried on without `>` leaves the checklist to Edit and writes nothing. G-2: quote-depth in renumbering and the carried-on-line refusal each fail a named check when reverted. Commit in the log |
 | N40 | 48 | done | Drag a note in Files onto a folder (or the Files heading, for the top level) to move it, by the single-commit move: the open note through Rename or move's path (unsaved typing saved first), any other with its blob sha checked on GitHub; refused for a taken name or a note changed elsewhere, with the reason; a local draft goes with its note, open or not; only with a mouse (not on touch screens), only notes, never read-only. `tests/drag-move.test.mjs` 25/25 (after review). G-2: read-only/touch, the draft following, and the open note going through its save each fail named checks when reverted; the local taken-name check is also enforced by GitHub's (moveFile reads the target first), so the check passes either way. Screens `tests/screens/n40-*.png`. Commit in the log |
+| N41 | 49 | todo | Owner's request 2026-10-03: an Emotional weather template for Today |
+| N42 | 50 | todo | Owner's request 2026-10-03: capture into an inbox, including Share to Padgit on phones |
+| N43 | 51 | todo | Owner's request 2026-10-03: what changed since you last looked, and who (you or an agent) |
+| N44 | 52 | todo | Owner's request 2026-10-03: start a second-brain repository |
+| N45 | 53 | todo | Owner's request 2026-10-03: ask your notes, through the repository's own agent |
+| N46 | 54 | todo | Owner's request 2026-10-03: sign-in and first steps for people who use AI but not GitHub |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -682,6 +688,71 @@ The owner found the app's look clunky (text buttons, glyphs as icons, three stac
 - sidebar: the empty-state hint names the button at the top left instead of ☰.
 - G-3 review (fixed, each with a design check): the save status said Saved while a save was on its way; on a phone the note's name vanished during a conflict; focus was lost after a ⋯ action's dialog; menus stayed open after tabbing out, and (on iOS) after a tap on plain text; closing one task menu closed another; tabs with the same name looked alike and the open chip could be off-screen; the Pinned chip accepted values the pin check does not; messages said "Press Edit" where phones show a pencil.
 
+### Owner's requests (2026-10-03), in the order agreed
+Padgit's direction: the phone and browser side of a second brain kept as plain Markdown in Git, which agents (Claude Code, Codex and others) maintain on a computer, in the manner of Karpathy's "LLM wiki" (`raw/` sources, an agent-kept `wiki/`, an `index.md`). Padgit itself stays serverless and calls no AI service: agents reach the repository through GitHub, not through Padgit. Size: `index.html` is 250,160 bytes against the 256,000-byte limit, so from N42 onwards each item needs headroom found first (moving comments to implementation-notes.md, as in N33) or a new limit from the owner.
+
+### N41: plan: an Emotional weather template for Today
+- Owner's request, after Ryan Soave's Emotional Weather Map (list the day's events, foresee the ones that may stir up a storm, decide how to show up). Padgit stays blank by default for everyone; the template is something a person chooses.
+- Settings, under daily notes: **Add the Emotional weather template**. One commit writes `Templates/Daily note.md` (an ordinary Obsidian template) and, only when `.obsidian/daily-notes.json` does not exist, creates it as `{"folder": "Daily", "format": "YYYY-MM-DD", "template": "Templates/Daily note"}`, which keeps today's `Daily/YYYY-MM-DD.md` paths. If the settings file exists and names a template, nothing changes and Padgit says which template Today uses; if it exists with no template, Padgit says which one line to add (Padgit never edits Obsidian's settings). An existing `Templates/Daily note.md` is never overwritten. Both are files any editor understands, written only when the person asks (rule 2).
+- Already possible by hand today: commit the two files above. The item makes it one press and documents it in the guide.
+- The template (settled after review on 2026-10-03; the owner can change the file in their own repository at any time):
+
+```
+---
+weather: 
+---
+# {{date:dddd, D MMMM YYYY}}
+
+## Morning forecast
+
+### Gratitude
+*Meeting what is, as it is.*
+- 
+- 
+- A challenge I'm grateful for: 
+
+### Current weather
+*Fear, resentment, anger, guilt, shame, or solid. Where do I feel it?*
+- 
+
+### Today's map
+*A rough outline, not a calendar. Under anything that could bring a storm, note what to watch for and how I want to show up.*
+- 
+  - Watch for: 
+  - Show up as: 
+
+### If a storm rolls in, I will
+- 
+
+### Shared with
+- 
+
+## Notes
+- 
+
+## Evening inventory
+*Optional.*
+- How did I do with what I watched for and how I wanted to show up?
+- What would I forecast differently tomorrow?
+```
+
+- Done looks like: in a repository without daily settings, the button makes one commit with both files; Today then opens a note whose text is the template with the date filled in; an untouched Today note still writes nothing (C3); existing settings or template files are never changed; read-only repositories offer no button. Tests in `daily-notes`.
+
+### N42: plan: capture into an inbox
+- A quick capture box (Settings names the inbox note or folder, default `Inbox.md` or `raw/` when the repository has one) that appends a dated line or makes a new note, in one commit, without leaving the note that is open. On phones, Padgit registers as a share target (`share_target` in the manifest), so a link, text or image shared from another app lands in the inbox. Offline, the capture is kept as a draft like any other. This is the missing input side of an agent-kept wiki: sources arrive from the phone, agents file them later.
+
+### N43: plan: what changed, and who changed it
+- A "Changed since you last looked" section in Files, from the repository's commits since this device's last visit (bounded, as Recently deleted reads history), naming the author of each change (you, or an agent such as Claude or Codex, from the commit's author and committer). Each note gets a history view: its recent versions, a before-and-after of the latest change, and Restore this version as one commit (never overwriting newer work). Agents that rewrite notes must be easy to check and easy to undo.
+
+### N44: plan: start a second-brain repository
+- For a person with no notes repository yet (or an empty one): **Set up a second brain** commits a starter layout chosen by the person: `raw/` (sources, never edited), `wiki/` (pages an agent keeps), `index.md`, `Daily/`, and an `AGENTS.md` (with `CLAUDE.md` pointing to it) telling any agent how to file sources, keep the index and links, and never rewrite `raw/` or daily notes. Ordinary files, written only when asked (rule 2). Doubles as the simplest first run for people new to GitHub (N46). Note in the guide: daily notes and other personal writing are read by any agent given the repository; keep it private.
+
+### N45: plan: ask your notes, through the repository's own agent
+- **Ask** opens a GitHub issue in the notes repository with the question (and the open note's path), addressed to the agent the person has installed there (the Claude or Codex GitHub integration, configured by them, not by Padgit). The agent answers by committing a page (for example `wiki/answers/…`) and replying on the issue; Padgit shows open questions and opens the answer when it lands. No AI service is called from the page and no Padgit server is added (rule 4). Needs the GitHub App's issues permission, so it is an owner step under Needs the owner before it can ship; without the permission, Ask is not shown.
+
+### N46: plan: sign-in and first steps for people who use AI but not GitHub
+- Rewrite the signed-out screen, the first run and the guide's start for someone who uses Claude or ChatGPT daily but has never used GitHub: GitHub as the place your notes live so you and your AI tools can both use them, with words for repository, install and commit kept out of the first steps. Uses N44 for the first repository. Checked by a walk-through with a person new to GitHub (the owner arranges it) and by the docs tests.
+
 ## Needs the owner
 - **After the move to padgit.com:** if the broker now runs with `broker/wrangler.padgit.toml` (allowing only https://padgit.com), make that the repository's `wrangler.toml` so a redeploy does not bring back the old origin; the padgit test's check "current broker stays on old address" should then be updated with it.
 
@@ -907,6 +978,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-29: Owner's review of the built app: N36 remove ← →, N37 one kind of note (Tasks screen and "Add a task" go), N38 visual redesign with a mock-up first. Placed ahead of the remaining items.
 - 2026-09-29: The owner raised the size limit for `index.html` to 250 KB (256,000 bytes) for the redesign (N38).
 - 2026-09-29: The owner approved the N38 mock-up and all five choices in it: a header with title, save dot, Edit/Preview switch and ⋯ menu; checklist rows with tap-to-edit, grip and ⋯; a reading face for headings; properties as chips; Save as a status dot rather than a header button.
+- 2026-10-03: The owner's direction: Padgit as the phone and browser side of an agent-kept second brain, staying serverless; N41 to N46 added, N41 (the owner's Emotional weather template) first because it is small and wanted now, then capture, what changed, the starter repository, Ask and first steps. People who do not use GitHub at all are not the aim; people who use AI tools but not GitHub are.
 
 ## Log
 (one line per iteration: date, item, result, commit)
@@ -1117,3 +1189,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-02 · Sub-tasks indented with tabs · fixed (the owner's report: Preview checkboxes did nothing in todo.md). The Markdown library rewrites a sub-list's indentation (a tab as four spaces) in the text it reports, so the old line-by-line match found no line for the sub-list and, by design, the whole checklist fell back to read-only: every Obsidian note with tab-indented sub-tasks, and four-space ones too. Sub-tasks are now found in their parent item's own lines (outside fenced code), and must agree with the library's tasks in number and in which are ticked, or the checklist stays read-only as before. `tests/nested-tasks.test.mjs` 13/13: tick, edit (tab kept), move with its own sub-tasks, remove with them, four spaces, numbered sub-lists renumbered at their exact indent, a task-like line in a code example ignored, and a look-alike HTML line never ticked in place of a sub-task. G-2: the fence skip, the ticked-state agreement, the sub-task extent and the exact renumbering indent each fail a check when reverted. checklists, quoted-tasks, tasks, design, preview, callouts and access suites pass.
 - 2026-10-02 · Sub-tasks review · the first fix (a search for task-looking lines in the item) was replaced after G-3 found it could tick or remove the wrong lines: a commented-out or code task beside an unclosed fence matched in count and ticks; a sub-task's lines could swallow its parent's code block, heading or quote; and some two-space checklists that worked before became read-only. Sub-lists are now matched line for line against the library's own text with only the leading spaces and tabs set aside, and the match must be unique in the item, so every task's lines are exactly the library's again (as for top-level lists). Also from the review: Clear done leaves a ticked task whose sub-tasks indented a tab or four spaces deeper would stay behind (they would turn into code), and renumbering takes siblings by indent width, so tabs and four spaces mix and deeper numbered lines are left alone. nested-tasks 22/22, each review note a check; G-2: unique match, renumbering by width and the Clear done rule each fail a check when reverted. Full suite 69/69 Chromium.
 - 2026-10-02 · Trailing spaces · fixed (the owner's todo.md was still read-only after the sub-task fix, with flat lists). The Markdown library trims spaces and tabs from the end of a list's (or sub-list's) last line in the text it reports, so that line no longer matched the note and the whole checklist fell back to read-only. Line ends are now set aside when matching; ticking keeps them. nested-tasks 25/25 (the owner's note shape, a tab at the end, and a sub-list's last line); the checks fail without the change. A second part (skipping the trimmed characters before the next block) passed every check without it, since the library gives them to the next block, so it was left out.
+- 2026-10-03 · N41–N46 · added · Owner's requests: Emotional weather template for Today, inbox capture, what changed, second-brain starter, Ask, first steps for non-GitHub users.

@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Settings → Daily note template: one press sets Today up with the Emotional weather template (after Ryan Soave) as ordinary Obsidian files, `Templates/Daily note.md` and, only if missing, `.obsidian/daily-notes.json`. Nothing already there is replaced.
 - Drag a note in Files onto a folder to move it there, or onto the Files heading for the top level (with a mouse; on touch screens Rename or move stays the way). One commit, as Rename or move.
 - Recently deleted, under Recent in Files: notes deleted in the last 30 changes, read from the repository's history, with Restore to bring one back in a single commit.
 - Tasks inside a quote or a callout (such as `> [!todo]`) can be ticked, edited, moved and removed in Preview. Before, one quoted task made the whole note's checklist read-only.

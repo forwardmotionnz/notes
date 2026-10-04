@@ -5,6 +5,8 @@ t.check('page and home-screen branding is Padgit',html.includes('<title>Padgit</
 // The move to padgit.com is done (owner, 2026-09-30): the pre-move notice is gone.
 t.check('no address-change notice any more',!html.includes('domain-notice')&&!/migrationFrom|migrationTo/.test(html));
 t.check('cutover config uses new origin and root callback',existsSync(new URL('../broker/wrangler.padgit.toml',import.meta.url))&&/ALLOWED_ORIGIN\s*=\s*"https:\/\/padgit.com"/.test(read('broker/wrangler.padgit.toml'))&&/REDIRECT_URI\s*=\s*"https:\/\/padgit.com\/"/.test(read('broker/wrangler.padgit.toml')));
+// The default broker config follows the move (1ad237e), so an ordinary deploy cannot bring back the old origin.
+t.check('default broker config allows only padgit.com',/ALLOWED_ORIGIN\s*=\s*"https:\/\/padgit.com"/.test(read('broker/wrangler.toml'))&&/REDIRECT_URI\s*=\s*"https:\/\/padgit.com\/"/.test(read('broker/wrangler.toml')));
 // The cutover happened (owner's #29 added CNAME, 2026-09-30); this used to check that it had not yet.
 t.check('this repository serves padgit.com',existsSync(new URL('../CNAME',import.meta.url))&&read('CNAME').trim()==='padgit.com');
 {

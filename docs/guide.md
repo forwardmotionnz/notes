@@ -66,17 +66,16 @@ Common Moment year, month, day and time tokens and `[literal text]` work;
 unsupported filename formats fall back to `YYYY-MM-DD` with a notice.
 Templates support `{{title}}`, `{{date}}`, `{{time}}` and explicit formats
 such as `{{date:dddd, D MMMM YYYY}}`; template scripts are not executed.
-**Settings → Daily note template → Add the template** sets Today up with
-the Emotional weather template (after Ryan Soave: gratitude, current
-weather, today's map with what to watch for and how to show up, and an
-optional evening inventory). It adds `Templates/Daily note.md`, never
-replacing a file already there. If the repository has no
-`.obsidian/daily-notes.json`, it creates one pointing Today at the template,
-with daily notes in `Daily/` (or at the top level, if daily notes are
-already there, as Obsidian expects). If that file already names a template,
-nothing changes; if it names none, Padgit adds the template and tells you
-the one line to add, since it never edits Obsidian's settings. Edit the
-template like any note to make it your own.
+To start every new daily note from a template, write the template as an
+ordinary note (headings, prompts, `{{date}}` and the other placeholders
+above), save it, then choose **⋯ → Use for new daily notes** in that note.
+Today now starts each new day's note from it; **⋯ → Stop using for new daily
+notes** goes back to blank notes. Padgit records the choice as the
+`template` line of Obsidian's `.obsidian/daily-notes.json` (making that file
+if needed, with daily notes in `Daily/`, or at the top level if daily notes
+are already there), so it works on every device and in Obsidian. Nothing
+else in that file changes. If the template note is later renamed or
+deleted, Today says so: choose the template again from the note you want.
 A new daily note is created only when saved (or after editing triggers
 autosave). Existing notes and drafts are preserved. Missing templates or
 invalid settings show an explanation and leave the current note alone.

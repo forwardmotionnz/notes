@@ -1,128 +1,133 @@
-/* N41: Settings adds the Emotional weather template for Today, as ordinary Obsidian files. */
+/* N41: any saved note becomes Today's template from its ⋯ menu, through Obsidian's own daily-note settings. */
 import * as H from './harness.mjs';
 const t=H.suite('daily-template');
 await H.start();
-const TPL='Templates/Daily note.md', CONF='.obsidian/daily-notes.json';
-const settingsFor=extra=>JSON.stringify({folder:'Daily',format:'YYYY-MM-DD',template:'Templates/Daily note',...extra});
+const CONF='.obsidian/daily-notes.json', TPL='Templates/Morning.md', BODY='# {{date:dddd, D MMMM YYYY}}\n\n## Plan\n- \n';
 async function setup(opts={}) {
   const gh=H.fakeGitHub(opts);
   const ctx=await H.context(gh,{noCdn:true});
   const p=await H.page(ctx); await H.signIn(p);
   p.setDefaultTimeout(5000);
-  await p.waitForFunction(()=>!accessPending);
+  await p.waitForFunction(()=>!accessPending&&treeState==='ok');
   await p.clock.setFixedTime(new Date('2026-09-27T12:00:00'));
-  const writes=[]; p.on('request',r=>{if(r.method()!=='GET'&&/api\.github|\/repos\//.test(r.url()))writes.push(r.method()+' '+decodeURIComponent(r.url()));});
+  const writes=[]; p.on('request',r=>{if(r.method()!=='GET'&&/\/repos\//.test(r.url()))writes.push(r.method()+' '+decodeURIComponent(r.url()));});
   return {gh,ctx,p,writes};
 }
-async function add(p) {
-  await p.click('#btn-settings');
-  await p.locator('#daily-setup summary').click();
-  await p.click('#f-daily');
-  await p.waitForFunction(()=>!document.querySelector('#f-daily').disabled&&document.querySelector('#daily-status').textContent);
-  return p.textContent('#daily-status');
+async function open(p,path) { await p.evaluate(path=>openFile(path),path); await p.waitForFunction(path=>current?.path===path&&current.sha,path); }
+async function offered(p) { await p.click('#btn-more'); const shown=await p.locator('#btn-daily').isVisible(); const label=shown?await p.textContent('#btn-daily'):''; await p.keyboard.press('Escape'); return {shown,label}; }
+async function toggle(p) {
+  await H.noteAction(p,'#btn-daily');
+  await p.waitForFunction(()=>!/Updating the daily/.test(document.querySelector('#status').textContent));
+  return H.status(p);
 }
 {
-  const {p,ctx,gh}=await setup({files:{'a.md':'a'}});
-  await p.click('#btn-settings');
-  t.check('the template is offered in Settings',await p.locator('#daily-setup').isVisible());
-  await p.keyboard.press('Escape');
-  const said=await add(p);
-  const tpl=gh.files[TPL]||'';
-  t.check('the template file is written',/^---\nweather: \n---\n# \{\{date:dddd, D MMMM YYYY\}\}\n/.test(tpl)&&tpl.includes('### Today\'s map')&&tpl.includes('  - Watch for: ')&&tpl.endsWith('- What would I forecast differently tomorrow?\n'),tpl.slice(0,80));
-  t.check('daily settings created, keeping Daily/YYYY-MM-DD',gh.files[CONF]&&JSON.stringify(JSON.parse(gh.files[CONF]))===settingsFor({}),gh.files[CONF]);
-  t.check('says it is ready',/Today/.test(said),said);
-  await p.keyboard.press('Escape');
+  const {p,ctx,gh}=await setup({files:{[TPL]:BODY,'a.md':'a'}});
+  await open(p,TPL);
+  const o=await offered(p);
+  t.check('a saved note offers Use for new daily notes in its ⋯ menu',o.shown&&/Use for new daily notes/.test(o.label),o.label);
+  const said=await toggle(p);
+  t.check('settings created naming this note, keeping Daily/',JSON.stringify(JSON.parse(gh.files[CONF]||'{}'))===JSON.stringify({folder:'Daily',template:'Templates/Morning'}),gh.files[CONF]);
+  t.check('and says so',/start from this note/.test(said),said);
+  t.check('the menu now offers to stop',/Stop using/.test((await offered(p)).label));
   await p.evaluate(()=>todayNote()); await p.waitForFunction(()=>current?.path==='Daily/2026-09-27.md');
-  const text=await H.editorValue(p);
-  t.check('Today opens the template with the date filled in',text.startsWith('---\nweather: \n---\n# Sunday, 27 September 2026\n\n## Morning forecast'),text.slice(0,60));
+  t.check('Today starts from the note, date filled in',await H.editorValue(p)==='# Sunday, 27 September 2026\n\n## Plan\n- \n',await H.editorValue(p));
   t.check('an untouched Today note writes nothing',!gh.files['Daily/2026-09-27.md']);
+  await open(p,TPL);
+  const off=await toggle(p);
+  t.check('Stop removes only the template line',JSON.stringify(JSON.parse(gh.files[CONF]))===JSON.stringify({folder:'Daily'}),gh.files[CONF]);
+  t.check('and says new daily notes start blank',/blank/.test(off),off);
+  t.check('the menu offers it again',/Use for new daily notes/.test((await offered(p)).label));
   await ctx.close();
 }
 {
-  const conf=JSON.stringify({folder:'Journal',template:'Other/Mine'});
-  const {p,ctx,gh,writes}=await setup({files:{[CONF]:conf,'Other/Mine.md':'mine'}});
-  const said=await add(p);
-  t.check('a template already set: nothing written',writes.length===0&&!gh.files[TPL]&&gh.files[CONF]===conf,writes.join());
-  t.check('and says which template Today uses',/Other\/Mine/.test(said),said);
+  const conf=JSON.stringify({folder:'Journal',format:'YYYY/MM/DD',autorun:true,template:'Old'});
+  const {p,ctx,gh}=await setup({files:{[CONF]:conf,[TPL]:BODY}});
+  await open(p,TPL); await toggle(p);
+  const now=JSON.parse(gh.files[CONF]);
+  t.check('existing settings keep everything but the template',now.folder==='Journal'&&now.format==='YYYY/MM/DD'&&now.autorun===true&&now.template==='Templates/Morning',gh.files[CONF]);
   await ctx.close();
 }
 {
-  const conf=JSON.stringify({folder:'Journal'});
-  const {p,ctx,gh}=await setup({files:{[CONF]:conf}});
-  const said=await add(p);
-  t.check('settings without a template: the template is written',!!gh.files[TPL]);
-  t.check('Obsidian\'s settings are left alone',gh.files[CONF]===conf);
-  t.check('and the line to add is given',said.includes('"template": "Templates/Daily note"'),said);
+  const {p,ctx,gh}=await setup({files:{'2026-09-01.md':'old daily',[TPL]:BODY}});
+  await open(p,TPL); await toggle(p);
+  t.check('daily notes already at the top level stay there, as in Obsidian',JSON.parse(gh.files[CONF]).folder==='',gh.files[CONF]);
   await ctx.close();
 }
 {
-  const {p,ctx,gh}=await setup({files:{[TPL]:'my own'}});
-  const said=await add(p);
-  t.check('an existing template file is never overwritten',gh.files[TPL]==='my own');
-  t.check('Today is pointed at it',!!gh.files[CONF]&&JSON.parse(gh.files[CONF]).template==='Templates/Daily note');
-  t.check('and says so',/already/i.test(said),said);
+  const {p,ctx,gh,writes}=await setup({files:{[CONF]:'{bad',[TPL]:BODY}});
+  await open(p,TPL); const said=await toggle(p);
+  t.check('unreadable settings: nothing written',writes.length===0&&gh.files[CONF]==='{bad',writes.join());
+  t.check('and says why',/could not be read/.test(said),said);
   await ctx.close();
 }
 {
-  const {p,ctx,gh,writes}=await setup({files:{[CONF]:'{bad'}});
-  const said=await add(p);
-  t.check('unreadable settings: nothing written',writes.length===0&&!gh.files[TPL]&&gh.files[CONF]==='{bad',writes.join());
-  t.check('and says why',/settings/i.test(said),said);
+  const {p,ctx,writes}=await setup({files:{[CONF]:JSON.stringify({template:'Templates/Morning'}),[TPL]:BODY}});
+  await open(p,TPL);
+  const said=await toggle(p);   // the label did not know yet: it offered Use
+  t.check('already the template: nothing written, and said',writes.length===0&&/already start from this note/.test(said),said);
+  t.check('the menu then offers to stop',/Stop using/.test((await offered(p)).label));
   await ctx.close();
 }
 {
-  const {p,ctx,gh}=await setup({empty:true,files:{}});
-  await add(p);
-  t.check('an empty repository gets both files',!!gh.files[TPL]&&!!gh.files[CONF],Object.keys(gh.files).join());
+  const {p,ctx,gh}=await setup({files:{[CONF]:JSON.stringify({folder:'Before'}),[TPL]:BODY}});
+  await open(p,TPL);
+  let release; const gate=new Promise(r=>release=r); let entered; const asked=new Promise(r=>entered=r);
+  // Changed on GitHub just after Padgit read it, before its write.
+  await p.route('**/contents/.obsidian/daily-notes.json',async r=>{if(r.request().method()==='PUT')gh.files[CONF]=JSON.stringify({folder:'Changed meanwhile'});await r.fallback();});
+  const said=await toggle(p);
+  t.check('settings changed meanwhile on GitHub are never overwritten',JSON.parse(gh.files[CONF]).folder==='Changed meanwhile'&&!/Signed out/.test(said)&&/changed elsewhere/.test(said),gh.files[CONF]+' / '+said);
   await ctx.close();
 }
 {
-  const {p,ctx,gh}=await setup({files:{'a.md':'a'}});
-  let failed=false;
-  await p.route('**/contents/.obsidian/daily-notes.json',r=>{if(r.request().method()==='PUT'&&!failed){failed=true;return r.abort();}return r.fallback();});
-  const first=await add(p);
-  t.check('a failed write says so and offers a retry',/again/i.test(first)&&!gh.files[CONF],first);
-  await p.click('#f-daily');
-  await p.waitForFunction(()=>!document.querySelector('#f-daily').disabled&&!/again/i.test(document.querySelector('#daily-status').textContent));
-  t.check('pressing again finishes: the identical template is kept, settings written',!!gh.files[TPL]&&!!gh.files[CONF]&&!/already/i.test(await p.textContent('#daily-status')),await p.textContent('#daily-status'));
+  const {p,ctx,writes}=await setup({files:{[TPL]:BODY}});
+  await open(p,TPL);
+  let release; const gate=new Promise(r=>release=r); let entered; const asked=new Promise(r=>entered=r);
+  await p.route('**/contents/.obsidian/daily-notes.json?*',async r=>{entered();await gate;await r.fallback();});
+  const done=toggle(p); await asked;
+  await p.evaluate(()=>{cfg.repo='elsewhere';}); release(); const said=await done;
+  t.check('a repository switched mid-way gets nothing written',writes.length===0&&/nothing was changed/.test(said),writes.join()+' / '+said);
+  await ctx.close();
+}
+{
+  const {p,ctx,writes}=await setup({files:{[TPL]:BODY}});
+  await open(p,TPL);
+  await p.evaluate(()=>{accessPending=true;}); await p.evaluate(()=>toggleDailyTemplate()); await H.settle(p,300);
+  t.check('nothing is written while access is still being checked',writes.length===0,writes.join());
+  await ctx.close();
+}
+{
+  const {p,ctx}=await setup({files:{'plain.txt':'plain text',[TPL]:BODY}});
+  await p.evaluate(()=>startNote('Unsaved.md','# new')); await p.waitForFunction(()=>current?.path==='Unsaved.md');
+  t.check('a note never saved is not offered',!(await offered(p)).shown);
+  await open(p,'plain.txt');
+  t.check('nor a file that is not Markdown',!(await offered(p)).shown);
   await ctx.close();
 }
 {
   const repos=[{owner:{login:'roldaof'},name:'vault',full_name:'roldaof/vault',default_branch:'main',private:true,permissions:{push:false,pull:true}}];
-  const {p,ctx,writes}=await setup({files:{'a.md':'a'},repos});
-  await H.settle(p,600);
-  await p.click('#btn-settings');
-  t.check('read-only repositories offer no template',!await p.locator('#daily-setup').isVisible());
-  await p.evaluate(()=>addDailyTemplate()); await H.settle(p,300);
-  t.check('and nothing is written if it is called anyway',writes.length===0,writes.join());
+  const {p,ctx}=await setup({files:{[TPL]:BODY},repos});
+  await H.settle(p,600); await open(p,TPL);
+  t.check('read-only repositories do not offer it',!(await offered(p)).shown);
   await ctx.close();
 }
 {
-  const {p,ctx,gh,writes}=await setup({files:{'2026-09-01.md':'old daily'}});
-  await p.waitForFunction(()=>files.some(f=>f.path==='2026-09-01.md'));
-  const said=await add(p);
-  t.check('daily notes already at the top level stay there, as in Obsidian',JSON.parse(gh.files[CONF]||'{}').folder==='',gh.files[CONF]);
-  t.check('and says where Today puts them',/top level/.test(said),said);
-  await p.keyboard.press('Escape'); await p.click('#btn-settings');
-  t.check('reopening Settings clears the last result',await p.textContent('#daily-status')==='');
+  const {p,ctx,gh,writes}=await setup({files:{'Ideas: morning.md':'# x','Plan.MD':'# y',[TPL]:BODY}});
+  await open(p,'Ideas: morning.md'); const said=await toggle(p);
+  t.check('a name Today cannot use is refused, nothing written',writes.length===0&&/cannot use this note/.test(said),said);
+  await open(p,'Plan.MD');
+  t.check('an upper-case .MD note is not offered',!(await offered(p)).shown);
+  await open(p,TPL);
+  await p.evaluate(()=>{dailyTemplate='Templates/Morning';dailyRepo='someone/else@main';});
+  t.check('a label remembered for another repository is not used',/Use for new daily notes/.test((await offered(p)).label));
+  await p.route('**/contents/.obsidian/daily-notes.json',async r=>{if(r.request().method()==='PUT')gh.files[CONF]=JSON.stringify({folder:'Made elsewhere'});await r.fallback();});
+  const raced=await toggle(p);
+  t.check('settings created elsewhere meanwhile: kept, and said clearly',JSON.parse(gh.files[CONF]).folder==='Made elsewhere'&&/changed elsewhere/.test(raced),gh.files[CONF]+' / '+raced);
   await ctx.close();
 }
 {
-  const {p,ctx,writes}=await setup({files:{'a.md':'a'}});
-  let release; const gate=new Promise(r=>release=r); let entered; const asked=new Promise(r=>entered=r);
-  await p.route('**/contents/.obsidian/daily-notes.json?*',async r=>{entered();await gate;await r.fallback();});
-  await p.click('#btn-settings'); await p.locator('#daily-setup summary').click();
-  await p.click('#f-daily'); await asked;
-  await p.evaluate(()=>{cfg.repo='elsewhere';}); release();
-  await p.waitForFunction(()=>!document.querySelector('#f-daily').disabled);
-  t.check('a repository switched mid-way gets nothing written',writes.length===0,writes.join());
-  t.check('and it says so',/repository changed/.test(await p.textContent('#daily-status')),await p.textContent('#daily-status'));
-  await ctx.close();
-}
-{
-  const {p,ctx,writes}=await setup({files:{'a.md':'a'}});
-  await p.evaluate(()=>{accessPending=true;}); await p.evaluate(()=>addDailyTemplate());
-  t.check('nothing is written while access is still being checked',writes.length===0,writes.join());
+  const {p,ctx}=await setup({files:{[CONF]:JSON.stringify({template:'Templates/Gone'})}});
+  await p.evaluate(()=>todayNote()); await p.waitForFunction(()=>/Today could not open/.test(document.querySelector('#status').textContent));
+  t.check('a template renamed or deleted: Today says how to choose another',/Use for new daily notes/.test(await H.status(p)),await H.status(p));
   await ctx.close();
 }
 await H.stop();

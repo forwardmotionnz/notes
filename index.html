@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-uCuhbqmw5YUSanfckf+0z9wr8Aj+O4i5pjRECNMSLPI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-1S1rhQFkQlaxNBBSAwBEQpOHWet3+53sN+J9GV4kW54=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -51,7 +51,7 @@ header{display:flex;align-items:center;gap:8px;padding:8px 10px;padding-top:max(
 #degraded, #ephemeral, #readonly{display:none;flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-soft);border:1px solid var(--line);border-radius:999px;padding:1px 7px;cursor:help;}
 body.plain-editor #degraded{display:inline-block;}
 body.read-only #readonly{display:inline-block;color:var(--danger);border-color:var(--danger);cursor:pointer;}
-body.read-only #btn-save, body.read-only #daily-setup, body.read-only #btn-new, body.read-only #btn-rename, body.read-only #btn-delete{display:none;}
+body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-rename, body.read-only #btn-delete{display:none;}
 body.session-only #ephemeral{display:inline-block;color:var(--accent);border-color:var(--accent);}
 main{flex:1;display:flex;min-height:0;}
 #sidebar{width:clamp(180px, var(--side-w, 260px), min(600px, 60vw));flex:none;border-right:1px solid var(--line);background:var(--bg-soft);display:flex;flex-direction:column;min-height:0;}
@@ -164,9 +164,8 @@ body.preview-view #editor-pane{display:none;}
 #note-summary[hidden]{display:none;}
 #note-save-time{color:var(--fg-soft);}
 #note-word-count{margin-left:auto;}
-#app-about,#daily-setup{border-top:1px solid var(--line);padding-top:12px;font-size:13px;}
-#app-about summary,#daily-setup summary{cursor:pointer;font-weight:600;}
-#daily-status{display:block;margin-top:8px;}
+#app-about{border-top:1px solid var(--line);padding-top:12px;font-size:13px;}
+#app-about summary{cursor:pointer;font-weight:600;}
 #app-about nav{display:flex;flex-wrap:wrap;gap:8px 16px;}
 #app-about a{color:var(--accent);}
 #editor-pane .CodeMirror,.fallback-editor{width:100%;max-width:800px;align-self:center;}
@@ -486,6 +485,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			<button role="menuitem" id="btn-rename" hidden title="Rename or move this note (type a folder path to move it)"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg><span>Rename or move</span></button>
 			<button role="menuitem" id="btn-outline" hidden><svg class="i" aria-hidden="true"><use href="#i-outline"/></svg><span>Outline</span></button>
 			<button role="menuitemcheckbox" id="btn-tags" hidden aria-checked="false"><svg class="i" aria-hidden="true"><use href="#i-tag"/></svg><span>Tags</span></button>
+			<button role="menuitem" id="btn-daily" hidden><svg class="i" aria-hidden="true"><use href="#i-cal"/></svg><span>Use for new daily notes</span></button>
 			<button role="menuitem" id="btn-delete" class="danger" hidden title="Delete this note (it stays in the repository's history)"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>Delete</span></button>
 		</div>
 		<button class="plain ib" id="btn-settings" title="Settings" aria-label="Settings"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg></button>
@@ -639,10 +639,6 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			</label>
 			<p class="hint" id="theme-hint">Changes at once, in this browser only.</p>
 			<label><span>Note text size</span><select id="f-text-size"><option value="smaller">Smaller</option><option value="normal">Normal</option><option value="larger">Larger</option></select></label>
-			<!-- N41: chosen, never a default; ordinary Obsidian files Today already reads. -->
-			<details id="daily-setup"><summary>Daily note template</summary>
-				<p>Emotional weather, after Ryan Soave: a morning forecast and an evening inventory. Adds <code>Templates/Daily note.md</code> to this repository for Today to use.</p>
-				<button id="f-daily">Add the template</button> <span id="daily-status" role="status"></span></details>
 			<details id="app-about"><summary>About Padgit</summary>
 				<p>Version <span id="app-version"></span></p>
 				<nav aria-label="About links">
@@ -2844,6 +2840,7 @@ async function todayNote() {
 		if (!here()) return;
 		var settings = configFile.sha ? JSON.parse(configFile.text) : { folder: "Daily" };
 		if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new Error("Daily note settings are not a JSON object.");
+		dailyTemplate = typeof settings.template === "string" ? settings.template.replace(/\.md$/i, "") : ""; dailyRepo = describe();
 		var format = settings.format || "YYYY-MM-DD", name;
 		if (typeof format !== "string") throw new Error("Daily note date format must be text.");
 		try { name = dailyDate(format, date); }
@@ -2874,7 +2871,7 @@ async function todayNote() {
 			if (!/\.md$/i.test(template)) template += ".md";
 			var source = await readFile(template);
 			if (!here()) return;
-			if (!source.sha) throw new Error("Daily note template was not found: " + template);
+			if (!source.sha) throw new Error("Daily note template was not found: " + template + " (renamed or deleted?). Open the note to use instead and choose ⋯ → Use for new daily notes.");
 			text = source.text.replace(/\{\{(title|date|time)(?::([^}]+))?\}\}/g, function (_, type, fmt) {
 				if (type === "title") return path.split("/").pop().slice(0, -3);
 				return dailyDate(fmt || (type === "date" ? "YYYY-MM-DD" : "HH:mm"), date);
@@ -2887,41 +2884,37 @@ async function todayNote() {
 		if (here()) flash("Today could not open. " + (err.message || "Could not reach GitHub.") + " Press Today to retry.", true);
 	}
 }
-/* N41: writes the template, then (only if Obsidian has no daily settings) settings pointing
-   at it. Two contents-API commits, so an empty repository works; a retry after a failure
-   between them finds its own identical template and carries on. Nothing is overwritten. */
-var DAILY_TPL="---\nweather: \n---\n# {{date:dddd, D MMMM YYYY}}\n\n## Morning forecast\n\n### Gratitude\n*Meeting what is, as it is.*\n- \n- \n- A challenge I'm grateful for: \n\n### Current weather\n*Fear, resentment, anger, guilt, shame, or solid. Where do I feel it?*\n- \n\n### Today's map\n*A rough outline, not a calendar. Under anything that could bring a storm, note what to watch for and how I want to show up.*\n- \n  - Watch for: \n  - Show up as: \n\n### If a storm rolls in, I will\n- \n\n### Shared with\n- \n\n## Notes\n- \n\n## Evening inventory\n*Optional.*\n- How did I do with what I watched for and how I wanted to show up?\n- What would I forecast differently tomorrow?\n";
-async function addDailyTemplate() {
-	var btn=$("f-daily"), say=function(m){$("daily-status").textContent=m;}, name="Templates/Daily note", repo=describe();
-	/* Every write rechecks: a repository switched meanwhile (here, in another tab or by a branch move) gets nothing. */
-	function go() { if (accessPending || readOnly || !configured() || describe()!==repo) throw new Error("Nothing more was added: the repository changed, or its access is still being checked."); }
-	if (readOnly || !configured()) return;
-	btn.disabled=true; say("Adding…");
+/* N41: any saved note can become Today's template, through Obsidian's own daily-note settings.
+   Only the "template" line changes (a missing file is created, keeping Padgit's Daily/ unless dated
+   notes are already at the top level, where Obsidian puts them). Written with its sha, so a change
+   made elsewhere meanwhile is a conflict, never overwritten; every write rechecks the repository. */
+var dailyTemplate = null, dailyRepo = "";   // as last read, and for which repository
+function dailyLabel() {
+	var on = !!current && dailyRepo === describe() && dailyTemplate === current.path.slice(0, -3);
+	$("btn-daily").lastChild.textContent = on ? "Stop using for new daily notes" : "Use for new daily notes";
+	return on;
+}
+async function toggleDailyTemplate() {
+	var repo = describe(), stop = dailyLabel(), name = current.path.slice(0, -3), CONF = ".obsidian/daily-notes.json";
+	function go() { if (accessPending || readOnly || !configured() || describe() !== repo) throw new Error("The repository changed, or its access is still being checked, so nothing was changed."); }
 	try {
 		go();
-		var conf=await readFile(".obsidian/daily-notes.json"), settings=null;
+		try { dailyPath(name); } catch (e) { throw new Error("Today cannot use this note: its name or folder has characters daily notes do not allow."); }
+		flash("Updating the daily note settings…");
+		var conf = await readFile(CONF), settings = {};
 		if (conf.sha) {
-			try { settings=JSON.parse(conf.text); } catch (e) {}
-			if (!settings || typeof settings!=="object" || Array.isArray(settings)) throw new Error("Obsidian's daily note settings could not be read, so nothing was added.");
-			if (settings.template) { say("Today already uses the template " + settings.template + "; nothing was changed."); return; }
-		}
-		var tpl=await readFile(name+".md"), kept=tpl.sha && tpl.text!==DAILY_TPL;
+			try { settings = JSON.parse(conf.text); } catch (e) { settings = null; }
+			if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new Error("Obsidian's daily note settings could not be read, so nothing was changed.");
+		} else settings.folder = files.some(function (f) { return /^\d{4}-\d\d-\d\d\.md$/.test(f.path); }) ? "" : "Daily";
+		dailyTemplate = typeof settings.template === "string" ? settings.template.replace(/\.md$/i, "") : ""; dailyRepo = repo;
+		if ((dailyTemplate === name) !== stop) { flash(stop ? "This note is not the daily note template (it was changed elsewhere), so nothing was changed." : "New daily notes already start from this note."); return; }
+		if (stop) delete settings.template; else settings.template = name;
 		go();
-		if (!tpl.sha) await writeFile(name+".md", DAILY_TPL);
-		if (conf.sha) { say((kept ? name + ".md already exists and was kept." : "Template added.") + " Add \"template\": \"" + name + "\" to .obsidian/daily-notes.json for Today to use it."); return; }
-		/* Without settings Padgit uses Daily/ and Obsidian the top level: keep the top level if daily notes are already there. */
-		var folder=files.some(function (f) { return /^\d{4}-\d\d-\d\d\.md$/.test(f.path); }) ? "" : "Daily";
-		go();
-		await writeFile(".obsidian/daily-notes.json", JSON.stringify({folder:folder,format:"YYYY-MM-DD",template:name}, null, 2) + "\n");
-		say((kept ? name + ".md already exists, so it was kept; Today now uses it" : "Done: Today now starts from the Emotional weather template") + ", in " + (folder ? folder + "/" : "the top level") + ".");
-	} catch (e) {
-		say(e.message || "Could not reach GitHub. Press Add the template to try again.");
-	} finally {
-		btn.disabled=false;
-		if (configured() && describe()===repo) refreshTree();
-	}
+		await writeFile(CONF, JSON.stringify(settings, null, 2) + "\n", conf.sha);
+		dailyTemplate = stop ? "" : name;
+		flash(stop ? "New daily notes start blank again." : "New daily notes (Today) now start from this note.");
+	} catch (e) { flash(e.status === 409 || e.status === 422 ? "The daily note settings changed elsewhere meanwhile, so nothing was changed. Try again." : e.message || "Could not reach GitHub. Try again.", true); }
 }
-$("f-daily").onclick=addDailyTemplate;
 function startNote(path, text) {
 	previewView(false);
 	document.body.classList.remove("tree-open");
@@ -3928,8 +3921,6 @@ function openSettings() {
 	$("f-install").href = $("fr-install").href = "https://github.com/apps/" +
 		encodeURIComponent(DEPLOYMENT.appSlug) + "/installations/new";
 	$("who-login").textContent = cfg.login ? "@" + cfg.login : "";
-	$("daily-setup").hidden = !configured();
-	$("daily-status").textContent = "";
 	/* N202 */
 	if (cfg.avatar) $("who-avatar").src = cfg.avatar;
 	var sel = $("f-repo");
@@ -4228,6 +4219,8 @@ new MutationObserver(function () { document.body.classList.toggle("has-note", !!
 function noteMenu(open) {
 	if ($("note-menu").hidden === open) $("note-menu").hidden = !open;   // unchanged: no mutation for the observer below
 	$("btn-more").setAttribute("aria-expanded", String(open));
+	$("btn-daily").hidden = !open || readOnly || $("btn-delete").hidden || !/\.md$/.test(current.path);   /* N41: saved .md notes only (Today adds a lower-case .md) */
+	if (open) dailyLabel();
 	if (open) { var first = $("note-menu").querySelector("[role^=menuitem]:not([hidden])"); if (first) first.focus(); }
 }
 function noteMenuSync() {
@@ -4256,6 +4249,7 @@ $("btn-tags").onclick = function () {
 };
 $("btn-rename").onclick   = renameCurrent;
 $("btn-delete").onclick   = deleteCurrent;
+$("btn-daily").onclick    = toggleDailyTemplate;
 $("btn-new").onclick      = newFile;
 ["nn-name", "nn-new-folder"].forEach(function (id) {
 	$(id).addEventListener("input", newNoteCheck);

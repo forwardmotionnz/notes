@@ -303,7 +303,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N35 | 47 | todo | Owner's request 2026-09-28: GitHub Sponsors |
 | N39 | 47a | done | Tasks inside a quote or callout work in Preview (was: one quoted task made the whole checklist read-only). `tests/quoted-tasks.test.mjs` 13/13 (after review): tick, edit, move (numbers kept) and remove inside a callout, a quote and a quote in a quote; a task outside still works; a quote line carried on without `>` leaves the checklist to Edit and writes nothing. G-2: quote-depth in renumbering and the carried-on-line refusal each fail a named check when reverted. Commit in the log |
 | N40 | 48 | done | Drag a note in Files onto a folder (or the Files heading, for the top level) to move it, by the single-commit move: the open note through Rename or move's path (unsaved typing saved first), any other with its blob sha checked on GitHub; refused for a taken name or a note changed elsewhere, with the reason; a local draft goes with its note, open or not; only with a mouse (not on touch screens), only notes, never read-only. `tests/drag-move.test.mjs` 25/25 (after review). G-2: read-only/touch, the draft following, and the open note going through its save each fail named checks when reverted; the local taken-name check is also enforced by GitHub's (moveFile reads the target first), so the check passes either way. Screens `tests/screens/n40-*.png`. Commit in the log |
-| N41 | 49 | done | Settings → Daily note template → Add the template. `tests/daily-template.test.mjs` 27/27 (after review): template and settings written in a fresh and an empty repository; Today then opens the template with the date filled in and an untouched note writes nothing; a template already named: nothing written; settings without one: template written, settings untouched, the line to add given; an existing template file never overwritten; unreadable settings: nothing written; a failed write retried finishes; daily notes already at the top level stay there; a repository switched mid-way, access still being checked, or read-only: nothing written; the status clears on reopening. Full suite 70/70 Chromium (WebKit in CI). G-2: each safeguard reverted alone fails a named check. G-3: four findings, all fixed with checks (below). Screens `tests/screens/n41-{1280,390}-{light,dark}.png`. `index.html` 253,897 bytes. Commit d2cc1c9 |
+| N41 | 49 | done | Any saved `.md` note: ⋯ → Use for new daily notes / Stop using (replaced the first version, a Settings button with one built-in template, at the owner's review on 2026-10-04). `tests/daily-template.test.mjs` 26/26: settings created naming the note (keeping `Daily/`, or the top level where dated notes already are); Today then starts from it with the date filled in, and an untouched note writes nothing; Stop removes only the template line; every other setting kept; unreadable settings, a repository switched mid-way, access still being checked: nothing written; settings changed or created elsewhere meanwhile: never overwritten, said clearly; already the template: nothing written; names Today cannot use refused; unsaved, non-Markdown, `.MD` and read-only: not offered; a label remembered for another repository not used; a renamed or deleted template: Today says how to choose another. `design` updated for the new menu item. Full suite 70/70 Chromium. Screens `tests/screens/n41-{1280,390}-{light,dark}.png`. `index.html` 253,351 bytes. Commit 709bdc3 |
 | N42 | 50 | todo | Owner's request 2026-10-03, narrowed 2026-10-04: Share to Padgit (Android) and a capture address for iPhone Shortcuts, appending to one inbox note |
 | N43 | 51 | todo | Owner's request 2026-10-03: what changed since you last looked, and who (you or an agent) |
 | N44 | 52 | todo | Owner's request 2026-10-03, changed 2026-10-04: a guide page on using Padgit with agents, with a sample `AGENTS.md`; no app code |
@@ -691,53 +691,9 @@ The owner found the app's look clunky (text buttons, glyphs as icons, three stac
 ### Owner's requests (2026-10-03), in the order agreed
 Padgit's direction: the phone and browser side of a second brain kept as plain Markdown in Git, which agents (Claude Code, Codex and others) maintain on a computer, in the manner of Karpathy's "LLM wiki". Padgit itself stays serverless and calls no AI service: agents reach the repository through GitHub, not through Padgit. Padgit never imposes a folder layout (rule 2): no `raw/`, `wiki/` or inbox folders are created for anyone. Each feature must earn its bytes; where a guide does the job, no app code. Size: `index.html` is 250,160 bytes against the 256,000-byte limit, so from N42 onwards each item needs headroom found first (moving comments to implementation-notes.md, as in N33) or a new limit from the owner.
 
-### N41: plan: an Emotional weather template for Today
-- Owner's request, after Ryan Soave's Emotional Weather Map (list the day's events, foresee the ones that may stir up a storm, decide how to show up). Padgit stays blank by default for everyone; the template is something a person chooses.
-- As built (2026-10-04): two contents-API commits instead of one (template first, then settings), so an empty repository works without the Git Data API; a retry after a failure between them recognises its own identical template and carries on. Without settings, the folder is `Daily` unless dated daily notes are already at the top level, where Obsidian's default puts them; then it stays the top level.
-- Settings, under daily notes: **Add the Emotional weather template**. One commit writes `Templates/Daily note.md` (an ordinary Obsidian template) and, only when `.obsidian/daily-notes.json` does not exist, creates it as `{"folder": "Daily", "format": "YYYY-MM-DD", "template": "Templates/Daily note"}`, which keeps today's `Daily/YYYY-MM-DD.md` paths. If the settings file exists and names a template, nothing changes and Padgit says which template Today uses; if it exists with no template, Padgit says which one line to add (Padgit never edits Obsidian's settings). An existing `Templates/Daily note.md` is never overwritten. Both are files any editor understands, written only when the person asks (rule 2).
-- Already possible by hand today: commit the two files above. The item makes it one press and documents it in the guide.
-- The template (settled after review on 2026-10-03; the owner can change the file in their own repository at any time):
-
-```
----
-weather: 
----
-# {{date:dddd, D MMMM YYYY}}
-
-## Morning forecast
-
-### Gratitude
-*Meeting what is, as it is.*
-- 
-- 
-- A challenge I'm grateful for: 
-
-### Current weather
-*Fear, resentment, anger, guilt, shame, or solid. Where do I feel it?*
-- 
-
-### Today's map
-*A rough outline, not a calendar. Under anything that could bring a storm, note what to watch for and how I want to show up.*
-- 
-  - Watch for: 
-  - Show up as: 
-
-### If a storm rolls in, I will
-- 
-
-### Shared with
-- 
-
-## Notes
-- 
-
-## Evening inventory
-*Optional.*
-- How did I do with what I watched for and how I wanted to show up?
-- What would I forecast differently tomorrow?
-```
-
-- Done looks like: in a repository without daily settings, the button makes one commit with both files; Today then opens a note whose text is the template with the date filled in; an untouched Today note still writes nothing (C3); existing settings or template files are never changed; read-only repositories offer no button. Tests in `daily-notes`.
+### N41: plan: any note as Today's template
+- Revised with the owner on 2026-10-04. The first version (Settings → Add the template, writing one built-in Emotional weather template) was removed: it meant nothing to other people and did not let anyone use a template of their own. The owner's Emotional weather template is now simply a note in their own repository.
+- A saved `.md` note's ⋯ menu offers **Use for new daily notes** (or **Stop using for new daily notes** when it is the template). Padgit sets or removes only the `template` line of `.obsidian/daily-notes.json`, keeping everything else, written with the sha it read (a change made elsewhere meanwhile is refused, not overwritten). A missing file is created with folder `Daily` (Padgit's default without settings) unless dated notes already sit at the top level, where Obsidian's default puts them. The earlier rule that Padgit never edits Obsidian's settings is relaxed for this explicit action. Today already reads the template; nothing else changes there except a clearer message when the template note has been renamed or deleted.
 
 ### N42: plan: Share to Padgit, appending to one inbox note
 - Revised with the owner on 2026-10-04. Padgit can already make notes (Today, New note); what it cannot do is receive something from another app. No capture box inside the app: Today and New note cover that.
@@ -763,11 +719,11 @@ weather:
 - Rewrite the signed-out screen, the first run and the guide's start for someone who uses Claude or ChatGPT daily but has never used GitHub: GitHub as the place your notes live so you and your AI tools can both use them, with words for repository, install and commit kept out of the first steps. Points to the guide's steps for making a first private repository (and to N44 for agents). Checked by a walk-through with a person new to GitHub (the owner arranges it) and by the docs tests.
 
 ### N41: gauntlet record
-- G-1: `daily-template` 27/27; full suite 70/70 in Chromium twice (WebKit is not installed in this environment; CI runs both engines on the pull request).
-- G-2: reverted alone, each fails a named check: honouring a template already set ("a template already set: nothing written"); never overwriting the template file ("an existing template file is never overwritten"); unreadable settings refused ("and says why"); the read-only guard in code ("and nothing is written if it is called anyway") and in CSS ("read-only repositories offer no template"); the recheck before each write ("a repository switched mid-way gets nothing written"); the access-pending check ("nothing is written while access is still being checked"); the top-level folder rule ("daily notes already at the top level stay there"); clearing the status ("reopening Settings clears the last result"). Creating settings that already exist is also refused by GitHub (a PUT without sha), so that check passes either way.
-- G-3: (1) switching repository mid-way could write the template and settings into the other repository: every write now rechecks repository, access and read-only. (2) Creating settings with `Daily` moved Obsidian's daily notes for vaults that keep them at the top level: the top level is kept when dated notes are there, and the status says where Today puts them. (3) The status carried over to another repository: cleared when Settings opens. (4) The button worked before access was known: refused while access is being checked. Checked and fine per the reviewer: pressing twice, settings that are a folder/LFS/too large/not an object, lost replies, empty repositories, a deleted branch, Today afterwards, token handling.
-- G-4: `tests/screens/n41-{1280,390}-{light,dark}.png` viewed: section styled as About, result on its own line, nothing overflows.
-- G-5/G-6: no new host or dependency; inline script hash updated; guide and changelog say what it does.
+- First version (d2cc1c9, merged in #37) removed in 709bdc3 at the owner's review: the Settings section, its CSS, the built-in template and its tests. Nothing of it remains in the app, the guide or the changelog.
+- G-1: `daily-template` 26/26; full suite 70/70 in Chromium (WebKit in CI). `design` now expects the new menu item (the menu's contents changed on purpose).
+- G-2: reverted alone, each fails a named check: the recheck before writing ("a repository switched mid-way gets nothing written"); the access check ("nothing is written while access is still being checked"); the top-level folder rule; keeping other settings ("existing settings keep everything but the template"); `.md` only ("nor a file that is not Markdown"); lower-case `.md` ("an upper-case .MD note is not offered"); read-only and unsaved notes; acting on the label's intent ("already the template: nothing written"); the name check ("a name Today cannot use is refused"); the repository-scoped label. Writing with the sha read is enforced by GitHub as well (a PUT for an existing file without its current sha is refused), so "settings changed meanwhile … never overwritten" holds either way. The 422 wording (settings created elsewhere meanwhile) is not exercised: the fake answers 409 where GitHub documents both 409 and 422 for this endpoint, and the app treats both alike; the fake was not changed without documentation to check it against.
+- G-3: five findings, all fixed with checks: names Today rejects (`:` and the like) were accepted and then broke Today; `.MD` notes broke Today (case-sensitive paths); a renamed or deleted template left Today failing with no way out (Today now says to choose the template again from the note wanted); the cached label carried over to another repository; settings created elsewhere meanwhile got a generic error. The reviewer also flagged the old version's leftovers in the guide and changelog, now rewritten.
+- G-4: `tests/screens/n41-{1280,390}-{light,dark}.png` (the ⋯ menu with the new item) viewed.
 
 ## Needs the owner
 - ~~**After the move to padgit.com:** make `broker/wrangler.padgit.toml` the repository's `wrangler.toml`.~~ Done in 1ad237e (PR #31): `broker/wrangler.toml` allows only https://padgit.com with the root callback; the padgit test checks it (2026-10-04).
@@ -996,6 +952,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-09-29: The owner approved the N38 mock-up and all five choices in it: a header with title, save dot, Edit/Preview switch and ⋯ menu; checklist rows with tap-to-edit, grip and ⋯; a reading face for headings; properties as chips; Save as a status dot rather than a header button.
 - 2026-10-03: The owner's direction: Padgit as the phone and browser side of an agent-kept second brain, staying serverless; N41 to N46 added, N41 (the owner's Emotional weather template) first because it is small and wanted now, then capture, what changed, the starter repository, Ask and first steps. People who do not use GitHub at all are not the aim; people who use AI tools but not GitHub are.
 - 2026-10-04: Reviewed with the owner: N42 narrowed to Share to Padgit and a capture address, appending to one `Inbox.md` (no folders); N44 became a guide page with a sample `AGENTS.md`, no app code; N45 dropped (reasons under its plan); N46 no longer relies on N44. Padgit creates no `raw/`, `wiki/` or inbox folders: the layout is the person's or their agent's choice.
+- 2026-10-04: N41 reworked at the owner's review: any note becomes Today's template from its ⋯ menu; the built-in Emotional weather template and its Settings section are removed. Padgit may now change the `template` line of Obsidian's daily-note settings, at the person's explicit request only.
 
 ## Log
 (one line per iteration: date, item, result, commit)
@@ -1210,3 +1167,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-04 · N42, N44, N45, N46 · revised · N42 narrowed, N44 now a guide, N45 dropped, N46 updated (owner's review).
 - 2026-10-04 · broker/wrangler.toml · checked · already names https://padgit.com (1ad237e, PR #31); ledger's stale owner step closed and a padgit check added.
 - 2026-10-04 · N41 · done · Emotional weather template for Today; review found four problems, all fixed with checks. d2cc1c9
+- 2026-10-04 · N41 · reworked · any note as Today's template from ⋯; first version removed; review's five findings fixed. 709bdc3

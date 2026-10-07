@@ -304,11 +304,11 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N39 | 47a | done | Tasks inside a quote or callout work in Preview (was: one quoted task made the whole checklist read-only). `tests/quoted-tasks.test.mjs` 13/13 (after review): tick, edit, move (numbers kept) and remove inside a callout, a quote and a quote in a quote; a task outside still works; a quote line carried on without `>` leaves the checklist to Edit and writes nothing. G-2: quote-depth in renumbering and the carried-on-line refusal each fail a named check when reverted. Commit in the log |
 | N40 | 48 | done | Drag a note in Files onto a folder (or the Files heading, for the top level) to move it, by the single-commit move: the open note through Rename or move's path (unsaved typing saved first), any other with its blob sha checked on GitHub; refused for a taken name or a note changed elsewhere, with the reason; a local draft goes with its note, open or not; only with a mouse (not on touch screens), only notes, never read-only. `tests/drag-move.test.mjs` 25/25 (after review). G-2: read-only/touch, the draft following, and the open note going through its save each fail named checks when reverted; the local taken-name check is also enforced by GitHub's (moveFile reads the target first), so the check passes either way. Screens `tests/screens/n40-*.png`. Commit in the log |
 | N41 | 49 | done | Any saved `.md` note: ⋯ → Use for new daily notes / Stop using (replaced the first version, a Settings button with one built-in template, at the owner's review on 2026-10-04). `tests/daily-template.test.mjs` 26/26: settings created naming the note (keeping `Daily/`, or the top level where dated notes already are); Today then starts from it with the date filled in, and an untouched note writes nothing; Stop removes only the template line; every other setting kept; unreadable settings, a repository switched mid-way, access still being checked: nothing written; settings changed or created elsewhere meanwhile: never overwritten, said clearly; already the template: nothing written; names Today cannot use refused; unsaved, non-Markdown, `.MD` and read-only: not offered; a label remembered for another repository not used; a renamed or deleted template: Today says how to choose another. `design` updated for the new menu item. Full suite 70/70 Chromium. Screens `tests/screens/n41-{1280,390}-{light,dark}.png`. `index.html` 253,351 bytes. Commit 709bdc3 |
-| N42 | 50 | todo | Owner's request 2026-10-03, narrowed 2026-10-04: Share to Padgit (Android) and a capture address for iPhone Shortcuts, appending to one inbox note |
+| N42 | 50 | dropped | 2026-10-07: dropped for now with the owner. Safari on iPhone cannot put web apps in the share menu, so there it would need an Apple Shortcut each person sets up; pinning `Inbox.md` already gives most of the value. Revisit if Safari adds share targets or Android users ask |
 | N43 | 51 | todo | Owner's request 2026-10-03: what changed since you last looked, and who (you or an agent); includes N44's guide section (folded in 2026-10-07) |
 | N44 | 52 | moved | Folded into N43 on 2026-10-07: a section of the guide, not a page of its own |
 | N45 | 53 | dropped | 2026-10-04: dropped with the owner; reasons under its plan |
-| N46 | 54 | todo | Owner's request 2026-10-03: sign-in and first steps for people who use AI but not GitHub (no longer relies on N44) |
+| N46 | 54 | done | Sign-in screen: what Padgit is for ("Notes on any device, kept as Markdown files in your own GitHub repository, which AI tools you connect can read"), the access and trust sentences unchanged, and "No GitHub account? Make one, free" (github.com/signup, new tab) below the button. First run: a repository is "a private folder of files, with a history of every change". README Try it: the finished padgit.com move notice removed; free account and AI tools mentioned; links a new guide section *New to GitHub?* (repository, commit, GitHub App, AI tools). Tests: `welcome` (AI, sign-up link and its place), `firstrun` (repository explained), `docs` (five checks); all failed before. Full suite 70/70 Chromium. Screens `tests/screens/n46-*.png` (sign-in 390 light, 1280 dark, 320 dark; first run 390). Still for the owner: a walk-through with someone new to GitHub. Commit a685d4b |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -724,6 +724,7 @@ Padgit's direction: the phone and browser side of a second brain kept as plain M
 - G-4: `tests/screens/n41-{1280,390}-{light,dark}.png` (the ⋯ menu with the new item) viewed.
 
 ## Needs the owner
+- **N46 walk-through:** ask someone who uses AI tools but has never used GitHub to go from padgit.com to a first saved note on their phone, without help, and note where they hesitate.
 - ~~**After the move to padgit.com:** make `broker/wrangler.padgit.toml` the repository's `wrangler.toml`.~~ Done in 1ad237e (PR #31): `broker/wrangler.toml` allows only https://padgit.com with the root callback; the padgit test checks it (2026-10-04).
 
 - ~~**GitHub Sponsors for N35:** set up the Sponsors profile and say which account.~~ Done: the owner's profile (roldaof) was approved on 2026-10-07; N35 built. Whether each version is also published as a GitHub release is your call.
@@ -952,6 +953,8 @@ secret generation or App visibility changes as part of this release.
 - 2026-10-04: Reviewed with the owner: N42 narrowed to Share to Padgit and a capture address, appending to one `Inbox.md` (no folders); N44 became a guide page with a sample `AGENTS.md`, no app code; N45 dropped (reasons under its plan); N46 no longer relies on N44. Padgit creates no `raw/`, `wiki/` or inbox folders: the layout is the person's or their agent's choice.
 - 2026-10-04: N41 reworked at the owner's review: any note becomes Today's template from its ⋯ menu; the built-in Emotional weather template and its Settings section are removed. Padgit may now change the `template` line of Obsidian's daily-note settings, at the person's explicit request only.
 - 2026-10-07: N44 folded into N43 with the owner: the guide to using Padgit with agents becomes a section of the guide, written when N43 is built, since showing who changed a note depends on agents signing their commits.
+- 2026-10-07: The owner raised the size limit for `index.html` to 300 KB (307,200 bytes) for N43.
+- 2026-10-07: N42 dropped for now with the owner (iPhone needs a per-person Shortcut; pinning `Inbox.md` covers most of it). N43 to be built as both parts: who changed notes since you last looked, and ⋯ → History with Restore.
 
 ## Log
 (one line per iteration: date, item, result, commit)
@@ -1169,3 +1172,6 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-04 · N41 · reworked · any note as Today's template from ⋯; first version removed; review's five findings fixed. 709bdc3
 - 2026-10-07 · N44 · moved · folded into N43 (owner's choice).
 - 2026-10-07 · N35 · done · Support Padgit → GitHub Sponsors (roldaof), Sponsor button via FUNDING.yml. 4258240
+- 2026-10-07 · N42 · dropped · owner's choice.
+- 2026-10-07 · size limit · raised to 300 KB · 0ebc650
+- 2026-10-07 · N46 · done · plainer first steps; owner walk-through pending. a685d4b

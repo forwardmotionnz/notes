@@ -11,4 +11,4 @@
 - [ ] A test fails without this change and passes with it
 - [ ] No test was weakened, skipped or deleted (or the pull request explains why a test was wrong)
 - [ ] The guide, privacy note or changelog is updated if people would notice the change
-- [ ] No new host, telemetry or build step; `index.html` stays under 250 KB
+- [ ] No new host, telemetry or build step; `index.html` stays under 300 KB

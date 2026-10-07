@@ -7,7 +7,10 @@ your own page, your own GitHub App and your own sign-in broker. The
 
 ## How it fits together
 Set `repository` to your copy's GitHub repository URL for About and bug
-reports. Leave `support` empty unless you want an HTTPS support link shown.
+reports. `support` is the shared copy's GitHub Sponsors page: change it to
+your own HTTPS support link, or empty it to hide **Support Padgit**. Likewise
+change or delete `.github/FUNDING.yml`, which puts a Sponsor button on the
+repository page.
 For static hosts without Markdown rendering, publish `CHANGELOG.md` as
 `CHANGELOG.html`, alongside `PRIVACY.html`, so About's local links work.
 

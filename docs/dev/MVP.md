@@ -309,6 +309,8 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N44 | 52 | moved | Folded into N43 on 2026-10-07: a section of the guide, not a page of its own |
 | N45 | 53 | dropped | 2026-10-04: dropped with the owner; reasons under its plan |
 | N46 | 54 | done | Sign-in screen: what Padgit is for ("Notes on any device, kept as Markdown files in your own GitHub repository, which AI tools you connect can read"), the access and trust sentences unchanged, and "No GitHub account? Make one, free" (github.com/signup, new tab) below the button. First run: a repository is "a private folder of files, with a history of every change". README Try it: the finished padgit.com move notice removed; free account and AI tools mentioned; links a new guide section *New to GitHub?* (repository, commit, GitHub App, AI tools). Tests: `welcome` (AI, sign-up link and its place), `firstrun` (repository explained), `docs` (five checks); all failed before. Full suite 70/70 Chromium. Screens `tests/screens/n46-*.png` (sign-in 390 light, 1280 dark, 320 dark; first run 390). Still for the owner: a walk-through with someone new to GitHub. Commit 038a741 |
+| N47 | 55 | done | Sign-in screen: **How it works** (folded; the README's screenshot, fetched only when opened; three steps) and links Guide, Source code (from the deployment's `repository`), Run your own copy. `tests/welcome.test.mjs` 28/28 (seven new checks, which failed before); the button still in view at 320 px. G-2: the on-demand picture and the source link each fail a named check when reverted. Full suite 71/71 Chromium. Screens `tests/screens/n47-{320-dark,390-light,1280-dark}-{closed,open}.png`. Self-hosting lists the extra pages other static hosts must publish. Commit fc7304c |
+| N48 | 56 | todo | Owner's request 2026-10-07: Look around first, a demo with sample notes kept in the browser |
 
 ### N10: plan
 - Today opens the local calendar day's note. Read `.obsidian/daily-notes.json`
@@ -729,6 +731,17 @@ Padgit's direction: the phone and browser side of a second brain kept as plain M
 - G-3: seven findings, all fixed with checks: restoring a deletion emptied the note (deletions now say so, with no Restore); Restore while a rename, delete or save was on its way changed the editor without saving (now refused with a reason); a rename made history look like a full rewrite (labelled, and the status says earlier history is not shown); a human co-author called Claude was taken for an agent; New compared the device clock with commit dates (now compares versions); CSS alternative text for the −/+ signs needs Safari 17.4 (now real text, with hidden words for screen readers); a final line break alone showed as an empty line (now said in words). Kept as is, with reason: a commit from git with an email not linked to GitHub shows its author name rather than "you" (GitHub cannot tell either).
 - G-4: screens viewed: History dialog fits 390 px and desktop dark; Recent rows show New and who.
 
+### Owner's requests (2026-10-07): first visit, in the order agreed
+A first-time visitor (new to GitHub or not) is asked for access before seeing anything: no picture, no "what happens next", no link to the guide or the source, and no way to try it. A separate landing page was considered and rejected (it would move the sign-in callback, the broker settings and the home-screen app's address, all owner steps, and cost returning users a click); so was a Welcome note written into new repositories (Padgit writes nothing unasked, and it would come after the decision to sign in).
+
+### N47: plan: a sign-in screen that shows what Padgit is
+- Below Sign in and the free-account line: **How it works**, folded by default, holding the README's screenshot (fetched only when opened, so returning visitors download nothing) and three steps (sign in; choose or create one private repository; write, every save a plain file there). Then links for people checking trust: Guide, Source code (from the deployment's `repository`, as About does) and Run your own copy. The access and trust sentences stay as they are.
+- Done looks like: tests in `welcome` (folded by default and below Sign in; the image not requested until opened, then shown with a description; the three steps; each link's address, new tab, and the file it points to exists); the sign-in button still in view at 320 px; screenshots at 320, 390 and 1280 px.
+
+### N48: plan: Look around first
+- A second button on the sign-in screen opens Padgit with a few sample notes held only in this tab: nothing is sent to GitHub, nothing needs an account, and drafts never mix with real ones. A banner says it is a demo and that nothing is saved, with Sign in beside it. The sample notes are the instructions: Welcome (how Padgit works), a daily note, a checklist to tick, a linked note (wikilinks and backlinks), and *For GitHub users* (access, self-hosting, agents).
+- Built behind the app's provider section: a sample-notes provider that answers reads from memory and keeps edits in memory. Done looks like: tests that no request reaches GitHub or the broker in the demo, that no real draft, pin or setting is written or read, that leaving the demo (Sign in, reload) leaves nothing behind, and that the sample notes open, tick, link and preview.
+
 ## Needs the owner
 - **N46 walk-through:** ask someone who uses AI tools but has never used GitHub to go from padgit.com to a first saved note on their phone, without help, and note where they hesitate.
 - ~~**After the move to padgit.com:** make `broker/wrangler.padgit.toml` the repository's `wrangler.toml`.~~ Done in 1ad237e (PR #31): `broker/wrangler.toml` allows only https://padgit.com with the root callback; the padgit test checks it (2026-10-04).
@@ -736,7 +749,7 @@ Padgit's direction: the phone and browser side of a second brain kept as plain M
 - ~~**GitHub Sponsors for N35:** set up the Sponsors profile and say which account.~~ Done: the owner's profile (roldaof) was approved on 2026-10-07; N35 built. Whether each version is also published as a GitHub release is your call.
 - **Padgit cutover for N34:** done (owner, 2026-09-30; default broker config updated in PR #31). Kept for the record: preparation is built. Follow [the migration checklist](../padgit-migration.md): confirm the name; publish the notice and save/copy drafts first; verify the domain, claim it in Pages before pointing DNS, wait for HTTPS, update the existing App and deploy `broker/wrangler.padgit.toml`, then verify sign-in/save. Update the default broker config and README link after success. The repository need not be renamed. This corrects the earlier DNS-first order using GitHub's guidance.
 
-- **Community readiness (2026-09-27), three settings only the owner can change:**
+- **Community readiness (2026-09-27), three settings only the owner can change: done.** The owner confirmed all three on 2026-10-07, with screenshots: private vulnerability reporting enabled; *Require approval for first-time contributors* selected; email address private.
   1. Settings → Code security → **Private vulnerability reporting**: enable it, so the "Report a vulnerability" button that `SECURITY.md` and the issue chooser point to exists.
   2. Settings → Actions → General → *Approval for running fork pull request workflows from contributors*: keep **Require approval for first-time contributors** (GitHub's default). The tests workflow uses no secrets, so forks get none.
   3. github.com → Settings → Emails: tick **Keep my email addresses private** and **Block command line pushes that expose my email**, and set git's `user.email` to the GitHub noreply address. Earlier commits keep the address they were made with; removing it would mean rewriting `main`'s history (a force-push), which is not recommended.
@@ -961,6 +974,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-10-07: N44 folded into N43 with the owner: the guide to using Padgit with agents becomes a section of the guide, written when N43 is built, since showing who changed a note depends on agents signing their commits.
 - 2026-10-07: The owner raised the size limit for `index.html` to 300 KB (307,200 bytes) for N43.
 - 2026-10-07: N42 dropped for now with the owner (iPhone needs a per-person Shortcut; pinning `Inbox.md` covers most of it). N43 to be built as both parts: who changed notes since you last looked, and ⋯ → History with Restore.
+- 2026-10-07: First visit (owner's request): N47 a sign-in screen that shows what Padgit is, then N48 Look around first with sample notes. No separate landing page, no Welcome note written into repositories (reasons under the plans).
 
 ## Log
 (one line per iteration: date, item, result, commit)
@@ -1182,3 +1196,6 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-07 · size limit · raised to 300 KB · 8b5ac7e
 - 2026-10-07 · N46 · done · plainer first steps; owner walk-through pending. 038a741
 - 2026-10-07 · N43 · done · who changed it, New, History with Restore; review's seven findings fixed. 1ddea4a
+- 2026-10-07 · community readiness · done · owner confirmed the three repository and account settings.
+- 2026-10-07 · N47, N48 · added · owner's request; N47 started.
+- 2026-10-07 · N47 · done · How it works and links on the sign-in screen. fc7304c

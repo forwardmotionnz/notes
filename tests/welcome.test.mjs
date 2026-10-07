@@ -8,6 +8,8 @@ await H.start();
 for (const [w, h, label] of [[1280, 820, 'desktop'], [390, 780, 'phone'], [320, 600, 'small phone']]) {
   const gh = H.fakeGitHub();
   const ctx = await H.context(gh, { viewport: { width: w, height: h } });
+  const shots = [];
+  ctx.on('request', r => { if (/screenshot\.png/.test(r.url())) shots.push(r.url()); });
   const p = await H.page(ctx);
   await p.waitForSelector('#f-signin:not([disabled])');
   const about = (await p.textContent('#about')).replace(/\s+/g, ' ').trim();
@@ -48,6 +50,24 @@ for (const [w, h, label] of [[1280, 820, 'desktop'], [390, 780, 'phone'], [320, 
     t.check('above the sign-in button', await p.evaluate(() =>
       !!(document.getElementById('about').compareDocumentPosition(document.getElementById('f-signin')) &
          Node.DOCUMENT_POSITION_FOLLOWING)));
+    // N47: what Padgit is, before asking for access.
+    const how = await p.$('#how');
+    t.check('How it works is offered, folded, below Sign in', !!how && !(await how.evaluate(d => d.open)) && await p.evaluate(() =>
+      !!(document.getElementById('f-signin').compareDocumentPosition(document.getElementById('how')) & Node.DOCUMENT_POSITION_FOLLOWING)));
+    t.check('its picture is not downloaded until opened', !shots.length, JSON.stringify(shots));
+    if (how) {
+      await p.click('#how summary');
+      await p.waitForFunction(() => { const i = document.querySelector('#how img'); return i && i.complete && i.naturalWidth > 0; });
+      const alt = await p.getAttribute('#how img', 'alt');
+      t.check('opened, it shows what Padgit looks like, described for screen readers', shots.length === 1 && /notes/i.test(alt || ''), alt);
+      const steps = await p.$$eval('#how ol li', l => l.map(x => x.textContent));
+      t.check('and the three steps', steps.length === 3 && /sign in/i.test(steps[0]) && /private repository/i.test(steps[1]) && /file/i.test(steps[2]), JSON.stringify(steps));
+    }
+    const links = await p.$$eval('#signin-links a:not([hidden])', l => l.map(a => [a.textContent, a.getAttribute('href'), a.target, a.rel]));
+    t.check('links for checking it out: guide, source code, running your own copy', JSON.stringify(links.map(l => [l[0], l[1]])) === JSON.stringify([
+      ['Guide', 'docs/guide.html'], ['Source code', 'https://github.com/forwardmotionnz/notes'], ['Run your own copy', 'docs/self-hosting.html']]), JSON.stringify(links));
+    t.check('each in a new tab, at a page that exists', links.every(l => l[2] === '_blank' && /noopener/.test(l[3])) &&
+      existsSync(new URL('../docs/guide.md', import.meta.url)) && existsSync(new URL('../docs/self-hosting.md', import.meta.url)));
   }
   const fits = await p.evaluate(() => {
     const d = document.getElementById('settings').getBoundingClientRect();

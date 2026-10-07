@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- The sign-in screen shows what Padgit is before asking for access: **How it works** (a picture of the app, loaded only when opened, and the three steps), and links to the guide, the source code and running your own copy.
 - Who changed what: **Recent** names who made each change (you, or an agent such as Claude or Codex) and marks notes someone else changed since you last opened them. **⋯ → History** lists a note's last 20 changes with the lines each removed and added, and **Restore this version**. The guide has a section on using Padgit with agents, with a sample `AGENTS.md`.
 - Plainer first steps for people new to GitHub: the sign-in screen says AI tools you connect can read your notes and links to making a free GitHub account; first run explains what a repository is; the guide has a short *New to GitHub?* section.
 - Support Padgit: About links to the owner's GitHub Sponsors page, and the repository page has a Sponsor button.

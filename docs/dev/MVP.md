@@ -309,7 +309,7 @@ The app is 141,592 bytes with no new runtime dependency or host.
 | N44 | 52 | moved | Folded into N43 on 2026-10-07: a section of the guide, not a page of its own |
 | N45 | 53 | dropped | 2026-10-04: dropped with the owner; reasons under its plan |
 | N46 | 54 | done | Sign-in screen: what Padgit is for ("Notes on any device, kept as Markdown files in your own GitHub repository, which AI tools you connect can read"), the access and trust sentences unchanged, and "No GitHub account? Make one, free" (github.com/signup, new tab) below the button. First run: a repository is "a private folder of files, with a history of every change". README Try it: the finished padgit.com move notice removed; free account and AI tools mentioned; links a new guide section *New to GitHub?* (repository, commit, GitHub App, AI tools). Tests: `welcome` (AI, sign-up link and its place), `firstrun` (repository explained), `docs` (five checks); all failed before. Full suite 70/70 Chromium. Screens `tests/screens/n46-*.png` (sign-in 390 light, 1280 dark, 320 dark; first run 390). Still for the owner: a walk-through with someone new to GitHub. Commit 038a741 |
-| N47 | 55 | doing | Owner's request 2026-10-07: a sign-in screen that shows what Padgit is before asking for access |
+| N47 | 55 | done | Sign-in screen: **How it works** (folded; the README's screenshot, fetched only when opened; three steps) and links Guide, Source code (from the deployment's `repository`), Run your own copy. `tests/welcome.test.mjs` 28/28 (seven new checks, which failed before); the button still in view at 320 px. G-2: the on-demand picture and the source link each fail a named check when reverted. Full suite 71/71 Chromium. Screens `tests/screens/n47-{320-dark,390-light,1280-dark}-{closed,open}.png`. Self-hosting lists the extra pages other static hosts must publish. Commit fc7304c |
 | N48 | 56 | todo | Owner's request 2026-10-07: Look around first, a demo with sample notes kept in the browser |
 
 ### N10: plan
@@ -1198,3 +1198,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-07 · N43 · done · who changed it, New, History with Restore; review's seven findings fixed. 1ddea4a
 - 2026-10-07 · community readiness · done · owner confirmed the three repository and account settings.
 - 2026-10-07 · N47, N48 · added · owner's request; N47 started.
+- 2026-10-07 · N47 · done · How it works and links on the sign-in screen. fc7304c

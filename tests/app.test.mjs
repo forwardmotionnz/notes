@@ -32,6 +32,8 @@ async function setPins(p, pins) {
 /* ===== tree ===== */
 {
   const { ctx, p } = await ready();
+  // The list loads after sign-in; on a slow runner (WebKit in CI) it may not be there yet.
+  await p.waitForFunction(() => treeState === 'ok' && document.querySelectorAll('#tree .row').length > 0);
   const r = await H.rows(p);
   t.check('top level shows folders then files',
     r[0] === 'work' && r.includes('inbox.md') && r.includes('todo.md'), JSON.stringify(r));

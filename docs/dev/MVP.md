@@ -980,6 +980,7 @@ secret generation or App visibility changes as part of this release.
 - 2026-10-07: The owner raised the size limit for `index.html` to 300 KB (307,200 bytes) for N43.
 - 2026-10-07: N42 dropped for now with the owner (iPhone needs a per-person Shortcut; pinning `Inbox.md` covers most of it). N43 to be built as both parts: who changed notes since you last looked, and ⋯ → History with Restore.
 - 2026-10-07: First visit (owner's request): N47 a sign-in screen that shows what Padgit is, then N48 Look around first with sample notes. No separate landing page, no Welcome note written into repositories (reasons under the plans).
+- 2026-10-07: New icon, the owner's choice from three mock-ups (https://claude.ai/artifact/D9FD7Y2sdA37LKyvyDU66o): option C, a notepad whose last line ends in an amber commit dot. B (a p as a commit node) was set aside as too tied to the name.
 
 ## Log
 (one line per iteration: date, item, result, commit)
@@ -1205,3 +1206,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-07 · N47, N48 · added · owner's request; N47 started.
 - 2026-10-07 · N47 · done · How it works and links on the sign-in screen. fc7304c
 - 2026-10-07 · N48 · done · Look around first; review's four points fixed. d0640c1, 709e1f7
+- 2026-10-07 · icon · done · option C in every size, maskable of its own; manifest 31/31, full suite 72/72 Chromium. 3cda99e

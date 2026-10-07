@@ -24,7 +24,7 @@ for (const width of [1280, 390]) {
     .filter(b => !b.hidden && getComputedStyle(b).display !== 'none' && b.getClientRects().length).map(b => b.textContent.replace(/\s+/g, ' ').trim()));
   const menuOpen = await p.locator('#note-menu').isVisible(), expanded = await p.getAttribute('#btn-more', 'aria-expanded');
   t.check(`${width}: ⋯ opens the note menu with its actions`, menuOpen && expanded === 'true' &&
-    JSON.stringify(offered) === JSON.stringify(['Rename or move', 'Outline', 'Tags', 'Use for new daily notes', 'Delete']), JSON.stringify({ menuOpen, expanded, offered }));
+    JSON.stringify(offered) === JSON.stringify(['Rename or move', 'Outline', 'Tags', 'History', 'Use for new daily notes', 'Delete']), JSON.stringify({ menuOpen, expanded, offered }));
   t.check(`${width}: the first action has focus`, await p.evaluate(() => document.activeElement.id === 'btn-rename'));
   await p.keyboard.press('ArrowDown');
   t.check(`${width}: arrow keys move through the menu`, await p.evaluate(() => document.activeElement.id === 'btn-outline'));

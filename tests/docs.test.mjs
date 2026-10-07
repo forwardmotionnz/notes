@@ -27,6 +27,9 @@ t.check('Try it says AI tools can use the notes', /\bAI\b/.test(intro));
 t.check('the finished move to padgit.com is no longer announced in Try it', !/Notes is now \*\*Padgit\*\*/.test(intro));
 t.check('the guide explains GitHub words for newcomers', /^## New to GitHub\?$/m.test(guide) &&
   /\*\*Repository\*\*/.test(guide) && /\*\*Commit\*\*/.test(guide) && /\*\*GitHub App\*\*/.test(guide));
+// N43 (with N44): agents get standing instructions the person copies in; Padgit writes none.
+{const sec=guide.split(/^## Using Padgit with agents$/m)[1]?.split(/^## /m)[0]||'';
+ t.check('the guide has a sample AGENTS.md for agents', /`AGENTS\.md`/.test(sec) && /```markdown[\s\S]*Co-authored-by[\s\S]*```/.test(sec) && /never writes/i.test(sec), sec.slice(0,80));}
 t.check('Try it links that explanation', /\]\(docs\/guide\.md#new-to-github\)/.test(intro));
 t.check('Try it needs no developer setup', !/```|npx |npm |client secret|wrangler|register.*App/i.test(intro));
 t.check('unfinished sign-in is stated before the shared link', !/REPLACE_ME/.test(deployment.broker) ||

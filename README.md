@@ -17,6 +17,9 @@ Your notes stay plain files in your own GitHub repository, so AI tools such
 as Claude, ChatGPT or Codex can read and update them when you let them. New
 to GitHub? [The words explained](docs/guide.md#new-to-github).
 
+To see it first, press **Look around first** on the sign-in screen: sample
+notes, no account needed, nothing saved.
+
 1. Open [Padgit](https://padgit.com/) on your computer or
    phone. You need a GitHub account ([free to make](https://github.com/signup))
    and an internet connection.

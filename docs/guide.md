@@ -2,6 +2,15 @@
 
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
+## Look around first
+
+On the sign-in screen, **Look around first** opens Padgit with a few sample
+notes, without an account or a GitHub sign-in. Everything works on them:
+open, edit, tick, link, Preview, Today. They live only in that browser tab:
+nothing is sent anywhere, and closing or reloading the tab starts them
+afresh. Renaming and moving are not available there. **Sign in** in the
+banner at the top leaves the demo.
+
 ## New to GitHub?
 
 GitHub is where your notes are stored. You need a free account

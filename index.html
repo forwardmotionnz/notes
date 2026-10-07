@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-kneK/V3THwYy+tgo9rDm4vJ8XkoexdacLkeJitbSedI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-d985xz+fQb5ovyq4DhUlWeQ49zgaNuW6gxVFZBlf0rE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -120,6 +120,8 @@ a.step:hover{opacity:.9;}
 select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:7px 9px;width:100%;}
 .hint{margin:-4px 0 12px !important;font-size:12px !important;}
 #signup-line{margin:12px 0 !important;}
+#how{margin:0 0 10px;font-size:13px;}#how summary{cursor:pointer;font-weight:600;}#how img{display:block;width:100%;height:auto;margin:8px 0;border:1px solid var(--line);border-radius:6px;}#how ol{margin:6px 0;padding-left:20px;}
+#signin-links{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;margin:0 0 12px;}#signin-links a{color:var(--accent);}
 .hint a{color:var(--accent);cursor:pointer;}
 #about a{color:var(--accent);white-space:nowrap;}
 .who{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
@@ -583,6 +585,15 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			</button>
 			<!-- N46: most people new to Padgit have no GitHub account yet. -->
 			<p id="signup-line" class="hint">No GitHub account? <a id="signup" href="https://github.com/signup" target="_blank" rel="noopener">Make one, free</a>, then come back here to sign in.</p>
+			<!-- N47: what Padgit is, before asking for access. The picture loads only when opened. -->
+			<details id="how"><summary>How it works</summary>
+				<img alt="Padgit on a computer: your notes listed on the left, one note open on the right" width="1200" height="700">
+				<ol><li>Sign in with GitHub.</li>
+					<li>Choose, or create, one private repository for your notes.</li>
+					<li>Write. Every save is a plain file in that repository, which you can also open in Obsidian or on GitHub.</li></ol></details>
+			<nav id="signin-links" aria-label="More about Padgit"><a href="docs/guide.html" target="_blank" rel="noopener">Guide</a>
+				<a id="signin-source" target="_blank" rel="noopener" hidden>Source code</a>
+				<a href="docs/self-hosting.html" target="_blank" rel="noopener">Run your own copy</a></nav>
 			<label class="check">
 				<input type="checkbox" id="f-session-in">
 				<span>Forget me when I close the browser<em>For a work or shared computer. Kept for this browser session only; sign out before you leave.</em></span>
@@ -703,10 +714,11 @@ document.getElementById("app-version").textContent = APP_VERSION;
 	var repo = httpsUrl(DEPLOYMENT.repository), support = httpsUrl(DEPLOYMENT.support);
 	if (repo && repo.hostname === "github.com" && !repo.port && /^\/[\w.-]+\/[\w.-]+\/?$/.test(repo.pathname) && !repo.search && !repo.hash) {
 		var base = repo.origin + repo.pathname.replace(/\/$/, "");
-		link("about-source", base); link("about-bug", base + "/issues/new?template=bug_report.md");
+		link("about-source", base); link("signin-source", base); link("about-bug", base + "/issues/new?template=bug_report.md");
 	}
 	if (support) link("about-support", support.href);
 })();
+$("how").ontoggle = function () { var img = this.querySelector("img"); if (this.open && !img.src) img.src = "docs/screenshot.png"; };
 function filledIn() {
 	return !!(DEPLOYMENT.clientId && DEPLOYMENT.appSlug && DEPLOYMENT.broker) &&
 		!/REPLACE_ME/.test(DEPLOYMENT.clientId + DEPLOYMENT.appSlug + DEPLOYMENT.broker);

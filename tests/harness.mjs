@@ -221,6 +221,12 @@ export async function start() {
       res.end(readFileSync(ROOT + asset));
       return;
     }
+    // N47: the README's screenshot, which the sign-in screen shows under How it works.
+    if (new URL(req.url, 'http://localhost').pathname.endsWith('/docs/screenshot.png')) {
+      res.writeHead(200, { 'Content-Type': 'image/png' });
+      res.end(readFileSync(ROOT + 'docs/screenshot.png'));
+      return;
+    }
     // Every path serves the app, as GitHub Pages does for index.html.
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(PAGE());

@@ -12,7 +12,9 @@ your own HTTPS support link, or empty it to hide **Support Padgit**. Likewise
 change or delete `.github/FUNDING.yml`, which puts a Sponsor button on the
 repository page.
 For static hosts without Markdown rendering, publish `CHANGELOG.md` as
-`CHANGELOG.html`, alongside `PRIVACY.html`, so About's local links work.
+`CHANGELOG.html`, alongside `PRIVACY.html`, and `docs/guide.md` and
+`docs/self-hosting.md` as `.html` beside them (with `docs/screenshot.png`), so
+About's and the sign-in screen's local links work.
 
 
 ```

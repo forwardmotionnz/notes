@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-d985xz+fQb5ovyq4DhUlWeQ49zgaNuW6gxVFZBlf0rE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-Yj0wVgqjfTKIpdczbhwP8sqLMru+GFYQDHyxlR+tADw=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -120,6 +120,8 @@ a.step:hover{opacity:.9;}
 select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:7px 9px;width:100%;}
 .hint{margin:-4px 0 12px !important;font-size:12px !important;}
 #signup-line{margin:12px 0 !important;}
+#f-demo{display:block;text-align:center;margin:8px 0 0;padding:10px;border:1px solid var(--line);border-radius:8px;color:var(--fg);text-decoration:none;font-weight:600;}
+#demo-bar{flex:none;padding:6px 12px;font-size:13px;background:var(--accent);color:var(--bg);}#demo-bar a{color:inherit;font-weight:600;}
 #how{margin:0 0 10px;font-size:13px;}#how summary{cursor:pointer;font-weight:600;}#how img{display:block;width:100%;height:auto;margin:8px 0;border:1px solid var(--line);border-radius:6px;}#how ol{margin:6px 0;padding-left:20px;}
 #signin-links{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;margin:0 0 12px;}#signin-links a{color:var(--accent);}
 .hint a{color:var(--accent);cursor:pointer;}
@@ -474,6 +476,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
 </defs></svg>
 <div id="shell">
+	<div id="demo-bar" role="note" hidden>Demo: sample notes in this tab only; nothing is saved. <a>Sign in to use your own notes</a></div>
 	<header>
 		<button class="plain ib" id="btn-tree" title="Show or hide the file list" aria-label="Files" aria-controls="sidebar" aria-expanded="true"><svg class="i wide-only" aria-hidden="true"><use href="#i-panel"/></svg><svg class="i narrow-only" aria-hidden="true"><use href="#i-menu"/></svg></button>
 		<button class="plain ib" id="btn-switcher" title="Open a note (Ctrl/Cmd+K)" aria-label="Open a note"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></button>
@@ -583,6 +586,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 				<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
 				Sign in with GitHub
 			</button>
+			<a id="f-demo" class="button" href="?demo">Look around first</a>
 			<!-- N46: most people new to Padgit have no GitHub account yet. -->
 			<p id="signup-line" class="hint">No GitHub account? <a id="signup" href="https://github.com/signup" target="_blank" rel="noopener">Make one, free</a>, then come back here to sign in.</p>
 			<!-- N47: what Padgit is, before asking for access. The picture loads only when opened. -->
@@ -768,13 +772,20 @@ function deployed() {
 var CFG_KEY = "notes.config.v2";
 var UI_KEY  = "notes.ui.v1";
 var AUTH_KEY = "notes.signin";          // state + PKCE verifier, one sign-in
+/* N48: Look around first. With ?demo the app works on sample notes held only in this tab: requests
+   are answered by demoRequest (nothing reaches GitHub or the broker), and nothing is read from or
+   written to the browser's storage, so a real sign-in and its drafts are never touched. */
+var DEMO = new URLSearchParams(location.search).has("demo");
+var demoStore = { m: new Map(), get length() { return this.m.size; }, key: function (i) { return Array.from(this.m.keys())[i] ?? null; },
+	getItem: function (k) { return this.m.has(k) ? this.m.get(k) : null; }, setItem: function (k, v) { this.m.set(k, String(v)); }, removeItem: function (k) { this.m.delete(k); } };
 /* N3 */
 var sessionOnly = false;
-var cfg = load(CFG_KEY, {
+var cfg = DEMO ? { token: "demo", refresh: "", expires: Infinity, login: "you", avatar: "", owner: "padgit", repo: "demo", branch: "main", pins: [] }
+	: load(CFG_KEY, {
 	token: "", refresh: "", expires: 0, login: "", avatar: "",
 	owner: "", repo: "", branch: "", pins: ["todo.md"]
 });
-var ui = load(UI_KEY, { open: {}, last: null, pin: 0 });
+var ui = DEMO ? { open: {}, last: "Welcome.md", pin: 0 } : load(UI_KEY, { open: {}, last: null, pin: 0 });
 /* N4 */
 function pathMap(from) { return Object.assign(Object.create(null), from || {}); }
 ui.open = pathMap(ui.open);
@@ -789,6 +800,7 @@ function load(key, fallback) {
 }
 /* N5 */
 function persist(key, val) {
+	if (DEMO) return;
 	var json = JSON.stringify(val);
 	try {
 		if (sessionOnly) {
@@ -801,6 +813,7 @@ function persist(key, val) {
 	} catch (e) {}
 }
 function forgetStored(key) {
+	if (DEMO) return;
 	try { localStorage.removeItem(key); } catch (e) {}
 	try { sessionStorage.removeItem(key); } catch (e) {}
 }
@@ -808,7 +821,7 @@ function forgetStored(key) {
 var DRAFT_PREFIX = "notes.draft.v1:";
 var draftWarned = false;
 var draftWritten = {};     /* N139 */
-function draftStore() { return sessionOnly ? sessionStorage : localStorage; }
+function draftStore() { return DEMO ? demoStore : sessionOnly ? sessionStorage : localStorage; }
 /* N106 */
 function draftKey(path) {
 	return DRAFT_PREFIX + cfg.owner + "/" + cfg.repo + "@" + cfg.branch + ":" + path;
@@ -858,12 +871,14 @@ function draftKeys(store) {
 	return keys;
 }
 function forgetDrafts() {
+	if (DEMO) return;
 	[localStorage, sessionStorage].forEach(function (store) {
 		draftKeys(store).forEach(function (k) { try { store.removeItem(k); } catch (e) {} });
 	});
 }
 /* N109 */
 function moveDrafts(nextSessionOnly) {
+	if (DEMO) return true;
 	var from = nextSessionOnly ? localStorage : sessionStorage;
 	var to = nextSessionOnly ? sessionStorage : localStorage;
 	var keys = draftKeys(from), previous = [];
@@ -1112,6 +1127,7 @@ function signOutLocally(spent) {
 }
 /* N141 */
 window.addEventListener("storage", function (e) {
+	if (DEMO) return;   // another tab's sign-in is not the demo's
 	if (current && (!e.key || e.key === draftKey(current.path))) updateNoteSummary();
 	if (e.key !== CFG_KEY) return;
 	if (!e.newValue) {
@@ -1135,6 +1151,7 @@ function incompleteReply() {
 }
 function request(path, options, retried) {
 	options = options || {};
+	if (DEMO) return demoRequest(path, options);
 	if (Date.now() < apiRetryAt) return Promise.reject(rateLimitError());
 	var used = "";
 	return currentToken().then(function (token) {
@@ -1269,6 +1286,45 @@ function allPages(path, key) {
 		});
 	}
 	return page(1);
+}
+/* N48: the part of GitHub's API the app uses, answered from the sample notes (path -> Base64). */
+var DEMO_NOTES = {
+	"Welcome.md": "---\npinned: true\n---\n# Welcome to Padgit\n\nThis is a demo: these notes live only in this tab. Nothing is sent to GitHub, and nothing is kept when you leave.\n\nPadgit edits Markdown notes kept in **your own GitHub repository**. Every note is a plain file and every save is a commit, so the same notes open in Obsidian, on GitHub and in AI tools you connect.\n\n## Try it\n\n- [ ] Tick this box in **Preview** (the eye at the top)\n- [ ] Follow this link: [[Plan]]\n- [ ] Press **Today** in Files for a daily note\n- [ ] Make a note with **New note**\n\nWhen you are ready, choose **Sign in** in the banner to use your own notes. [[For GitHub users]] says what Padgit can reach.\n",
+	"For GitHub users.md": "# For GitHub users\n\n- **Access**: Padgit is a GitHub App. You install it on the repositories you choose, and it reads and writes their files, nothing else.\n- **No server**: notes go straight between your browser and GitHub. A small broker only swaps the sign-in code for a token, and stores nothing.\n- **Plain files**: one commit per save. Obsidian vaults work as they are.\n- **Agents**: Claude Code, Codex and others can work on the same repository; Recent and ⋯ → History show who changed what.\n- **Your own copy**: Padgit is open source (MIT) and can run on your own page, GitHub App and broker.\n",
+	"Garden/Plan.md": "---\ntags: [garden]\n---\n# Garden plan\n\nRaised beds along the north fence. See [[Seeds]] for what to order.\n\n## Spring\n\n- [x] Compost the old bed first\n- [ ] Tomatoes, basil and beans\n- [ ] Stake the beans before they run\n\n> [!tip] Callouts\n> Obsidian callouts show as boxes in Preview.\n",
+	"Garden/Seeds.md": "# Seeds\n\n- Tomato 'Gardener's Delight'\n- Basil, Genovese\n- Runner beans\n\nBack to [[Plan]].\n"
+}, demoFiles = null;
+function demoSha(s) { var h = 2166136261, i; for (i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return (h.toString(16) + "0".repeat(40)).slice(0, 40); }
+function demoRequest(path, options) {
+	if (!demoFiles) { demoFiles = {}; for (var k in DEMO_NOTES) demoFiles[k] = toBase64(DEMO_NOTES[k]); }
+	var m = /^\/repos\/padgit\/demo(\/[^?]*)?(\?.*)?$/.exec(path), rest = m ? m[1] || "" : null, q = new URLSearchParams(m && m[2] || ""), method = options.method || "GET", body = options.body || {}, c, p, b;
+	function ok(v) { return Promise.resolve(v); }
+	function no(status, msg) { var e = new Error(msg || "That is not available in the demo. Sign in to use your own notes."); e.status = status; return Promise.reject(e); }
+	if (path === "/user") return ok({ login: "you", avatar_url: "" });
+	if (/^\/user\/installations\?/.test(path)) return ok({ total_count: 1, installations: [{ id: 1, account: { login: "padgit" } }] });
+	if (/^\/user\/installations\/1\/repositories\?/.test(path)) return ok({ total_count: 1, repositories: [{ owner: { login: "padgit" }, name: "demo", full_name: "padgit/demo", default_branch: "main", private: true }] });
+	if (rest === "") return ok({ name: "demo", full_name: "padgit/demo", default_branch: "main", private: true, archived: false, permissions: { push: true, pull: true } });
+	if (rest === "/git/trees/main" && method === "GET") return ok({ sha: demoSha(JSON.stringify(demoFiles)), truncated: false, tree: Object.keys(demoFiles).map(function (f) { return { path: f, type: "blob", mode: "100644", sha: demoSha(demoFiles[f]), size: Math.floor(demoFiles[f].length * 3 / 4) }; }) });
+	if (rest === "/commits" && method === "GET") return ok([]);
+	if (rest !== null && (c = /^\/contents\/(.+)$/.exec(rest))) {
+		p = c[1].split("/").map(decodeURIComponent).join("/"); b = Object.hasOwn(demoFiles, p) ? demoFiles[p] : undefined;
+		if (method === "GET") {
+			if (b === undefined || (q.get("ref") && q.get("ref") !== "main")) return options.allow404 ? ok(null) : no(404, "GitHub could not complete that action. Try again.");
+			return ok({ type: "file", path: p, sha: demoSha(b), size: Math.floor(b.length * 3 / 4), encoding: "base64", content: b });
+		}
+		if (method === "PUT") {
+			if (b !== undefined && body.sha !== demoSha(b)) return no(409, "Conflict. The file changed on the server.");
+			if (b === undefined && body.sha) return no(422, "GitHub could not complete that action. Try again.");
+			demoFiles[p] = String(body.content).replace(/\s/g, "");
+			return ok({ content: { path: p, sha: demoSha(demoFiles[p]) }, commit: { sha: demoSha(p + Date.now()) } });
+		}
+		if (method === "DELETE") {
+			if (b === undefined) return no(404);
+			if (body.sha !== demoSha(b)) return no(409, "Conflict. The file changed on the server.");
+			delete demoFiles[p]; return ok({ commit: {} });
+		}
+	}
+	return no(422);
 }
 function repoPath() {
 	return "/repos/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo);
@@ -2475,7 +2531,7 @@ function openFile(path, discarding, navigating) {
 /* N59 */
 var navPosition = 0, navEnd = 0, navSession = randomString(12);
 try {
-	var navSaved = JSON.parse(sessionStorage.getItem("notes.navigation") || "null"), navState = history.state;
+	var navSaved = DEMO ? null : JSON.parse(sessionStorage.getItem("notes.navigation") || "null"), navState = history.state;
 	if (navSaved && navState && navSaved.id === navState.notesNav && Number.isSafeInteger(navState.at) && navState.at >= 0 && Number.isSafeInteger(navSaved.end) && navSaved.end >= navState.at) {
 		navSession = navSaved.id; navPosition = navState.at; navEnd = navSaved.end;
 	}
@@ -2490,14 +2546,14 @@ function noteRoute() {
 	return false;
 }
 function navButtons() {
-	try { sessionStorage.setItem("notes.navigation", JSON.stringify({ id: navSession, end: navEnd })); } catch (e) {}
+	if (!DEMO) try { sessionStorage.setItem("notes.navigation", JSON.stringify({ id: navSession, end: navEnd })); } catch (e) {}
 }
 function recordNavigation(path, replace) {
 	var hash = "#note=" + encodeURIComponent(JSON.stringify([cfg.owner, cfg.repo, cfg.branch, path]));
 	var owned = history.state && history.state.notesNav === navSession;
 	if (hash === location.hash && owned) { navButtons(); return; }
 	if (!replace && owned) { navPosition++; navEnd = navPosition; }
-	history[replace || !owned ? "replaceState" : "pushState"]({ notesNav: navSession, at: navPosition }, "", redirectUri() + hash);
+	history[replace || !owned ? "replaceState" : "pushState"]({ notesNav: navSession, at: navPosition }, "", redirectUri() + (DEMO ? "?demo" : "") + hash);
 	navButtons();
 }
 function openRoute() {
@@ -4249,6 +4305,7 @@ function saveSettings() {
 	showPointed(changedRepo);
 }
 function forget() {
+	if (DEMO) { location.replace(redirectUri()); return; }   // leaving the demo; real drafts are not its to delete
 	syncDraft();
 	var unsaved = draftKeys(draftStore()).map(function (k) {
 		return k.slice(k.indexOf(":", DRAFT_PREFIX.length) + 1);
@@ -4709,6 +4766,7 @@ function start() {
 	});
 }
 (function boot() {
+	if (DEMO) { $("demo-bar").hidden = false; $("demo-bar").querySelector("a").href = redirectUri(); }
 	var params = new URLSearchParams(location.search);
 	if (params.get("error")) {
 		/* N102 */

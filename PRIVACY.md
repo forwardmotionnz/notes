@@ -107,12 +107,18 @@ not trust anyone but GitHub, run your own copy (see the end of this page).
 
 ## What your browser keeps
 
+**Look around first** (the demo, at `?demo`) keeps its sample notes and
+everything you type in it in the tab's memory only: it sends nothing to
+GitHub or the broker, writes nothing to the browser's storage, and is gone
+when the tab is closed or reloaded. It does not read or change a sign-in or
+drafts you already have in this browser.
+
 All of this stays on your device, in the browser's storage for this site:
 
 | Name | What it holds | Removed when |
 |---|---|---|
 | `notes.config.v2` | your sign-in (the token, when it expires, and the refresh token that renews it), your GitHub username and picture link, the repository and branch you chose, your pinned files | you sign out, or GitHub stops accepting the sign-in |
-| `notes.ui.v1` | which folders are open, the note you last had open, up to 12 open note tabs and 30 recently opened paths with opening times for the last-used repository and branch, the pinned list you last looked at, the file list's width and whether it is hidden, and which versions of your notes are pinned (by their GitHub version id, so each is read only once to find pins) | you sign out |
+| `notes.ui.v1` | which folders are open, the note you last had open, up to 12 open note tabs and 30 recently opened paths with opening times and the version opened (its GitHub version id, so Recent can mark changes made since) for the last-used repository and branch, the pinned list you last looked at, the file list's width and whether it is hidden, and which versions of your notes are pinned (by their GitHub version id, so each is read only once to find pins) | you sign out |
 | `notes.draft.v1:` followed by the repository, branch and file | the words you have typed but not yet saved in that file, which version they were based on, and when | the change is saved, you press Discard, or you sign out |
 | `notes.theme` | Light or Dark, if you chose one in Settings (nothing for *Same as this device*) | you choose *Same as this device* again; signing out keeps it, as it says nothing about you |
 | `notes.navigation` | a random history identifier and the number of forward steps, in this tab's session storage; no paths or note text | you sign out or the tab closes |

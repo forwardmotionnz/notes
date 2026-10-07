@@ -736,7 +736,7 @@ Padgit's direction: the phone and browser side of a second brain kept as plain M
 - ~~**GitHub Sponsors for N35:** set up the Sponsors profile and say which account.~~ Done: the owner's profile (roldaof) was approved on 2026-10-07; N35 built. Whether each version is also published as a GitHub release is your call.
 - **Padgit cutover for N34:** done (owner, 2026-09-30; default broker config updated in PR #31). Kept for the record: preparation is built. Follow [the migration checklist](../padgit-migration.md): confirm the name; publish the notice and save/copy drafts first; verify the domain, claim it in Pages before pointing DNS, wait for HTTPS, update the existing App and deploy `broker/wrangler.padgit.toml`, then verify sign-in/save. Update the default broker config and README link after success. The repository need not be renamed. This corrects the earlier DNS-first order using GitHub's guidance.
 
-- **Community readiness (2026-09-27), three settings only the owner can change:**
+- **Community readiness (2026-09-27), three settings only the owner can change: done.** The owner confirmed all three on 2026-10-07, with screenshots: private vulnerability reporting enabled; *Require approval for first-time contributors* selected; email address private.
   1. Settings → Code security → **Private vulnerability reporting**: enable it, so the "Report a vulnerability" button that `SECURITY.md` and the issue chooser point to exists.
   2. Settings → Actions → General → *Approval for running fork pull request workflows from contributors*: keep **Require approval for first-time contributors** (GitHub's default). The tests workflow uses no secrets, so forks get none.
   3. github.com → Settings → Emails: tick **Keep my email addresses private** and **Block command line pushes that expose my email**, and set git's `user.email` to the GitHub noreply address. Earlier commits keep the address they were made with; removing it would mean rewriting `main`'s history (a force-push), which is not recommended.
@@ -1182,3 +1182,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-07 · size limit · raised to 300 KB · 8b5ac7e
 - 2026-10-07 · N46 · done · plainer first steps; owner walk-through pending. 038a741
 - 2026-10-07 · N43 · done · who changed it, New, History with Restore; review's seven findings fixed. 1ddea4a
+- 2026-10-07 · community readiness · done · owner confirmed the three repository and account settings.

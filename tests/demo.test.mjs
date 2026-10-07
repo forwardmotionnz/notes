@@ -94,5 +94,25 @@ const stored=p=>p.evaluate(()=>{const o={};for(let i=0;i<localStorage.length;i++
   t.check('another tab signing out does not end the demo',await p.evaluate(()=>cfg.token==='demo'&&!document.getElementById('settings').open));
   await ctx.close();
 }
+{
+  // Theme and text size chosen in the demo are not the real app's to keep.
+  const {p,ctx}=await demo();
+  await p.evaluate(()=>{localStorage.setItem('notes.theme','light');localStorage.setItem('notes.textSize','smaller');});
+  await p.click('#btn-settings');
+  t.check('Settings in the demo offers no GitHub install link, and Sign out says Leave demo',!(await p.locator('#f-install').isVisible())&&(await p.textContent('#f-forget'))==='Leave demo');
+  await p.selectOption('#f-theme','dark'); await p.selectOption('#f-text-size','larger'); await p.selectOption('#f-theme','auto');
+  t.check('theme and text size changed in the demo leave the real choices alone',await p.evaluate(()=>localStorage.getItem('notes.theme')==='light'&&localStorage.getItem('notes.textSize')==='smaller'));
+  await ctx.close();
+}
+{
+  // Two demo tabs each have their own notes: deleting in one does not close the other.
+  const {p,ctx}=await demo();
+  const q=await ctx.newPage(); await q.goto(H.APP()+'?demo'); await q.waitForFunction(()=>treeState==='ok'&&current?.path==='Welcome.md');
+  await p.evaluate(()=>openFile('Garden/Seeds.md')); await q.evaluate(()=>openFile('Garden/Seeds.md'));
+  await q.waitForFunction(()=>current?.path==='Garden/Seeds.md'&&current.sha); await p.waitForFunction(()=>current?.path==='Garden/Seeds.md'&&current.sha);
+  await H.noteAction(p,'#btn-delete'); await p.waitForFunction(()=>!files.some(f=>f.path==='Garden/Seeds.md')); await H.settle(q,300);
+  t.check('another demo tab keeps its note open',await q.evaluate(()=>current?.path==='Garden/Seeds.md'));
+  await ctx.close();
+}
 await H.stop();
 t.finish();

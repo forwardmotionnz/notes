@@ -1,11 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Padgit: a page with a folded corner. Full-bleed background, so it can
-       also be cut to a circle or squircle (maskable); the page sits well
-       inside the central safe zone. -->
-  <rect width="512" height="512" fill="#2f6f4f"/>
-  <path d="M168 128h124l52 52v204a16 16 0 0 1-16 16H168a16 16 0 0 1-16-16V144a16 16 0 0 1 16-16z" fill="#fbfaf7"/>
-  <path d="M292 128v36a16 16 0 0 0 16 16h36z" fill="#cfe6d9"/>
-  <rect x="192" y="232" width="128" height="16" rx="8" fill="#2f6f4f"/>
-  <rect x="192" y="276" width="128" height="16" rx="8" fill="#2f6f4f"/>
-  <rect x="192" y="320" width="84" height="16" rx="8" fill="#2f6f4f"/>
+  <!-- Padgit: a notepad (binding along the top) whose last line ends in a commit
+       dot: notes, kept with their history. Rounded tile for tabs and desktops;
+       icon-180 (iPhone rounds it itself) and icon-maskable-512 (Android crops
+       it) use a full square, the latter with the pad inside the safe zone. -->
+  <rect width="512" height="512" rx="112" fill="#2f6f4f"/>
+  <rect x="120" y="104" width="272" height="320" rx="32" fill="#fbfaf7"/>
+  <path d="M120 136a32 32 0 0 1 32-32h208a32 32 0 0 1 32 32v28H120z" fill="#cfe6d9"/>
+  <circle cx="196" cy="104" r="16" fill="#2f6f4f"/>
+  <circle cx="256" cy="104" r="16" fill="#2f6f4f"/>
+  <circle cx="316" cy="104" r="16" fill="#2f6f4f"/>
+  <rect x="168" y="224" width="176" height="24" rx="12" fill="#2f6f4f"/>
+  <rect x="168" y="280" width="176" height="24" rx="12" fill="#2f6f4f"/>
+  <rect x="168" y="336" width="104" height="24" rx="12" fill="#2f6f4f"/>
+  <circle cx="314" cy="348" r="26" fill="#e9a23b"/>
 </svg>

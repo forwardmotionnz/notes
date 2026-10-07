@@ -28,6 +28,9 @@ const has = (size, purpose) => icons.some(i => i.sizes === size && i.type === 'i
   (i.purpose || 'any').split(' ').includes(purpose));
 t.check('icons at 192 and 512, and one that may be cut to a circle (maskable)',
   has('192x192', 'any') && has('512x512', 'any') && has('512x512', 'maskable'), JSON.stringify(icons));
+// Android crops a maskable icon to its own shape: it needs a full-bleed file of its own, not the rounded tile.
+t.check('the maskable icon is its own full-bleed file', icons.some(i => (i.purpose || '').split(' ').includes('maskable') &&
+  !icons.some(j => j.src === i.src && (j.purpose || 'any').split(' ').includes('any'))), JSON.stringify(icons));
 for (const i of icons) {
   const real = i.type === 'image/png' ? pngSize(i.src) : existsSync(file(i.src)) ? 'any' : null;
   t.check(`icon ${i.src} exists and is really ${i.sizes}`, real === i.sizes || (i.sizes === 'any' && real === 'any'), String(real));

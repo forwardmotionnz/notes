@@ -215,7 +215,7 @@ export async function start() {
   server = createServer((req, res) => {
     const asset = new URL(req.url, 'http://localhost').pathname.split('/').pop();
     const types = { 'manifest.webmanifest': 'application/manifest+json', 'icon.svg': 'image/svg+xml',
-      'icon-32.png': 'image/png', 'icon-180.png': 'image/png', 'icon-192.png': 'image/png', 'icon-512.png': 'image/png' };
+      'icon-32.png': 'image/png', 'icon-180.png': 'image/png', 'icon-192.png': 'image/png', 'icon-512.png': 'image/png', 'icon-maskable-512.png': 'image/png' };
     if (Object.hasOwn(types, asset)) {
       res.writeHead(200, { 'Content-Type': types[asset] });
       res.end(readFileSync(ROOT + asset));

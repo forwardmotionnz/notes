@@ -2,6 +2,26 @@
 
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
+## New to GitHub?
+
+GitHub is where your notes are stored. You need a free account
+([make one](https://github.com/signup)); you never need to write code. A few
+words you will meet:
+
+- **Repository**: a folder of files on GitHub, with a history of every
+  change. Make it private and only you (and apps you allow) can see it.
+  Your notes repository holds your notes as ordinary text files.
+- **Commit**: one saved change in that history. Each time Padgit saves, it
+  makes a commit, so earlier versions can always be found again.
+- **GitHub App**: how Padgit gets permission. When you sign in, GitHub asks
+  where to *install* it: choose **Only select repositories** and pick your
+  notes repository. Padgit can then read and write files there and nowhere
+  else. You can remove it at any time in GitHub's settings.
+
+Because your notes are plain files in your own repository, AI tools you
+connect to GitHub (Claude, ChatGPT, Codex and others) can read them and, if
+you allow it, add to them. Padgit itself sends your notes nowhere but GitHub.
+
 ## Finding and saving notes
 The editor's formatting bar inserts or toggles Markdown around selected text
 or lines: bold, italic, heading, bulleted/numbered/task lists, links, quotes and
@@ -117,6 +137,20 @@ invalid settings show an explanation and leave the current note alone.
   Nothing extra is kept in your repository: the list is read from its
   history, only when you expand it. Older deletions are still in the
   history on GitHub.
+- **Who changed it.** **Recent** names who made each recent change: *you*,
+  or an agent such as Claude or Codex (see [Using Padgit with
+  agents](#using-padgit-with-agents)). A note someone else changed after you
+  last opened it on this device is marked **New**.
+- **History**, in a saved note's **⋯** menu, lists its last 20 changes,
+  newest first, with when, who and the change's description. Open one to see
+  the lines it removed and added. **Restore this version** puts that version
+  back as a new change (the later ones stay in the history), through the
+  ordinary save: if the note changed elsewhere meanwhile, that change is
+  merged or kept, never lost. It is not offered while the note has unsaved
+  changes, while it is saving or moving, nor in a read-only repository. A
+  change that deleted the note is listed but cannot be restored from here
+  (see **Recently deleted**), and history from before a rename or move is
+  not shown.
 - Pin or unpin the open note using the star beside its name. Pinned files
   appear at the top of Files as shortcuts and open like any other note. A pin is saved in the note itself, as the property
   `pinned: true` at its top (Obsidian shows it as a property; other editors
@@ -382,6 +416,33 @@ attachment and inserts an ordinary Markdown link after GitHub confirms it.
 Undo removes the link, leaving the attachment in the repository. If you switch
 notes during upload, the status names the saved attachment so you can link it
 from the original note. Failed uploads leave your note text unchanged.
+
+## Using Padgit with agents
+
+Agents such as Claude Code or Codex can work on the same repository as
+Padgit: they read and change the same files, and their changes show in
+Padgit like anyone else's. To keep your notes working in Padgit and
+Obsidian, you can give them standing instructions: copy the text below into
+a file named `AGENTS.md` at the top of your notes repository (Claude Code
+also reads `CLAUDE.md`; a file with just `@AGENTS.md` in it points there).
+Padgit never writes this file for you.
+
+```markdown
+# Notes repository
+
+These are my personal notes, edited in Padgit and Obsidian.
+
+- Leave daily notes and my own writing alone unless I ask you to change them.
+- Keep frontmatter, [[wikilinks]] and the .obsidian folder intact.
+- If there is an Inbox.md, file what is in it where it belongs, then clear it.
+- Say who you are in every commit: name yourself in a
+  "Co-authored-by: <your name> <email>" line, or commit as your own account.
+```
+
+That last line is what lets **Recent** and **History** show *Claude* or
+*Codex* instead of *you*: an agent working on your computer usually commits
+under your name. Anything in the repository, daily notes included, can be
+read by any agent you give it to, so keep it private.
 
 ## What it deliberately does not do
 

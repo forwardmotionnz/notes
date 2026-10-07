@@ -140,10 +140,16 @@ export function fakeGitHub(opts = {}) {
   gh.head = () => 'c' + String(gh.version).padStart(39, '0');
   // The branch's history, newest last: each commit's files, parent, message and time.
   gh.history = [{ sha: gh.head(), parent: null, files: { ...gh.files }, message: 'Initial commit', date: new Date().toISOString() }];
-  gh.touch = (message = 'Change') => {
+  // `by` is who made it: { login, type, name } for an account ("User" or "Bot"), or
+  // { name } alone for a commit GitHub matches to no account (author null).
+  gh.touch = (message = 'Change', by = null) => {
     const parent = gh.head(); gh.version++;
-    gh.history.push({ sha: gh.head(), parent, files: { ...gh.files }, message, date: new Date().toISOString() });
+    gh.history.push({ sha: gh.head(), parent, files: { ...gh.files }, message, by, date: new Date().toISOString() });
   };
+  // Commits made through the API are the signed-in person's: the contents API's committer
+  // and author default to "the authenticated user" (github/rest-api-description,
+  // repos/create-or-update-file-contents, request body committer/author).
+  gh.self = () => ({ login: gh.user.login, type: 'User', name: gh.user.login });
   gh.staged = {};              // tree sha -> { base, changes, files }
   gh.snapshots = {};           // commit sha -> the files at that commit
   gh.pending = {};             // commit sha -> { tree, parent, message }
@@ -158,7 +164,7 @@ export function fakeGitHub(opts = {}) {
     const t = gh.staged[c.tree];
     for (const k of Object.keys(gh.files)) delete gh.files[k];
     Object.assign(gh.files, t.files);
-    gh.touch(c.message);
+    gh.touch(c.message, gh.self());
     gh.commits.push({ repo: full, path: Object.keys(t.changes).join(' -> '), message: c.message,
                       branch, token: auth, moved: t.changes });
     return { status: 200, body: { ref: 'refs/heads/' + branch, object: { type: 'commit', sha: gh.head() } } };
@@ -506,8 +512,11 @@ export async function context(gh, opts = {}) {
       if (gh.empty) return json({ message: 'Git Repository is empty.', status: '409' }, 409);
       const q = new URL(req.url()).searchParams, at = s => gh.history.findIndex(c => c.sha === s);
       const shape = c => ({ sha: c.sha, node_id: 'C_' + c.sha, url: 'https://api.github.com/repos/' + cl[1] + '/commits/' + c.sha,
-        html_url: 'https://github.com/' + cl[1] + '/commit/' + c.sha, comments_url: '', author: null, committer: null,
-        commit: { message: c.message, author: { name: 'someone', date: c.date }, committer: { name: 'someone', date: c.date } },
+        // Top-level author/committer: the GitHub account (simple-user, with login and type
+        // such as "User" or "Bot"), or null when the commit matches none (schema commit).
+        html_url: 'https://github.com/' + cl[1] + '/commit/' + c.sha, comments_url: '',
+        author: c.by?.login ? { login: c.by.login, id: 1, type: c.by.type || 'User' } : null, committer: null,
+        commit: { message: c.message, author: { name: c.by?.name || 'someone', date: c.date }, committer: { name: c.by?.name || 'someone', date: c.date } },
         parents: c.parent ? [{ sha: c.parent, url: 'https://api.github.com/repos/' + cl[1] + '/commits/' + c.parent }] : [] });
       gh.log.commitReads = (gh.log.commitReads || 0) + 1;
       if (cl[2]) {
@@ -576,7 +585,7 @@ export async function context(gh, opts = {}) {
         if (!(path in gh.files)) return json({ message: 'Not Found' }, 404);
         if (b.sha !== gh.sha(path)) return json({ message: path + ' does not match ' + b.sha }, 409);
         delete gh.files[path];
-        gh.touch(b.message);
+        gh.touch(b.message, gh.self());
         gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth, deleted: true });
         return json({ content: null, commit: { sha: gh.head() } });
       }
@@ -596,7 +605,7 @@ export async function context(gh, opts = {}) {
         if (!exists && b.sha) return json({ message: 'sha given for new file' }, 422);
         gh.files[path] = Buffer.from(b.content, 'base64').toString('utf-8');
         gh.empty = false;
-        gh.touch(b.message);
+        gh.touch(b.message, gh.self());
         gh.commits.push({ repo: m[1], path, message: b.message, branch: b.branch, token: auth });
         gh.log.lastPutHadBranch = 'branch' in b;
         return json({ content: { path, sha: gh.sha(path) } });

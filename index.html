@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-1S1rhQFkQlaxNBBSAwBEQpOHWet3+53sN+J9GV4kW54=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-kneK/V3THwYy+tgo9rDm4vJ8XkoexdacLkeJitbSedI=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -119,6 +119,7 @@ a.step:hover{opacity:.9;}
 #fr-check{min-height:36px;}
 select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:7px 9px;width:100%;}
 .hint{margin:-4px 0 12px !important;font-size:12px !important;}
+#signup-line{margin:12px 0 !important;}
 .hint a{color:var(--accent);cursor:pointer;}
 #about a{color:var(--accent);white-space:nowrap;}
 .who{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
@@ -195,7 +196,10 @@ body.preview-view #editor-pane{display:none;}
 #note-tags[hidden]{display:none;}
 #tag-counts [aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);}
 #backlinks{padding:6px 10px;border-top:1px solid var(--line);font-size:13px;flex-shrink:0;}#backlinks-list{max-height:20vh;overflow:auto;}#backlinks-list button{display:block;margin:4px 0;text-align:left;overflow-wrap:anywhere;max-width:100%;}
-#outline{width:min(90vw,460px);max-height:75vh;padding:16px;}#outline-list{max-height:50vh;overflow:auto;}#outline-list button{display:block;text-align:left;width:100%;overflow-wrap:anywhere;margin:4px 0;}
+#outline{width:min(90vw,460px);max-height:75vh;padding:16px;}
+#history{width:min(92vw,620px);max-height:85vh;padding:16px;}#history h2{margin-top:0;}#history-list{max-height:62vh;overflow:auto;}#history-list details{border-top:1px solid var(--line);padding:6px 0;}#history-list summary{cursor:pointer;overflow-wrap:anywhere;}
+.diff{font:13px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;}.diff .del{color:var(--danger);text-decoration:line-through;}.diff .add{color:var(--accent);}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+#recent-list .fresh b{color:var(--accent);}#outline-list{max-height:50vh;overflow:auto;}#outline-list button{display:block;text-align:left;width:100%;overflow-wrap:anywhere;margin:4px 0;}
 #recent-status, #deleted-status{color:var(--muted);font-size:12px;}
 #deleted-list{max-height:25vh;overflow:auto;}
 #deleted-status{padding:0 8px;}
@@ -485,6 +489,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			<button role="menuitem" id="btn-rename" hidden title="Rename or move this note (type a folder path to move it)"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg><span>Rename or move</span></button>
 			<button role="menuitem" id="btn-outline" hidden><svg class="i" aria-hidden="true"><use href="#i-outline"/></svg><span>Outline</span></button>
 			<button role="menuitemcheckbox" id="btn-tags" hidden aria-checked="false"><svg class="i" aria-hidden="true"><use href="#i-tag"/></svg><span>Tags</span></button>
+			<button role="menuitem" id="btn-history" hidden><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg><span>History</span></button>
 			<button role="menuitem" id="btn-daily" hidden><svg class="i" aria-hidden="true"><use href="#i-cal"/></svg><span>Use for new daily notes</span></button>
 			<button role="menuitem" id="btn-delete" class="danger" hidden title="Delete this note (it stays in the repository's history)"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>Delete</span></button>
 		</div>
@@ -557,6 +562,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 	</div>
 	<div class="dlg-foot"><a id="iv-github" target="_blank" rel="noopener noreferrer">Open on GitHub</a><span class="iv-grow"></span><button type="button" id="iv-insert">Add to note</button><button type="button" id="iv-close" class="primary" autofocus>Close</button></div>
 </dialog>
+<dialog id="history" aria-labelledby="history-title"><h2 id="history-title">History</h2><p id="history-status" role="status"></p><div id="history-list"></div><button id="history-close">Close</button></dialog>
 <dialog id="outline" aria-labelledby="outline-title"><h2 id="outline-title">Headings</h2><div id="outline-list"></div><p id="outline-status" role="status"></p><button id="outline-close">Close</button></dialog>
 <dialog id="settings">
 	<!-- Signed out -->
@@ -566,8 +572,8 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			<!-- Three sentences: what it is, what it asks GitHub for, where notes
 					 live. PRIVACY.md is published beside the app as PRIVACY.html by
 					 GitHub Pages; docs/self-hosting.md says so for other hosts. -->
-			<p id="about">A simple markdown editor for notes kept in a GitHub repository of
-				your own. It can read and write files only in repositories the app is
+			<p id="about">Notes on any device, kept as Markdown files in your own GitHub
+				repository, which AI tools you connect can read. It can read and write files only in repositories the app is
 				installed on, which you choose. Your notes stay there, though whoever runs
 				this copy's GitHub App can reach them too.
 				<a href="PRIVACY.html" target="_blank" rel="noopener">Privacy</a></p>
@@ -575,6 +581,8 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 				<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
 				Sign in with GitHub
 			</button>
+			<!-- N46: most people new to Padgit have no GitHub account yet. -->
+			<p id="signup-line" class="hint">No GitHub account? <a id="signup" href="https://github.com/signup" target="_blank" rel="noopener">Make one, free</a>, then come back here to sign in.</p>
 			<label class="check">
 				<input type="checkbox" id="f-session-in">
 				<span>Forget me when I close the browser<em>For a work or shared computer. Kept for this browser session only; sign out before you leave.</em></span>
@@ -604,7 +612,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 				<button id="f-retry">Try again</button></p>
 			<div id="firstrun" hidden>
 				<h2>Now, a place for your notes</h2>
-				<p>Your notes live in a GitHub repository of your own. Make one, then let Padgit use it.</p>
+				<p>GitHub keeps your notes in a repository: a private folder of files, with a history of every change. Make one, then let Padgit use it.</p>
 				<ol>
 					<li><a id="fr-create" class="step primary" target="_blank" rel="noopener"
 								 href="https://github.com/new?name=notes&amp;visibility=private">1. Create a repository</a>
@@ -1360,6 +1368,16 @@ function createImage(path, content) {
 	});
 }
 /* N147 */
+/* N43: who made a commit. An agent working as its person names itself in a Co-authored-by
+   trailer (Claude Code does); one with its own GitHub App commits as a bot account. */
+var AGENT = /\b(claude|codex|chatgpt|copilot|gemini|cursor)\b/i, AGENT_MAIL = /noreply|\[bot\]|@(anthropic|openai)\.com>/i;   // a person called Claude is not an agent
+function whoOf(c) {
+	var a = c && c.author || {}, msg = String(c && c.commit && c.commit.message || ""), re = /^co-authored-by:\s*([^<\n]*?)\s*<([^>\n]*)>/gim, m;
+	while ((m = re.exec(msg))) if (AGENT.test(m[1]) && AGENT_MAIL.test(m[0])) return m[1];
+	if (a.type === "Bot" || /\[bot\]$/.test(a.login || "")) return String(a.login).replace(/\[bot\]$/, "");
+	if (a.login && a.login === cfg.login) return "you";
+	return a.login || c && c.commit && c.commit.author && c.commit.author.name || "someone";
+}
 async function recentChanges(live) {
 	if(repoEmpty)return [];
 	var base=repoPath(), list=await request(base+"/commits?sha="+encodeURIComponent(cfg.branch)+"&per_page=10"), result=[];
@@ -1369,7 +1387,7 @@ async function recentChanges(live) {
 		if(!/^[a-f0-9]{40}$/i.test(commit.sha))throw incompleteReply();
 		var details=await request(base+"/commits/"+commit.sha+"?per_page=100");
 		if(!Array.isArray(details.files))throw incompleteReply();
-		for(var f of details.files.slice(0,100))if(f.status!=="removed"&&typeof f.filename==="string")result.push({path:f.filename,at:Date.parse(commit.commit?.committer?.date)});
+		for(var f of details.files.slice(0,100))if(f.status!=="removed"&&typeof f.filename==="string")result.push({path:f.filename,at:Date.parse(commit.commit?.committer?.date),who:whoOf(commit),sha:f.sha});
 	}
 	return result;
 }
@@ -2915,6 +2933,70 @@ async function toggleDailyTemplate() {
 		flash(stop ? "New daily notes start blank again." : "New daily notes (Today) now start from this note.");
 	} catch (e) { flash(e.status === 409 || e.status === 422 ? "The daily note settings changed elsewhere meanwhile, so nothing was changed. Try again." : e.message || "Could not reach GitHub. Try again.", true); }
 }
+/* N43: a note's changes, newest first, each with who made it and, opened, the lines it removed
+   and added. Restore puts an older version in the editor and saves it as a new change through
+   the usual save, so a change made elsewhere meanwhile is merged or kept, never lost. */
+var historySeq = 0;
+async function showHistory() {
+	var doc = current, path = doc && doc.path, seq = ++historySeq, list = $("history-list"), status = $("history-status");
+	if (!doc || !doc.sha) return;
+	function live() { return seq === historySeq && current === doc && doc.path === path && $("history").open; }
+	async function at(sha) {
+		var r = await request(repoPath() + "/contents/" + encodePath(path) + "?ref=" + encodeURIComponent(sha), { allow404: true });
+		if (!r) return null;   // not there: deleted by this change, or not yet made (or moved here)
+		if (r.encoding === "none" && r.sha) r = await readBlob(r.sha);
+		if (!r || r.encoding !== "base64" || typeof r.content !== "string") throw incompleteReply();
+		return fromBase64(r.content).replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+	}
+	async function show(c, d, newest) {
+		var box = document.createElement("p"), diff = document.createElement("div");
+		box.className = "diff-status"; box.textContent = "Loading…"; d.append(box); diff.className = "diff";
+		try {
+			var parent = c.parents && c.parents[0] && c.parents[0].sha, after = await at(c.sha), before = parent ? await at(parent) : null;
+			if (!live()) return;
+			/* A deletion has no version to restore: restoring "nothing" would empty the note. */
+			if (after === null) { box.textContent = "This change deleted the note."; return; }
+			var o = (before || "").split("\n"), x = after.split("\n"), m = keptLines(o, x);
+			/* The sign is text, not CSS (older Safari drops CSS alternative text), with words for screen readers. */
+			function line(k, s) { var e = document.createElement("div"), sign = document.createElement("span"), say = document.createElement("span"); e.className = k; sign.textContent = k === "del" ? "\u2212 " : "+ "; sign.setAttribute("aria-hidden", "true"); say.className = "sr"; say.textContent = k === "del" ? "removed: " : "added: "; e.append(sign, say, s); diff.append(e); }
+			if (before === null && parent) { var made = document.createElement("p"); made.textContent = "The note was made here, or moved here from another name (its history before a move is not shown)."; box.before(made); }
+			if (!m) box.textContent = "Too large to compare here.";
+			else {
+				for (var i = 0, j = 0; i < o.length || j < x.length;) {
+					if (i < o.length && m[i] < 0) line("del", o[i++]);
+					else if (j < x.length && (i >= o.length || m[i] > j)) line("add", x[j++]);
+					else { i++; j++; }
+				}
+				if (!Array.from(diff.children).some(function (e) { return e.lastChild.textContent.trim(); })) diff.textContent = "No change to the words (spacing, blank lines or line endings only).";
+				box.replaceWith(diff);
+			}
+			if (!newest && !readOnly) {
+				var b = document.createElement("button");
+				b.className = "restore"; b.textContent = "Restore this version";
+				b.onclick = function () {
+					if (!live() || readOnly) return;
+					if (moving || saving || accessPending || doc.leaving || doc.conflict) { flash("The note is busy (saving, moving or in a conflict). Try again when it is saved.", true); return; }
+					if (dirty()) { flash("This note has unsaved changes: save or undo them before restoring an older version.", true); return; }
+					$("history").close(); editor.setValue(after); saveCurrent();
+				};
+				d.append(b);
+			}
+		} catch (e) { if (live()) { box.textContent = "This change could not be shown."; fail(e); } }
+	}
+	list.replaceChildren(); status.textContent = "Loading history…"; $("history").showModal();
+	try {
+		var commits = await request(repoPath() + "/commits?sha=" + encodeURIComponent(cfg.branch) + "&path=" + encodeURIComponent(path) + "&per_page=20");
+		if (!Array.isArray(commits) || !commits.every(function (c) { return c && deletedSha.test(c.sha); })) throw incompleteReply();
+		if (!live()) return;
+		commits.forEach(function (c, i) {
+			var d = document.createElement("details"), s = document.createElement("summary"), when = Date.parse(c.commit && c.commit.committer && c.commit.committer.date);
+			s.textContent = (Number.isFinite(when) ? new Date(when).toLocaleString() + " · " : "") + whoOf(c) + " · " + String(c.commit && c.commit.message || "").split("\n")[0];
+			d.append(s); list.append(d);
+			d.ontoggle = function () { if (d.open && !d.shown) { d.shown = true; show(c, d, !i); } };
+		});
+		status.textContent = commits.length ? "This note's last " + commits.length + " changes, newest first; history before a rename or move is not shown. Open one to see what it changed." : "No changes found for this note.";
+	} catch (e) { if (live()) { status.textContent = "History unavailable."; fail(e); } }
+}
 function startNote(path, text) {
 	previewView(false);
 	document.body.classList.remove("tree-open");
@@ -4219,6 +4301,7 @@ new MutationObserver(function () { document.body.classList.toggle("has-note", !!
 function noteMenu(open) {
 	if ($("note-menu").hidden === open) $("note-menu").hidden = !open;   // unchanged: no mutation for the observer below
 	$("btn-more").setAttribute("aria-expanded", String(open));
+	$("btn-history").hidden = !open || $("btn-delete").hidden;   /* N43: saved notes (read-only too: History only reads) */
 	$("btn-daily").hidden = !open || readOnly || $("btn-delete").hidden || !/\.md$/.test(current.path);   /* N41: saved .md notes only (Today adds a lower-case .md) */
 	if (open) dailyLabel();
 	if (open) { var first = $("note-menu").querySelector("[role^=menuitem]:not([hidden])"); if (first) first.focus(); }
@@ -4250,6 +4333,8 @@ $("btn-tags").onclick = function () {
 $("btn-rename").onclick   = renameCurrent;
 $("btn-delete").onclick   = deleteCurrent;
 $("btn-daily").onclick    = toggleDailyTemplate;
+$("btn-history").onclick  = showHistory;
+$("history-close").onclick = function () { $("history").close(); };
 $("btn-new").onclick      = newFile;
 ["nn-name", "nn-new-folder"].forEach(function (id) {
 	$(id).addEventListener("input", newNoteCheck);
@@ -4385,7 +4470,9 @@ async function loadRecent(){
 			draft=readDraft(path);if(draft)text=draft.text;if(current&&current.path===path)text=editor.getValue();
 			text=text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');var front=frontOf(text);if(front)text=text.slice(front[0].length);
 			var heading=/^#{1,6}\s+(.+)$/m.exec(text),r=changed.find(function(r){return r.path===path;}),at=r?r.at:recent?.at?.[path];
-			rows[i].textContent=heading?heading[1]:path;var detail=document.createElement("small");detail.textContent=path+" · "+text.replace(/^#{1,6}\s+.*$/gm,"").replace(/\s+/g," ").trim().slice(0,120)+(Number.isFinite(at)?" · "+new Date(at).toLocaleString():"");rows[i].appendChild(detail);
+			rows[i].textContent=heading?heading[1]:path;var detail=document.createElement("small");detail.textContent=path+" · "+text.replace(/^#{1,6}\s+.*$/gm,"").replace(/\s+/g," ").trim().slice(0,120)+(Number.isFinite(at)?" · "+new Date(at).toLocaleString():"")+(r?" · by "+r.who:"");rows[i].appendChild(detail);
+			/* N43: changed by someone else since the version this device last opened (versions, not clocks). */
+			if(r&&r.who!=="you"&&!(recent?.scope===scope&&recent.seen?.[path]===r.sha)){var fresh=document.createElement("b");fresh.textContent="New · ";detail.prepend(fresh);rows[i].classList.add("fresh");}
 		}catch(e){if(e.signedOut)throw e;if(live()){incomplete=true;rows[i].textContent=path+" — preview unavailable";}}}}
 		await Promise.all([worker(),worker(),worker(),worker()]);
 		if(live())$("recent-status").textContent=(incomplete?"Some previews or history unavailable. ":"")+(paths.length?"Opened on this device and changes from the last 10 commits; first 20 notes.":"No recent notes in the loaded file list.");
@@ -4507,7 +4594,8 @@ function rememberNote(path) {
 	var scope = recentScope(), recent = ui.recent;
 	var paths = recent && recent.scope === scope && Array.isArray(recent.paths) ? recent.paths : [];
 	paths=[path].concat(paths.filter(function(p){return p!==path;})).slice(0,30);var times=pathMap();paths.forEach(function(p){times[p]=p===path?Date.now():recent&&recent.scope===scope&&recent.at&&recent.at[p];});
-	ui.recent = { scope: scope, paths:paths,at:times };
+	var seen=pathMap();paths.forEach(function(p){seen[p]=p===path?current&&current.path===path&&current.sha||"":recent&&recent.scope===scope&&recent.seen&&recent.seen[p];});
+	ui.recent = { scope: scope, paths:paths,at:times,seen:seen };
 }
 function quickRender() {
 	var q = $("quick-query").value.trim().toLowerCase(), recent = ui.recent;

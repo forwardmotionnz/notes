@@ -13,12 +13,13 @@ a single web page.
 The shared copy below is ready to use: sign-in is configured and its
 GitHub App is public.
 
-Notes is now **Padgit**, at [padgit.com](https://padgit.com/). If you used
-the old address, sign in again there: browser sign-ins and unsaved drafts
-stay with the address they were made at. [Move details](docs/padgit-migration.md).
+Your notes stay plain files in your own GitHub repository, so AI tools such
+as Claude, ChatGPT or Codex can read and update them when you let them. New
+to GitHub? [The words explained](docs/guide.md#new-to-github).
 
 1. Open [Padgit](https://padgit.com/) on your computer or
-   phone. You need a GitHub account and an internet connection.
+   phone. You need a GitHub account ([free to make](https://github.com/signup))
+   and an internet connection.
 2. Choose **Sign in with GitHub**. When GitHub asks where to install Padgit,
    choose only the private repository you want to use for notes.
    A repository is a folder of files on GitHub, with a history of your changes.

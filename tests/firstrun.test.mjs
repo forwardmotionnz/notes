@@ -40,6 +40,7 @@ const controls = p => p.$$eval('#settings a, #settings button, #settings input, 
   t.check('both in a new tab, with no way back into this page',
     (await p.getAttribute('#fr-create', 'target')) === '_blank' && (await p.getAttribute('#fr-install', 'target')) === '_blank' &&
     /noopener/.test(await p.getAttribute('#fr-create', 'rel')) && /noopener/.test(await p.getAttribute('#fr-install', 'rel')));
+  t.check('a repository is explained in plain words', /repository[^.]*(folder|place)/i.test(await p.textContent('#firstrun')), await p.textContent('#firstrun'));
   t.check('the steps say what happens', /create/i.test(await p.textContent('#fr-create')) &&
     /repository/i.test(await p.textContent('#firstrun')) && /come back/i.test(await p.textContent('#firstrun')),
     await p.textContent('#firstrun'));

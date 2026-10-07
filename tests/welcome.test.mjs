@@ -25,6 +25,14 @@ for (const [w, h, label] of [[1280, 820, 'desktop'], [390, 780, 'phone'], [320, 
     // PRIVACY.md, Who you are trusting: the app's owner can use its access directly.
     t.check("and, as PRIVACY.md says, that whoever runs this copy's App can reach them",
       /whoever runs this copy's GitHub App can reach them/i.test(about), about);
+    // N46: for people who use AI tools but have never used GitHub.
+    t.check('it says AI tools can use the notes too', /\bAI\b/.test(about), about);
+    const su = await p.$('#signup');
+    t.check('no GitHub account: a link to make one, free', !!su && await su.isVisible() && /free/i.test(await p.textContent('#signup-line')) &&
+      (await su.getAttribute('href')) === 'https://github.com/signup' && (await su.getAttribute('target')) === '_blank' &&
+      /noopener/.test(await su.getAttribute('rel')), su ? await p.textContent('#signup-line') : 'missing');
+    t.check('below the sign-in button, so signing in stays first', !!su && await p.evaluate(() =>
+      !!(document.getElementById('f-signin').compareDocumentPosition(document.getElementById('signup')) & Node.DOCUMENT_POSITION_FOLLOWING)));
     const a = await p.$('#about a');
     t.check('it links the privacy note', !!a && /privacy/i.test(await a.textContent()));
     // GitHub Pages publishes PRIVACY.md as PRIVACY.html (jekyll-optional-front-matter, on by default):

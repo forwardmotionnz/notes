@@ -2,6 +2,26 @@
 
 The detailed guide. For a first note in two minutes, see [Try it](../README.md#try-it).
 
+## New to GitHub?
+
+GitHub is where your notes are stored. You need a free account
+([make one](https://github.com/signup)); you never need to write code. A few
+words you will meet:
+
+- **Repository**: a folder of files on GitHub, with a history of every
+  change. Make it private and only you (and apps you allow) can see it.
+  Your notes repository holds your notes as ordinary text files.
+- **Commit**: one saved change in that history. Each time Padgit saves, it
+  makes a commit, so earlier versions can always be found again.
+- **GitHub App**: how Padgit gets permission. When you sign in, GitHub asks
+  where to *install* it: choose **Only select repositories** and pick your
+  notes repository. Padgit can then read and write files there and nowhere
+  else. You can remove it at any time in GitHub's settings.
+
+Because your notes are plain files in your own repository, AI tools you
+connect to GitHub (Claude, ChatGPT, Codex and others) can read them and, if
+you allow it, add to them. Padgit itself sends your notes nowhere but GitHub.
+
 ## Finding and saving notes
 The editor's formatting bar inserts or toggles Markdown around selected text
 or lines: bold, italic, heading, bulleted/numbered/task lists, links, quotes and

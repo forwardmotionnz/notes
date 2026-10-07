@@ -21,6 +21,13 @@ t.check('a repository is explained and creation help is linked', /repository[^\n
   /\]\(docs\/guide\.md#no-notes-repository-yet\)/.test(intro) && /^## No notes repository yet$/m.test(guide));
 t.check('Try it explains owner trust and links privacy', /\]\(PRIVACY.md\)/.test(intro) &&
   /app's owner\s+also has access through that installation/i.test(intro));
+// N46: first steps for people who use AI tools but not GitHub.
+t.check('Try it says how to get a free GitHub account', /free/i.test(intro) && /\]\(https:\/\/github\.com\/signup\)/.test(intro));
+t.check('Try it says AI tools can use the notes', /\bAI\b/.test(intro));
+t.check('the finished move to padgit.com is no longer announced in Try it', !/Notes is now \*\*Padgit\*\*/.test(intro));
+t.check('the guide explains GitHub words for newcomers', /^## New to GitHub\?$/m.test(guide) &&
+  /\*\*Repository\*\*/.test(guide) && /\*\*Commit\*\*/.test(guide) && /\*\*GitHub App\*\*/.test(guide));
+t.check('Try it links that explanation', /\]\(docs\/guide\.md#new-to-github\)/.test(intro));
 t.check('Try it needs no developer setup', !/```|npx |npm |client secret|wrangler|register.*App/i.test(intro));
 t.check('unfinished sign-in is stated before the shared link', !/REPLACE_ME/.test(deployment.broker) ||
   /not ready for sign-in[\s\S]*https:\/\/forwardmotionnz.github.io\/notes\//i.test(intro));

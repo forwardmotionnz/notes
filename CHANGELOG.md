@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Support Padgit: About links to the owner's GitHub Sponsors page, and the repository page has a Sponsor button.
 - Any note can be the template for Today: **⋯ → Use for new daily notes** in a saved note, and **Stop using** to go back to blank. Padgit sets only the `template` line of Obsidian's `.obsidian/daily-notes.json` (made if missing), so the choice follows you to every device and to Obsidian.
 - Drag a note in Files onto a folder to move it there, or onto the Files heading for the top level (with a mouse; on touch screens Rename or move stays the way). One commit, as Rename or move.
 - Recently deleted, under Recent in Files: notes deleted in the last 30 changes, read from the repository's history, with Restore to bring one back in a single commit.

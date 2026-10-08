@@ -113,6 +113,8 @@ just this code:
   client secret instead), so an owner can delete it; without it, nobody can
   use the installation unless you are signed in. You cannot see from GitHub
   whether an app has a key, so this part is trust in the owner's word. The
+  shared copy's app (the one padgit.com uses) has had every private key
+  deleted, on 2026-10-08. The
   owner can also see which accounts installed the app and on which
   repositories. Revoking your sign-in does not stop key-based access;
   uninstalling the app does (see below).

@@ -754,7 +754,7 @@ A first-time visitor (new to GitHub or not) is asked for access before seeing an
 - Done looks like: tests with a token (fake GitHub answers as GitHub does for fine-grained tokens, checked against the API description) that sign in, list the one repository, save, refuse a read-only token clearly, handle expiry and a revoked token without losing typing, never call the broker, and keep the token out of the address and logs; privacy note and guide updated; CSP unchanged (api.github.com only).
 
 ## Needs the owner
-- **GitHub App private key (2026-10-08):** in GitHub → Settings → Developer settings → GitHub Apps → forwardmotion-notes → **Private keys**, delete every key (Padgit never uses one; a key is what lets the app's owner act on installations without the person signed in). Then tell Claude, so the README's Try it and the privacy note can say the shared copy's app has no private key (the README line "The app's owner also has access through that installation" changes with it, and its docs check).
+- **GitHub App private key (2026-10-08): done (owner reported every key deleted, 2026-10-08).** In GitHub → Settings → Developer settings → GitHub Apps → forwardmotion-notes → **Private keys**, delete every key (Padgit never uses one; a key is what lets the app's owner act on installations without the person signed in). Then tell Claude, so the README's Try it and the privacy note can say the shared copy's app has no private key (the README line "The app's owner also has access through that installation" changes with it, and its docs check).
 - **N46 walk-through:** ask someone who uses AI tools but has never used GitHub to go from padgit.com to a first saved note on their phone, without help, and note where they hesitate.
 - ~~**After the move to padgit.com:** make `broker/wrangler.padgit.toml` the repository's `wrangler.toml`.~~ Done in 1ad237e (PR #31): `broker/wrangler.toml` allows only https://padgit.com with the root callback; the padgit test checks it (2026-10-04).
 
@@ -1216,3 +1216,4 @@ Final CI caught two unchanged manifest assertions requiring spaces after CSS col
 - 2026-10-07 · N48 · done · Look around first; review's four points fixed. d0640c1, 709e1f7
 - 2026-10-07 · icon · done · option C in every size, maskable of its own; manifest 31/31, full suite 72/72 Chromium. 3cda99e
 - 2026-10-08 · privacy note · rewritten (private key, page, broker); N49 added.
+- 2026-10-08 · README, privacy note · owner deleted the App's private keys; Try it and the privacy note say so.

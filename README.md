@@ -37,9 +37,10 @@ notes, no account needed, nothing saved.
 
 Read the [privacy note](PRIVACY.md) before signing in. Padgit reads and writes
 files in repositories its GitHub App is installed on that you can access;
-this may include repositories someone else installed it on. The app's owner
-also has access through that installation. Only use a copy whose owner you
-trust. To run your own copy, see [Running your own copy](docs/self-hosting.md).
+this may include repositories someone else installed it on. The shared
+copy's app has no private key, so its owner cannot use that access without
+you signed in; you are taking their word for that, and trusting the page
+and sign-in helper they run. Only use a copy whose owner you trust. To run your own copy, see [Running your own copy](docs/self-hosting.md).
 
 ## What it does
 

@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- The privacy note says exactly what a copy's owner can and cannot do: using the GitHub App's installations without you needs the app's private key, which Padgit never uses and an owner can delete; the page and broker remain trust in the owner. Running your own copy now says not to create a private key.
 - A new icon: a notepad whose last line ends in a commit dot, on a rounded tile (the old page-with-a-folded-corner looked like an office file). Android gets a crop-safe version of its own, and the browser tab a simplified one.
 - **Look around first** on the sign-in screen: Padgit with sample notes that explain it, no account needed. They live only in that tab: nothing reaches GitHub or the broker, and nothing is written to the browser's storage.
 - The sign-in screen shows what Padgit is before asking for access: **How it works** (a picture of the app, loaded only when opened, and the three steps), and links to the guide, the source code and running your own copy.

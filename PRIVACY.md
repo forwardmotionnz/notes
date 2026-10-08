@@ -94,13 +94,22 @@ just this code:
 - **Their GitHub App.** Installing it grants the app itself read and write
   access to the contents of the repositories you choose. Whoever owns the
   app can use that access directly, from their own computer, without you
-  signing in and without the broker. They can also see which accounts
-  installed it and on which repositories. Revoking your sign-in does not
-  stop this; uninstalling the app does (see below).
+  signing in, but only with the app's **private key**: GitHub requires one
+  to act as an app on its installations. Padgit never needs that key (it
+  signs you in through GitHub's ordinary sign-in, which uses the broker's
+  client secret instead), so an owner can delete it; without it, nobody can
+  use the installation unless you are signed in. You cannot see from GitHub
+  whether an app has a key, so this part is trust in the owner's word. The
+  owner can also see which accounts installed the app and on which
+  repositories. Revoking your sign-in does not stop key-based access;
+  uninstalling the app does (see below).
 - **Their web page.** They control the page you load, so a changed page
-  could read what you type and your sign-in.
-- **Their broker settings.** They run the broker; the code here keeps
-  nothing, but they deploy it.
+  could read what you type and your sign-in. A copy published by GitHub
+  Pages from a public repository, as the shared one is, shows every change
+  to the page as a public commit there, so a change cannot be made quietly.
+- **Their broker.** Sign-in codes and tokens pass through it on their way
+  to you. The code here keeps and logs nothing, but they deploy it, and you
+  cannot see what is running.
 
 The code in this repository does none of these things. If you would rather
 not trust anyone but GitHub, run your own copy (see the end of this page).

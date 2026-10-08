@@ -19,7 +19,11 @@ personal access token instead of the app. Make it with the link there,
 choosing **Only select repositories** (your notes repository),
 **Contents: Read and write** and an expiry date, then paste it. It goes
 only from your browser to GitHub: no app is installed and the sign-in
-service is never used. Padgit lists the repositories the token can reach.
+service is never used. Padgit lists the repositories the token can read,
+which may include public ones it cannot save to; it saves only to the ones
+you gave it. Padgit cannot tell in advance whether a token may save, so a
+token without **Read and write** is found out at the first save, and what
+you typed is kept.
 When the token expires or is deleted on GitHub, Padgit signs you out and
 keeps what you had not saved; make a new token and sign in with it.
 

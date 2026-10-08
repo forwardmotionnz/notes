@@ -74,6 +74,12 @@ Create it, then on the app's page note the **Client ID** and the **slug** (the
 last part of `github.com/apps/<slug>`). Click **Generate a new client secret**
 and copy it somewhere safe for the next step.
 
+Do **not** generate a private key, and delete any the app has (the app's page,
+**Private keys**). Padgit never uses one; a private key is what would let the
+app's owner act on people's installations without them signed in. If you
+share your copy, say in its README that its app has no private key, as the
+[privacy note](../PRIVACY.md#who-you-are-trusting) explains.
+
 ## 3. Deploy the broker
 
 ```sh

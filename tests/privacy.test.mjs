@@ -62,9 +62,13 @@ t.check('and that a copied refresh token keeps working for up to six months',
   /refresh token could keep getting new ones for up to six months/i.test(doc));
 // A GitHub App's owner can act on its installations with the App's own key,
 // without any user: https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation
-t.check("it says whoever owns the GitHub App can use the app's access without them",
-  /owns\s+the\s+app\s+can\s+use\s+that\s+access\s+directly/i.test(doc) &&
-  /Revoking\s+your\s+sign-in\s+does\s+not\s+stop\s+this;\s+uninstalling\s+the\s+app\s+does/i.test(doc));
+// That needs the App's private key, which Padgit never uses, so an owner can delete it (2026-10-08).
+t.check("it says whoever owns the GitHub App can use the app's access without them, with its private key",
+  /owns\s+the\s+app\s+can\s+use\s+that\s+access\s+directly/i.test(doc) && /only\s+with\s+the\s+app's\s+\*\*private\s+key\*\*/i.test(doc) &&
+  /Revoking\s+your\s+sign-in\s+does\s+not\s+stop\s+key-based\s+access;\s+uninstalling\s+the\s+app\s+does/i.test(doc));
+t.check('that Padgit never needs that key, and that its absence cannot be checked on GitHub',
+  /Padgit\s+never\s+needs\s+that\s+key/i.test(doc) && /cannot\s+see\s+from\s+GitHub\s+whether\s+an\s+app\s+has\s+a\s+key/i.test(doc));
+t.check('and that tokens pass through the broker, whose deployment cannot be seen', /tokens\s+pass\s+through\s+it/i.test(doc) && /cannot\s+see\s+what\s+is\s+running/i.test(doc));
 t.check('and that they control the page too', /control the page you load/i.test(doc));
 t.check('it says the editor code from the CDN runs inside the page', /runs inside the page/i.test(doc));
 t.check('it warns that a browser reopening tabs brings "Forget me" storage back',

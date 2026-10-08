@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-2lSejObXqN/23ewIBny+zI+LYu5GAlaeXD5fAJ0q1v0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-So/QuTeaQCGA0dzN6n0+Ovv1GdiMhTv1KO3/l4aYSow=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -122,7 +122,7 @@ select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1
 #signup-line{margin:12px 0 !important;}
 #f-demo{display:block;text-align:center;margin:8px 0 0;padding:10px;border:1px solid var(--line);border-radius:8px;color:var(--fg);text-decoration:none;font-weight:600;}
 #demo-bar{flex:none;padding:6px 12px;font-size:13px;background:var(--accent);color:var(--bg);}#demo-bar a{color:inherit;font-weight:600;}
-#how{margin:0 0 10px;font-size:13px;}#how summary{cursor:pointer;font-weight:600;}#how img{display:block;width:100%;height:auto;margin:8px 0;border:1px solid var(--line);border-radius:6px;}#how ol{margin:6px 0;padding-left:20px;}
+#how,#pat{margin:0 0 10px;font-size:13px;}#pat summary{cursor:pointer;font-weight:600;}#pat label{display:block;margin:8px 0;}#pat input{width:100%;box-sizing:border-box;-webkit-text-security:disc;}#pat a{color:var(--accent);}#how summary{cursor:pointer;font-weight:600;}#how img{display:block;width:100%;height:auto;margin:8px 0;border:1px solid var(--line);border-radius:6px;}#how ol{margin:6px 0;padding-left:20px;}
 #signin-links{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;margin:0 0 12px;}#signin-links a{color:var(--accent);}
 .hint a{color:var(--accent);cursor:pointer;}
 #about a{color:var(--accent);white-space:nowrap;}
@@ -595,6 +595,14 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 				<ol><li>Sign in with GitHub.</li>
 					<li>Choose, or create, one private repository for your notes.</li>
 					<li>Write. Every save is a plain file in that repository, which you can also open in Obsidian or on GitHub.</li></ol></details>
+			<!-- N49: a personal access token instead of the app: no installation, no broker. -->
+			<details id="pat"><summary>Other ways to sign in</summary>
+				<p>Use a GitHub personal access token instead of the app: it goes only from this browser to GitHub, with no app and no sign-in service in between.
+					<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Make a fine-grained token</a>
+					with <em>Repository access: Only select repositories</em> (your notes repository), <em>Permissions: Contents: Read and write</em>, and an expiry date. Paste it here.</p>
+				<label><span>Personal access token</span><input id="f-pat" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true"></label>
+				<button id="f-pat-go">Sign in with a token</button>
+				<p id="pat-error" class="note err" role="alert" hidden></p></details>
 			<nav id="signin-links" aria-label="More about Padgit"><a href="docs/guide.html" target="_blank" rel="noopener">Guide</a>
 				<a id="signin-source" target="_blank" rel="noopener" hidden>Source code</a>
 				<a href="docs/self-hosting.html" target="_blank" rel="noopener">Run your own copy</a></nav>
@@ -645,8 +653,8 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			</label>
 			<p class="hint" id="repo-hint">
 				<span id="repo-hint-text">Only repositories the app is installed on are listed.</span>
-				<a id="f-install" target="_blank" rel="noopener">Choose repositories</a>
-				(on GitHub, in a new tab; this list updates when you come back here)
+				<span id="f-install-wrap"><a id="f-install" target="_blank" rel="noopener">Choose repositories</a>
+				(on GitHub, in a new tab; this list updates when you come back here)</span>
 			</p>
 			<label class="check">
 				<input type="checkbox" id="f-session">
@@ -1020,6 +1028,7 @@ function broker(body) {
 	});
 }
 function applyTokens(t) {
+	cfg.pat = false;                     // signed in through the app
 	cfg.token = t.access_token;
 	cfg.refresh = t.refresh_token || "";
 	/* N140 */
@@ -1033,6 +1042,7 @@ function adoptStoredTokens() {
 		cfg.token = stored.token;
 		cfg.refresh = stored.refresh || "";
 		cfg.expires = stored.expires || 0;
+		cfg.pat = !!stored.pat;
 		return true;
 	}
 	return false;
@@ -1198,8 +1208,8 @@ function request(path, options, retried) {
 				}
 				var msg = "GitHub could not complete that action. Try again.";
 				if (res.status >= 500) msg = "GitHub is temporarily unavailable. Try again shortly.";
-				if (res.status === 401) msg = "Signed out. Sign in again to continue.";
-				if (res.status === 403) msg = "GitHub refused. Is the app installed on this repository?";
+				if (res.status === 401) msg = cfg.pat ? "Your token has expired or been revoked. Make a new one on GitHub and sign in with it." : "Signed out. Sign in again to continue.";
+				if (res.status === 403) msg = cfg.pat ? "Your token is not allowed to do that here. On GitHub, check that it includes this repository with Contents: Read and write, and that any organisation the repository belongs to has approved it." : "GitHub refused. Is the app installed on this repository?";
 				/* N26 */
 				var tooBig = (Array.isArray(body.errors) ? body.errors : []).some(function (e) { return e && e.code === "too_large"; });
 				if (tooBig) msg = "That file is larger than 1 MB, too large to edit here, so it is left alone.";
@@ -1211,6 +1221,8 @@ function request(path, options, retried) {
 				err.detail = detail;     // Internal only, for telling 409s apart.
 				err.refused = tooBig;
 				err.writeBlocked = writeBlocked;
+				/* N49: a token cannot be renewed; signing out keeps unsaved words as drafts. */
+				if (res.status === 401 && cfg.pat && !patTrying) { signOutLocally(""); err.signedOut = err.patSignOut = true; }
 				throw err;
 			});
 		}
@@ -1229,6 +1241,20 @@ function fetchUser() {
 /* N27 */
 function listRepos() {
 	var failed = 0;
+	/* N49: a token lists the repositories it can reach (repos/list-for-authenticated-user); installations are the app's. */
+	if (cfg.pat) return (function page(n, out) {
+		return request("/user/repos?per_page=100&page=" + n).then(function (d) {
+			if (!Array.isArray(d)) throw incompleteReply();
+			out = out.concat(d);
+			return d.length === 100 && n < 20 ? page(n + 1, out) : out;
+		});
+	})(1, []).then(function (all) {
+		var repos = all.filter(function (r) { return r && r.owner && typeof r.name === "string"; }).map(function (r) {
+			return { owner: r.owner.login, repo: r.name, branch: r.default_branch || "main", full: r.full_name, private: !!r.private };
+		}).sort(function (a, b) { return a.full.localeCompare(b.full); });
+		repos.failed = 0;
+		return repos;
+	});
 	return allPages("/user/installations", "installations").then(function (installs) {
 		return fewAtATime(installs, 4, function (inst) {
 			return allPages("/user/installations/" + inst.id + "/repositories", "repositories")
@@ -1679,7 +1705,7 @@ function flash(msg, isError, ms) {
 }
 function fail(err) {
 	flash(err.message || String(err), true);
-	if (err && err.signedOut) showSignIn();
+	if (err && err.signedOut) showSignIn(err.patSignOut ? err.message : undefined);
 }
 /* TREE */
 var readOnly = "";            /* N117 */
@@ -4063,6 +4089,30 @@ function showSignIn(message, info) {
 	openDialog();
 }
 /* N201 */
+/* N49: sign in with a fine-grained personal access token instead of the app. It goes only to
+   api.github.com (never the broker), reaches only what was chosen for it on GitHub, and cannot be
+   renewed: when it stops working Padgit signs out, keeping unsaved words as drafts. */
+/* A failed attempt changes nothing stored: another tab may be signed in with this browser's storage. */
+var patTrying = false;
+async function signInWithToken() {
+	var token = $("f-pat").value.trim(), err = $("pat-error"), go = $("f-pat-go");
+	var was = { token: cfg.token, refresh: cfg.refresh, expires: cfg.expires, pat: cfg.pat };
+	function no(m) { patTrying = false; Object.assign(cfg, was); err.textContent = m; err.hidden = false; go.disabled = false; }
+	err.hidden = true;
+	if (!/^github_pat_\w{20,}$/.test(token)) return no("That is not a fine-grained token: those start with github_pat_. Make one with the link above.");
+	go.disabled = true;
+	cfg.token = token; cfg.refresh = ""; cfg.expires = 0; cfg.pat = true; patTrying = true;
+	try {
+		var u = await fetchUser(), repos = await listRepos();
+		if (!repos.length) return no("This token cannot reach any repository. On GitHub, give it your notes repository, then try again.");
+		sessionOnly = $("f-session-in").checked;
+		cfg.login = u && u.login || ""; cfg.avatar = u && u.avatar_url || "";
+		patTrying = false; saveCfg(); $("f-pat").value = "";
+		location.replace(redirectUri());
+	} catch (e) { no(e.status === 401 ? "GitHub did not accept this token. Check that you copied all of it and that it has not expired." : e.message || "Could not reach GitHub. Try again."); }
+}
+$("f-pat-go").onclick = signInWithToken;
+function repoHint() { return cfg.pat ? "Repositories your token can read are listed; it can only save to the ones you gave it, with Contents: Read and write." : "Only repositories the app is installed on are listed."; }
 function openSettings() {
 	if (!signedIn()) { showSignIn(); return; }
 	$("view-signin").hidden = true;
@@ -4070,6 +4120,8 @@ function openSettings() {
 	$("f-session").checked = sessionOnly;
 	$("f-install").href = $("fr-install").href = "https://github.com/apps/" +
 		encodeURIComponent(DEPLOYMENT.appSlug) + "/installations/new";
+	$("f-install-wrap").hidden = !!cfg.pat;
+	if (cfg.pat) $("repo-hint-text").textContent = repoHint();
 	$("who-login").textContent = cfg.login ? "@" + cfg.login : "";
 	/* N202 */
 	if (cfg.avatar) $("who-avatar").src = cfg.avatar;
@@ -4125,7 +4177,7 @@ function loadRepoList() {
 				" did not answer)."
 			: "";
 		$("repo-hint-text").textContent = partly ? partly.replace(/\.$/, "; open settings again to retry.") :
-			repos.length ? "Only repositories the app is installed on are listed."
+			repos.length ? repoHint()
 									 : "The app is not installed on any repository yet.";
 		if (!repos.length) {
 			sel.appendChild(new Option("No repositories yet: choose some below", ""));
@@ -4182,7 +4234,7 @@ function repoPicked() {
 	if (pick && !pick.private) {
 		$("repo-hint-text").textContent = pick.full + " is public: anyone can read the notes saved there.";
 	} else if (/ is public: /.test($("repo-hint-text").textContent)) {
-		$("repo-hint-text").textContent = "Only repositories the app is installed on are listed.";
+		$("repo-hint-text").textContent = repoHint();
 	}
 }
 /* N89 */

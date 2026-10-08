@@ -74,6 +74,19 @@ it; once your browser has a token it talks to GitHub directly.
 The broker runs on Cloudflare Workers. Like any hosting company, Cloudflare
 handles the requests that reach it.
 
+## Signing in with a token instead
+
+Under **Other ways to sign in**, you can use a GitHub fine-grained personal
+access token instead of the GitHub App. You make it on GitHub, choosing the
+one repository it may reach, *Contents: Read and write*, and when it
+expires. It then goes only from your browser to `api.github.com`: no GitHub
+App is installed, and the broker is never used, so neither the app's owner
+nor the broker is involved. The page you load is still trusted, as for any
+web page. Padgit keeps the token where it keeps a sign-in (below), cannot
+renew it, and signs you out when GitHub stops accepting it, keeping your
+unsaved changes. To take it back, delete the token on GitHub (**Settings →
+Developer settings → Personal access tokens**).
+
 ## Other places the page loads from
 
 The editor, CodeMirror, is loaded from `cdnjs.cloudflare.com`, a public
@@ -100,6 +113,8 @@ just this code:
   client secret instead), so an owner can delete it; without it, nobody can
   use the installation unless you are signed in. You cannot see from GitHub
   whether an app has a key, so this part is trust in the owner's word. The
+  shared copy's app (the one padgit.com uses) has had every private key
+  deleted, on 2026-10-08. The
   owner can also see which accounts installed the app and on which
   repositories. Revoking your sign-in does not stop key-based access;
   uninstalling the app does (see below).
@@ -126,7 +141,7 @@ All of this stays on your device, in the browser's storage for this site:
 
 | Name | What it holds | Removed when |
 |---|---|---|
-| `notes.config.v2` | your sign-in (the token, when it expires, and the refresh token that renews it), your GitHub username and picture link, the repository and branch you chose, your pinned files | you sign out, or GitHub stops accepting the sign-in |
+| `notes.config.v2` | your sign-in (the token, when it expires, and the refresh token that renews it; or, signed in with a personal access token, that token and that it is one), your GitHub username and picture link, the repository and branch you chose, your pinned files | you sign out, or GitHub stops accepting the sign-in |
 | `notes.ui.v1` | which folders are open, the note you last had open, up to 12 open note tabs and 30 recently opened paths with opening times and the version opened (its GitHub version id, so Recent can mark changes made since) for the last-used repository and branch, the pinned list you last looked at, the file list's width and whether it is hidden, and which versions of your notes are pinned (by their GitHub version id, so each is read only once to find pins) | you sign out |
 | `notes.draft.v1:` followed by the repository, branch and file | the words you have typed but not yet saved in that file, which version they were based on, and when | the change is saved, you press Discard, or you sign out |
 | `notes.theme` | Light or Dark, if you chose one in Settings (nothing for *Same as this device*) | you choose *Same as this device* again; signing out keeps it, as it says nothing about you |
@@ -176,7 +191,9 @@ On GitHub, click your profile picture, then **Settings**, then
   **Settings → GitHub Apps**.
 
 To take everything back, do both. Nothing needs deleting on the broker,
-because it keeps nothing.
+because it keeps nothing. Signed in with a personal access token, delete
+the token instead (**Settings → Developer settings → Personal access
+tokens**); there is no app to revoke or uninstall.
 
 ## Self-hosting instead
 

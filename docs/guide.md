@@ -11,6 +11,22 @@ nothing is sent anywhere, and closing or reloading the tab starts them
 afresh. Renaming and moving are not available there. **Sign in** in the
 banner at the top leaves the demo.
 
+## Sign in with a token instead
+
+For the most privacy short of running your own copy: on the sign-in
+screen, open **Other ways to sign in** and use a GitHub fine-grained
+personal access token instead of the app. Make it with the link there,
+choosing **Only select repositories** (your notes repository),
+**Contents: Read and write** and an expiry date, then paste it. It goes
+only from your browser to GitHub: no app is installed and the sign-in
+service is never used. Padgit lists the repositories the token can read,
+which may include public ones it cannot save to; it saves only to the ones
+you gave it. Padgit cannot tell in advance whether a token may save, so a
+token without **Read and write** is found out at the first save, and what
+you typed is kept.
+When the token expires or is deleted on GitHub, Padgit signs you out and
+keeps what you had not saved; make a new token and sign in with it.
+
 ## New to GitHub?
 
 GitHub is where your notes are stored. You need a free account

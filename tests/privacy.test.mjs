@@ -68,6 +68,9 @@ t.check("it says whoever owns the GitHub App can use the app's access without th
   /Revoking\s+your\s+sign-in\s+does\s+not\s+stop\s+key-based\s+access;\s+uninstalling\s+the\s+app\s+does/i.test(doc));
 t.check('that Padgit never needs that key, and that its absence cannot be checked on GitHub',
   /Padgit\s+never\s+needs\s+that\s+key/i.test(doc) && /cannot\s+see\s+from\s+GitHub\s+whether\s+an\s+app\s+has\s+a\s+key/i.test(doc));
+// The owner deleted the shared copy's App private keys on 2026-10-08.
+t.check("it says the shared copy's app has had its private keys deleted, and when",
+  /shared\s+copy's\s+app[\s\S]{0,60}has\s+had\s+every\s+private\s+key\s+deleted,\s+on\s+2026-10-08/i.test(doc));
 t.check('and that tokens pass through the broker, whose deployment cannot be seen', /tokens\s+pass\s+through\s+it/i.test(doc) && /cannot\s+see\s+what\s+is\s+running/i.test(doc));
 t.check('and that they control the page too', /control the page you load/i.test(doc));
 t.check('it says the editor code from the CDN runs inside the page', /runs inside the page/i.test(doc));

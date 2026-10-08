@@ -20,7 +20,7 @@ t.check('a beginner reaches the first saved note', /GitHub account/.test(intro) 
 t.check('a repository is explained and creation help is linked', /repository[^\n]*folder|folder[^\n]*repository/i.test(intro) &&
   /\]\(docs\/guide\.md#no-notes-repository-yet\)/.test(intro) && /^## No notes repository yet$/m.test(guide));
 t.check('Try it explains owner trust and links privacy', /\]\(PRIVACY.md\)/.test(intro) &&
-  /app's owner\s+also has access through that installation/i.test(intro));
+  /shared\s+copy's app has no private key/i.test(intro) && /taking their word/i.test(intro));
 // N46: first steps for people who use AI tools but not GitHub.
 t.check('Try it says how to get a free GitHub account', /free/i.test(intro) && /\]\(https:\/\/github\.com\/signup\)/.test(intro));
 t.check('Try it says AI tools can use the notes', /\bAI\b/.test(intro));

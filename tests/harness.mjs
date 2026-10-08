@@ -366,7 +366,12 @@ export async function context(gh, opts = {}) {
     const req = route.request();
     const auth = (req.headers()['authorization'] || '').replace(/^Bearer /, '');
     gh.log.apiAuth.push(auth);
-    const tok = gh.access.get(auth);
+    // N49: a fine-grained personal access token, { repos: [full_name], write, revoked }. It reaches only
+    // the repositories chosen for it: others answer 404, as GitHub does for private repositories a
+    // credential cannot see; a write without Contents: Read and write is refused 403.
+    const pat = gh.pats && gh.pats.get(auth);
+    if (pat) gh.log.patCalls = (gh.log.patCalls || 0) + 1;
+    const tok = pat ? (pat.revoked ? null : { expired: false }) : gh.access.get(auth);
     // A navigation can cancel a request before it is answered; answering it
     // then throws, and that says nothing about the app.
     const json = (body, status = 200) => route.fulfill({ status,
@@ -376,6 +381,22 @@ export async function context(gh, opts = {}) {
 
     const p = decodeURIComponent(new URL(req.url()).pathname);
     if (p === '/user') return json(gh.user);
+    if (pat) {
+      // An app's installation lists are for user access tokens (github/rest-api-description,
+      // apps/list-installations-for-authenticated-user): a personal token is refused.
+      if (p.startsWith('/user/installations')) { gh.log.patInstallations = (gh.log.patInstallations || 0) + 1;
+        return json({ message: 'Resource not accessible by personal access token' }, 403); }
+      // repos/list-for-authenticated-user: a plain array of repository objects, paged like the
+      // others (per_page, page, Link). Only what the token can reach.
+      if (p === '/user/repos') {
+        const q = new URL(req.url()).searchParams, per = Math.min(100, Math.max(1, Number(q.get('per_page')) || 30)), pg = Math.max(1, Number(q.get('page')) || 1);
+        const list = gh.repos.filter(r => pat.repos.includes(r.full_name)).map(r => ({ ...r, permissions: r.permissions || { admin: true, maintain: true, push: true, triage: true, pull: true } }));
+        return json(list.slice((pg - 1) * per, pg * per));
+      }
+      const fr = (p.match(/^\/repos\/([^/]+\/[^/]+)/) || [])[1];
+      if (fr && !pat.repos.includes(fr)) return json({ message: 'Not Found' }, 404);
+      if (fr && req.method() !== 'GET' && !pat.write) return json({ message: 'Resource not accessible by personal access token' }, 403);
+    }
     // Both lists are paged: per_page (default 30, max 100), page, total_count
     // and a Link header. https://docs.github.com/en/rest/apps/installations#list-app-installations-accessible-to-the-user-access-token
     // https://docs.github.com/en/rest/apps/installations#list-repositories-accessible-to-the-user-access-token

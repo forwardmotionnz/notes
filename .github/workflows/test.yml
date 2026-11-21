@@ -46,7 +46,7 @@ jobs:
   suite:
     needs: plan
     name: suite (${{ matrix.engine }}, run ${{ matrix.run }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright 1.57 has no WebKit build for ubuntu-latest (26.04)
     timeout-minutes: 30
     strategy:
       fail-fast: false

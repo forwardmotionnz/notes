@@ -6,7 +6,7 @@ const note='# Pictures\n\n![A local picture](../assets/picture%20one.png)\n\n![[
 const files={'folder/note.md':note,'other.md':'# Elsewhere','assets/picture one.png':png,'assets/unsafe.svg':'<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>','assets/disguised.png':'<svg onload="alert(1)"/>','assets/code.png':png};
 const gh=H.fakeGitHub({files,raw:{'assets/picture one.png':true,'assets/code.png':true}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);
 const requests=[];p.on('request',r=>requests.push(r.url()));
-await p.evaluate(()=>openFile('folder/note.md'));await p.click('#btn-preview');
+await H.preview(p,'folder/note.md');
 const has=await p.waitForFunction(()=>document.querySelector('#preview img')?.naturalWidth>0,null,{timeout:3000}).then(()=>true,()=>false);
 t.check('repository image is decoded and visible',has);
 if(has){
@@ -25,23 +25,23 @@ if(has){
  await p.click('#btn-preview');let deadline;
  await Promise.race([requested,new Promise((_,r)=>{deadline=setTimeout(()=>r(Error('Image request not started')),5000);})]).finally(()=>clearTimeout(deadline));
  await p.evaluate(()=>openFile('other.md'));release();await H.settle(p,300);
- t.check('late image cannot appear in another note',await p.locator('#preview img').count()===0&&await p.locator('#editor-pane').isVisible());
+ t.check('late image cannot appear in another note',await p.locator('#preview img').count()===0&&(await p.textContent('#pin-list')).trim()==='Elsewhere');
 }
 await c.close();
 {
  const many=Object.fromEntries(Array.from({length:21},(_,i)=>[`image${i}.png`,png]));
  many['many.md']=Object.keys(many).map(p=>`![${p}](${p})`).join('\n\n');
- const gh=H.fakeGitHub({files:many,raw:Object.fromEntries(Object.keys(many).map(p=>[p,p.endsWith('.png')]))}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);await p.evaluate(()=>openFile('many.md'));
+ const gh=H.fakeGitHub({files:many,raw:Object.fromEntries(Object.keys(many).map(p=>[p,p.endsWith('.png')]))}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);
  let active=0,max=0,reads=0;
  await p.route('**/contents/image*.png?*',async r=>{reads++;active++;max=Math.max(max,active);await new Promise(r=>setTimeout(r,20));await r.fallback();active--;});
- await p.click('#btn-preview');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));
+ await H.preview(p,'many.md');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));
  t.check('image requests are bounded to 20 with four workers',reads===20&&max<=4);
  t.check('image limit is explained',/First 20 images only/.test(await p.textContent('#preview')));
  await c.close();
 }
 {
  const gh=H.fakeGitHub({files:{'note.md':'![Large](large.png)\n\n![Hidden](.private/p.png)\n\n![Symlink](link.png)','large.png':'x'.repeat(10*1024*1024+1),'link.png':png,'.private/p.png':png},raw:{'link.png':true,'.private/p.png':true}});gh.modes={'link.png':'120000'};
- const c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length);await p.evaluate(()=>openFile('note.md'));await p.click('#btn-preview');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));
+ const c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length);await H.preview(p,'note.md');await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));
  // Since 2026-09-30 images up to 10 MB are shown (read as Git blobs over 1 MB); the limit is now 10 MB.
  t.check('large files, hidden paths and symlinks are refused',await p.locator('#preview img').count()===0&&/10 MB/.test(await p.textContent('#preview'))&&/symlinks/.test(await p.textContent('#preview')));
  await p.click('#btn-preview');
@@ -57,7 +57,7 @@ await c.close();
  await c.close();
 }
 {
- const gh=H.fakeGitHub({files:{'note.md':'![[100%.png]]','assets/100%.png':png},raw:{'assets/100%.png':true}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);await p.evaluate(()=>openFile('note.md'));await p.click('#btn-preview');
+ const gh=H.fakeGitHub({files:{'note.md':'![[100%.png]]','assets/100%.png':png},raw:{'assets/100%.png':true}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);p.setDefaultTimeout(5000);await H.preview(p,'note.md');
  await p.waitForFunction(()=>!document.querySelector('#preview [data-loading]'));
  t.check('Obsidian embed uses a literal percent filename',await p.locator('#preview img').count()===1&&await p.locator('#preview img').evaluate(x=>x.naturalWidth>0));
  await c.close();

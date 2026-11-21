@@ -1,7 +1,7 @@
 import * as H from './harness.mjs';
 const t=H.suite('checklists');await H.start();
 const original='# Shopping\n\n- [ ] fruit\n  - [ ] apples\n- [ ] bread\n\nParagraph stays.\n\n```md\n- [ ] example only\n```\n';
-const gh=H.fakeGitHub({files:{'list.md':original}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await p.evaluate(()=>openFile('list.md'));await p.click('#btn-preview');
+const gh=H.fakeGitHub({files:{'list.md':original}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await H.preview(p,'list.md');
 const boxes=p.locator('#preview input[type=checkbox]:enabled');t.check('ordinary note has editable preview tasks',await boxes.count()===3);
 if(await boxes.count()===3){
  await H.taskAction(p, 'Edit task: fruit');await p.getByRole('button',{name:'Cancel editing task',exact:true}).click();t.check('Cancel restores rendered task',await p.locator('.task-edit').count()===0);
@@ -23,7 +23,7 @@ for(const [label,body] of [
  ['loose','- [ ] parent\n\n  paragraph\n  - [ ] child\n- [ ] second\n'],
  ['format','- [ ] **bold** [link](https://example.com)\n\n  continuation\n'],
  ['ordered','1. [ ] first\n2. [ ] second\n']]){
- const gh=H.fakeGitHub({files:{'probe.md':body}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await p.evaluate(()=>openFile('probe.md'));await p.click('#btn-preview');
+ const gh=H.fakeGitHub({files:{'probe.md':body}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await H.preview(p,'probe.md');
  // N39: quoted tasks are supported now; the indented code example must still never change.
  if(label==='ambiguous'){await p.waitForSelector('#preview input[type=checkbox]:enabled');await p.locator('#preview input[type=checkbox]:enabled').click();await p.waitForFunction(()=>!Object.keys(pinBusy).length);
   t.check('ambiguous code and quoted task cannot mutate source',await p.locator('#preview input[type=checkbox]').count()===1&&gh.files['probe.md']==='    - [ ] code example\n\n> - [x] quoted task\n',JSON.stringify(gh.files['probe.md']));}
@@ -41,7 +41,7 @@ for(const [label,body] of [
  await c.close();
 }
 {
- const gh=H.fakeGitHub({files:{'probe.md':'- [ ] original\n'}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await p.evaluate(()=>openFile('probe.md'));await p.click('#btn-preview');
+ const gh=H.fakeGitHub({files:{'probe.md':'- [ ] original\n'}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await H.preview(p,'probe.md');
  gh.files['probe.md']='- [ ] remote\n';
  await p.locator('#preview input[type=checkbox]').first().check();await p.waitForFunction(()=>!Object.keys(pinBusy).length&&!Object.keys(pinReloading).length);
  t.check('conflict reloads confirmed remote checklist',await p.locator('[aria-label="Edit task: remote"]').count()===1);

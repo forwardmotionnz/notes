@@ -12,6 +12,7 @@ async function ready(width = 1280) {
   const p = await H.page(ctx);
   await H.signIn(p);
   await H.clickRow(p, 'inbox.md');
+  await p.waitForFunction(() => current?.path === 'inbox.md'); await H.edit(p);   // measures the editor pane
   return { gh, ctx, p };
 }
 const sideWidth = p => p.evaluate(() => Math.round(document.getElementById('sidebar').getBoundingClientRect().width));

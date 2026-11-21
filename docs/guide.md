@@ -234,6 +234,8 @@ merged when the changes are on different lines, or reported as a conflict
 
 ## Preview and search
 
+Markdown notes open in Preview; new or empty notes, notes with a restored draft, and other
+text files open in Edit.
 Use the **Edit / Preview** switch at the top to read the current note, including unsaved edits,
 as rendered Markdown. **Edit** returns to the unchanged source. Headings use
 your device's book face. Obsidian callouts (`> [!tip] Title`, `> [!warning]`,

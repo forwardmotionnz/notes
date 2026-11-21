@@ -4,13 +4,15 @@ await H.start();
 const source='---\ntitle: <img src=x onerror=alert(1)>\n---\n# Heading\n\n| A | B |\n| - | - |\n| one | two |\n\n- [x] Done\n- [ ] Next\n\n```js\n<script>alert(1)</script>\n```\n\n[[Other|Read other]]\n\n[Unsafe](javascript:alert(1))\n\n<img src="https://evil.test/leak" onerror="window.pwned=1"><iframe src="https://evil.test"></iframe><svg onload="window.pwned=1"></svg><form><input name="cfg"></form>\n';
 for(const noCdn of [false,true]) {
  const note=source+'\n<p onerror="window.pwned=1">Hostile paragraph</p>\n';
- const gh=H.fakeGitHub({files:{'note.md':note,'Other.md':'# Other'}});
+ const gh=H.fakeGitHub({files:{'note.md':note,'Other.md':'# Other','Empty.md':''}});
  const ctx=await H.context(gh,{noCdn}),p=await H.page(ctx);await H.signIn(p);p.setDefaultTimeout(5000);
  await p.evaluate(()=>openFile('note.md'));
  const present=await p.locator('#btn-preview').count();t.check('preview toggle exists',present===1);
  if(!present){await ctx.close();continue;}
  const commits=gh.commits.length;
- await p.click('#btn-preview');
+ // Notes open in Preview; without its libraries, in Edit.
+ t.check(noCdn?'without the libraries a note opens in Edit':'a note opens in Preview',await p.evaluate(()=>document.body.classList.contains('preview-view'))===!noCdn&&await p.locator('#editor-pane').isVisible()===noCdn);
+ await H.preview(p);
  if(noCdn){t.check('unavailable CDN explains fallback',/unavailable/i.test(await p.textContent('#preview')));}
  else {
  t.check('headings and table render',await p.locator('#preview h1').count()===1&&await p.locator('#preview td').count()===2);
@@ -26,7 +28,8 @@ for(const noCdn of [false,true]) {
  await H.setEditor(p,source+'\n## Draft heading');await p.click('#btn-preview');
  if(!noCdn)t.check('preview includes unsaved draft',await p.locator('#preview h2').textContent()==='Draft heading');
  t.check('draft remains recoverable',await p.evaluate(()=>dirty()&&!!readDraft(current.path)));
- if(!noCdn){await p.getByRole('link',{name:'Read other',exact:true}).click();await p.waitForFunction(()=>current?.path==='Other.md');t.check('wikilink follows existing resolver',await p.locator('#editor-pane').isVisible());}
+ if(!noCdn){await p.getByRole('link',{name:'Read other',exact:true}).click();await p.waitForFunction(()=>current?.path==='Other.md');t.check('wikilink follows existing resolver',await p.locator('#preview').isVisible()&&(await p.textContent('#pin-list')).trim()==='Other');
+  await p.evaluate(()=>openFile('Empty.md'));t.check('an empty note opens in Edit',await p.locator('#editor-pane').isVisible()&&!await p.evaluate(()=>document.body.classList.contains('preview-view')));}
  await ctx.close();
 }
 await H.stop();t.finish();

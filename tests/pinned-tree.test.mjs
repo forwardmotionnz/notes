@@ -11,8 +11,8 @@ for (const width of [1280,390]) {
  if(width===390)await p.click('#btn-tree');
  await p.locator('#pin-tabs button').first().click();
  await p.waitForFunction(()=>current?.path==='todo.md');
- // N37: a pinned note is a shortcut; it opens in the editor like any note.
- t.check(`${width}: pinned note opens like any note and closes Files`,await p.locator('#editor-pane').isVisible()&&await p.evaluate(()=>!document.body.classList.contains('tree-open')));
+ // N37: a pinned note is a shortcut; it opens like any note (in Preview).
+ t.check(`${width}: pinned note opens like any note and closes Files`,await p.locator('#preview').isVisible()&&await p.evaluate(()=>!document.body.classList.contains('tree-open')));
  t.check(`${width}: its shortcut is marked as the open note`,await p.getAttribute('#pin-tabs button >> nth=0','aria-current')==='true');
  await H.preview(p);
  await p.locator('#pin-list input').first().check();
@@ -93,7 +93,7 @@ for (const width of [1280,390]) {
  await H.tick(p,'A');await requested;
  await p.evaluate(()=>openFile('Elsewhere.md'));await p.waitForFunction(()=>current?.path==='Elsewhere.md');
  release();await p.waitForFunction(()=>!Object.keys(pinBusy).length);
- t.check('a slow checklist save cannot replace a newer selection',await p.evaluate(()=>current.path==='Elsewhere.md'&&!document.body.classList.contains('preview-view')&&editor.getValue()==='A different note') && gh.files['todo.md']==='- [x] A\n');
+ t.check('a slow checklist save cannot replace a newer selection',await p.evaluate(()=>current.path==='Elsewhere.md'&&document.body.classList.contains('preview-view')&&editor.getValue()==='A different note'&&document.getElementById('pin-list').textContent.trim()==='A different note') && gh.files['todo.md']==='- [x] A\n');
  await ctx.close();
 }
 await H.stop();t.finish();

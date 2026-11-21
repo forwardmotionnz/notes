@@ -50,6 +50,7 @@ for (const pan of [0, 120]) {
   await H.settle(p, 250);
   await H.clickRow(p, 'inbox.md');
   await H.settle(p, 300);
+  await H.edit(p);
   // Caret at the very end of a long note, then the keyboard comes up.
   await p.evaluate(() => { const ta = document.querySelector('#cm-stub'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
   await p.evaluate(([k, pan]) => window.keyboard(k, pan), [KEYBOARD, pan]);
@@ -152,6 +153,7 @@ for (const [label, height, keyboard] of [['iPhone 14', FULL, FULL - 417], ['iPho
   const { ctx, p } = await phone();
   await p.evaluate(() => openFile('inbox.md'));
   await H.settle(p, 400);
+  await H.edit(p);
   await p.evaluate(() => { const ta = document.querySelector('#cm-stub'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); window.cmScrolls = 0; window.cmRefreshes = 0; });
   await p.evaluate(k => window.keyboard(k), KEYBOARD);
   await H.settle(p, 100);

@@ -4,7 +4,7 @@ const t=H.suite('formatting');await H.start();
 for(const plain of [false,true]){
  const gh=H.fakeGitHub({files:{'a.md':'alpha\nbeta\n'}}),c=await H.context(gh,{noCdn:plain,viewport:{width:390,height:820}});
  if(!plain)await c.route('**/codemirror/5.65.16/**',r=>{const n=new URL(r.request().url()).pathname.split('/').pop();return r.fulfill({contentType:n.endsWith('.css')?'text/css':'application/javascript',headers:{'access-control-allow-origin':'*'},body:n.startsWith('codemirror.min.')?readFileSync(new URL('./fixtures/codemirror5/'+n,import.meta.url)):''});});
- const p=await H.page(c);p.setDefaultTimeout(5000);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await p.evaluate(()=>openFile('a.md'));
+ const p=await H.page(c);p.setDefaultTimeout(5000);await H.signIn(p);await p.waitForFunction(()=>treeState==='ok');await p.evaluate(()=>openFile('a.md'));await H.edit(p);
  const exists=await p.locator('#format-toolbar').count();t.check(`${plain?'plain':'CM'} toolbar exists`,exists===1);
  if(exists){
   const set=async(text,a,b)=>p.evaluate(({text,a,b})=>{editor.setValue(text);current.saved=text;current.touched=false;clearTimeout(autosaveTimer);AUTOSAVE_MS=60000;editor.focus();if(editor.caret)editor.getWrapperElement().setSelectionRange(a,b);else editor.setSelection(editor.posFromIndex(a),editor.posFromIndex(b));},{text,a,b});

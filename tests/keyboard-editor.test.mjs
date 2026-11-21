@@ -33,6 +33,7 @@ for (const fallback of [false, true]) {
   await H.signIn(p);
   await H.clickRow(p, 'long.md');
   await p.waitForFunction(() => current?.path === 'long.md' && editor);
+  await H.edit(p);
   // Otherwise this branch would quietly test the plain editor twice.
   t.check(`${label}: the editor under test is the one named`, fallback
     ? (await p.$$('.fallback-editor')).length === 1

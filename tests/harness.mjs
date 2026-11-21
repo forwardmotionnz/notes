@@ -734,6 +734,8 @@ export const editorValue = p => p.evaluate(
 // phone's sheets slide for 180 ms): measure positions only after this.
 export const still = p => p.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'),
   null, { timeout: 5000 }).catch(() => {});
+// Notes open in Preview; switches the open note to Edit, for suites that type into it.
+export const edit = p => p.evaluate(() => { if (document.body.classList.contains('preview-view')) previewView(false); });
 export const setEditor = (p, v) => p.evaluate(v => {
   if (document.body.classList.contains('preview-view')) previewView(false);
   const ta = document.querySelector('#cm-stub, .fallback-editor');

@@ -24,14 +24,14 @@ for(const folder of [null,'attachments','./assets','/','photos) old']){
 for(const plain of [false,true]){
  const gh=H.fakeGitHub({files:{'a.md':'alpha','b.md':'beta'}}),c=await H.context(gh,{noCdn:plain});
  if(!plain)await c.route('**/codemirror/5.65.16/**',r=>{const n=new URL(r.request().url()).pathname.split('/').pop();return r.fulfill({contentType:n.endsWith('.css')?'text/css':'application/javascript',headers:{'access-control-allow-origin':'*'},body:n.startsWith('codemirror.min.')?readFileSync(new URL('./fixtures/codemirror5/'+n,import.meta.url)):''});});
- const p=await H.page(c);p.setDefaultTimeout(5000);await H.signIn(p);await p.evaluate(()=>openFile('a.md'));
+ const p=await H.page(c);p.setDefaultTimeout(5000);await H.signIn(p);await p.evaluate(()=>openFile('a.md'));await H.edit(p);
  let release,arrived,status=201;let pending=new Promise(r=>arrived=r),gate=new Promise(r=>release=r);
  await c.route('https://api.github.com/**/contents/*.png',async r=>{if(r.request().method()!=='PUT')return r.fallback();arrived();await gate;return r.fulfill({status,contentType:'application/json',body:JSON.stringify(status===201?{content:{sha:'image'}}:{message:'failure'})});});
  const paste=()=>p.evaluate(png=>{const dt=new DataTransfer();dt.items.add(new File([Uint8Array.from(atob(png),x=>x.charCodeAt(0))],'x.png',{type:'image/png'}));editor.getWrapperElement().dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));},png);
  await paste();await pending;await paste();t.check(`${plain}: busy upload is explained`,/still uploading/.test(await H.status(p)));await p.evaluate(()=>openFile('b.md'));release();await p.waitForFunction(()=>!imageUploading);
  const value=()=>p.evaluate(()=>editor.getValue());
  t.check(`${plain}: slow paste never inserts into a different note`,await value()==='beta'&&/Image saved as/.test(await H.status(p)));
- await p.evaluate(()=>openFile('a.md'));await p.evaluate(()=>{editor.focus();if(editor.caret)editor.getWrapperElement().setSelectionRange(2,2);else editor.setSelection(editor.posFromIndex(2),editor.posFromIndex(2));});
+ await p.evaluate(()=>openFile('a.md'));await H.edit(p);await p.evaluate(()=>{editor.focus();if(editor.caret)editor.getWrapperElement().setSelectionRange(2,2);else editor.setSelection(editor.posFromIndex(2),editor.posFromIndex(2));});
  await paste();await p.waitForFunction(()=>!imageUploading);t.check(`${plain}: actual paste inserts at cursor`,(await value()).startsWith('al![Image]('));
  await p.keyboard.press('Control+z');t.check(`${plain}: image insertion supports Undo`,await value()==='alpha');
  status=409;await paste();await p.waitForFunction(()=>!imageUploading);t.check(`${plain}: conflict adds no broken link`,await value()==='alpha');

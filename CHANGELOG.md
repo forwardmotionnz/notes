@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- Notes open in **Preview**, ready to read; press **Edit** to change one. New and empty notes, notes with unsaved changes and files that are not Markdown still open in Edit.
 - **Sign in with a token** (Other ways to sign in): a GitHub fine-grained personal access token instead of the app. No app installation, no sign-in service: the token goes only from your browser to GitHub.
 - The privacy note says exactly what a copy's owner can and cannot do: using the GitHub App's installations without you needs the app's private key, which Padgit never uses and an owner can delete; the page and broker remain trust in the owner. Running your own copy now says not to create a private key.
 - A new icon: a notepad whose last line ends in a commit dot, on a rounded tile (the old page-with-a-folded-corner looked like an office file). Android gets a crop-safe version of its own, and the browser tab a simplified one.

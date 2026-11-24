@@ -118,6 +118,7 @@ in the [development ledger](docs/dev/MVP.md)).
   result.
 
 ### Fixed
+- Tables in Preview no longer break words in the middle to fit a narrow screen ("Subur / b"): cells wrap between words, and a table too wide for the screen scrolls sideways on its own.
 - On a phone, the closed Files sheet no longer casts a grey shadow down the left edge of the note.
 - A long note name is no longer cut off in its tab: the open note's tab grows to show the whole name, the other tabs end in an ellipsis, and on a phone the tab's Close stays inside it instead of sliding under the next tab.
 - Checklists with sub-tasks indented by tabs (Obsidian's default) or four spaces can be ticked, edited, moved and removed in Preview again. Before, one such sub-task made the whole note's checklist read-only.

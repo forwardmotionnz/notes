@@ -153,7 +153,7 @@ body.preview-view #editor-pane{display:none;}
 #preview #pins>*{max-width:760px;margin-left:auto;margin-right:auto;}
 #preview{flex:1;min-width:0;overflow:auto;padding:20px;overflow-wrap:anywhere;}
 #preview pre{white-space:pre-wrap;background:var(--bg-soft);padding:12px;border:1px solid var(--line);}
-#preview table{border-collapse:collapse;display:block;overflow:auto;}
+#preview table{border-collapse:collapse;display:block;overflow:auto;overflow-wrap:break-word;}   /* not anywhere: that broke words inside cells to fit; a wide table scrolls */
 #preview th, #preview td{border:1px solid var(--line);padding:6px;}
 #preview input{width:auto;}
 #preview .frontmatter{font-size:12px;color:var(--fg-soft);}

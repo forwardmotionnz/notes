@@ -1,6 +1,7 @@
 import * as H from './harness.mjs';
 const t=H.suite('note-tabs');await H.start();
-const gh=H.fakeGitHub({files:Object.fromEntries(Array.from({length:15},(_,i)=>['n'+i+'.md','note '+i]))}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);
+const LONG='Housing/Christchurch suburbs with bigger sections.md',LONG2='A second note with a very long name that never fits in a tab on any screen at all.md';
+const gh=H.fakeGitHub({files:{...Object.fromEntries(Array.from({length:15},(_,i)=>['n'+i+'.md','note '+i])),[LONG]:'long',[LONG2]:'longer'}}),c=await H.context(gh),p=await H.page(c);await H.signIn(p);
 const exists=await p.locator('#note-tabs').count();t.check('open notes strip exists',exists===1);
 if(exists){
  await p.evaluate(()=>openFile('n0.md'));await p.evaluate(()=>openFile('n1.md'));await p.evaluate(()=>openFile('n0.md'));
@@ -32,6 +33,21 @@ if(exists){
  await p.setViewportSize({width:390,height:820});await p.evaluate(()=>renderTabs());// N38 (approved design): on a phone the open notes are one scrolling row of chips, not a folded list.
  t.check('phone tabs are one scrolling row',!await p.locator('#note-tabs summary').isVisible()&&await p.locator('#note-tabs>div').evaluate(e=>getComputedStyle(e).flexDirection==='row'&&getComputedStyle(e).overflowX==='auto'));
  t.check('phone tabs can be reached',await p.locator('#note-tabs button').first().isVisible()&&await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ // Owner's report: a long name was cut off in its tab (at both ends on a computer), and on a phone its Close was pushed out of the tab under the next one.
+ const tabs=()=>p.evaluate(()=>[...document.querySelectorAll('#note-tabs span')].map(s=>{const r=s.getBoundingClientRect(),x=s.lastChild.getBoundingClientRect(),b=s.firstChild;return{path:b.title,on:s.className==='on',closeInside:x.width>0&&x.left>=r.left&&x.right<=r.right+1,cut:b.scrollWidth>b.clientWidth,align:getComputedStyle(b).textAlign,ellipsis:getComputedStyle(b).textOverflow,right:r.right,left:r.left};}));
+ for(const width of [390,1280]){
+  await p.setViewportSize({width,height:820});
+  await p.evaluate(a=>openFile(a),LONG2);await p.evaluate(a=>openFile(a),LONG);let now=await tabs(),long=now.find(x=>x.path===LONG),long2=now.find(x=>x.path===LONG2);
+  t.check(`${width}: every tab keeps its Close inside it`,now.length>2&&now.every(x=>x.closeInside));
+  t.check(`${width}: the open note's tab shows its whole name`,!!long&&long.on&&!long.cut);
+  t.check(`${width}: and is scrolled into view`,!!long&&long.left>=0&&long.right<=width);
+  t.check(`${width}: a longer name still ends in an ellipsis, from its start`,!!long2&&long2.cut&&long2.ellipsis==='ellipsis'&&['left','start'].includes(long2.align));
+  await p.evaluate(a=>openFile(a),LONG2);now=await tabs();long2=now.find(x=>x.path===LONG2);
+  t.check(`${width}: the longest name fits the screen as the open tab, cut with an ellipsis`,!!long2&&long2.on&&long2.cut&&long2.closeInside&&long2.right-long2.left<=width-24&&await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await p.getByRole('button',{name:'Close '+LONG,exact:true}).click({timeout:3000}).catch(()=>{});
+  t.check(`${width}: a long tab's Close can be pressed`,!(await paths()).includes(LONG));
+  await p.getByRole('button',{name:'Close '+LONG2,exact:true}).click({timeout:3000}).catch(()=>{});
+ }
  await p.evaluate(()=>{cfg.repo='another';renderTabs();});t.check('another repository cannot see previous tabs',(await paths()).length===0);
 }
 await c.close();await H.stop();t.finish();

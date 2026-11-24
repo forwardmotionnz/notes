@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- **New folder**, the folder button beside Files: an empty folder at the top level or inside another, without making a note first. Git keeps a folder only while it holds a file, so it stays on the device you made it on until you put a note in it; nothing is written to your repository for it.
 - Notes open in **Preview**, ready to read; press **Edit** to change one. New and empty notes, notes with unsaved changes and files that are not Markdown still open in Edit.
 - **Sign in with a token** (Other ways to sign in): a GitHub fine-grained personal access token instead of the app. No app installation, no sign-in service: the token goes only from your browser to GitHub.
 - The privacy note says exactly what a copy's owner can and cannot do: using the GitHub App's installations without you needs the app's private key, which Padgit never uses and an owner can delete; the page and broker remain trust in the owner. Running your own copy now says not to create a private key.

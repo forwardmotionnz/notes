@@ -34,7 +34,7 @@ if(exists){
  t.check('phone tabs are one scrolling row',!await p.locator('#note-tabs summary').isVisible()&&await p.locator('#note-tabs>div').evaluate(e=>getComputedStyle(e).flexDirection==='row'&&getComputedStyle(e).overflowX==='auto'));
  t.check('phone tabs can be reached',await p.locator('#note-tabs button').first().isVisible()&&await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  // Owner's report: a long name was cut off in its tab (at both ends on a computer), and on a phone its Close was pushed out of the tab under the next one.
- const tabs=()=>p.evaluate(()=>[...document.querySelectorAll('#note-tabs span')].map(s=>{const r=s.getBoundingClientRect(),x=s.lastChild.getBoundingClientRect(),b=s.firstChild;return{path:b.title,on:s.className==='on',closeInside:x.width>0&&x.left>=r.left&&x.right<=r.right+1,cut:b.scrollWidth>b.clientWidth,align:getComputedStyle(b).textAlign,ellipsis:getComputedStyle(b).textOverflow,right:r.right,left:r.left};}));
+ const tabs=()=>p.evaluate(()=>[...document.querySelectorAll('#note-tabs span')].map(s=>{const r=s.getBoundingClientRect(),x=s.lastChild.getBoundingClientRect(),b=s.firstChild;return{path:b.title,on:s.className==='on',closeInside:x.width>0&&x.left>=r.left&&x.right<=r.right+1,cut:b.scrollWidth>b.clientWidth,align:getComputedStyle(b).textAlign,ellipsis:getComputedStyle(b).display==='block'&&getComputedStyle(b).textOverflow,right:r.right,left:r.left};}));
  for(const width of [390,1280]){
   await p.setViewportSize({width,height:820});
   await p.evaluate(a=>openFile(a),LONG2);await p.evaluate(a=>openFile(a),LONG);let now=await tabs(),long=now.find(x=>x.path===LONG),long2=now.find(x=>x.path===LONG2);

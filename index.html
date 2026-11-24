@@ -322,7 +322,7 @@ body.read-only .row-add{display:none;}
 #note-tabs button[aria-pressed=true]{background:none;font-weight:500;}
 /* A long name: the open note's tab grows to show it, the others end in an ellipsis, and Close stays in its tab. */
 #note-tabs span.on{max-width:min(480px, calc(100% - 24px));}
-#note-tabs span button:first-child{flex:0 1 auto;min-width:0;text-align:left;}
+#note-tabs span button:first-child{display:block;flex:0 1 auto;min-width:0;text-align:left;}   /* block: a flex button centres its text and shows no ellipsis */
 #note-tabs span button+button{flex:none;width:24px;border-radius:6px;opacity:.7;}
 #note-tabs span button+button:hover{opacity:1;background:var(--bg-hover);}
 #note-tabs span button+button svg{width:14px;height:14px;}

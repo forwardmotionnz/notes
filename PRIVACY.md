@@ -76,7 +76,7 @@ handles the requests that reach it.
 
 ## Signing in with a token instead
 
-Under **Other ways to sign in**, you can use a GitHub fine-grained personal
+Under **Sign in with a token instead**, you can use a GitHub fine-grained personal
 access token instead of the GitHub App. You make it on GitHub, choosing the
 one repository it may reach, *Contents: Read and write*, and when it
 expires. It then goes only from your browser to `api.github.com`: no GitHub
@@ -102,7 +102,9 @@ data only to GitHub and the broker.
 ## Who you are trusting
 
 If you use someone else's copy of Padgit, you are trusting that person, not
-just this code:
+just this code. The shared copy at padgit.com is run by the person who makes
+Padgit; the README says
+[who that is](https://github.com/forwardmotionnz/notes#who-makes-padgit).
 
 - **Their GitHub App.** Installing it grants the app itself read and write
   access to the contents of the repositories you choose. Whoever owns the

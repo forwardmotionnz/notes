@@ -19,7 +19,7 @@ async function useToken(p,token=TOKEN,forget=false) {
 {
   const {p,ctx,gh}=await setup();
   const det=await p.$('#pat');
-  t.check('Other ways to sign in is offered, folded, below Sign in',!!det&&!(await det.evaluate(d=>d.open))&&await p.evaluate(()=>!!(document.getElementById('f-signin').compareDocumentPosition(document.getElementById('pat'))&Node.DOCUMENT_POSITION_FOLLOWING)));
+  t.check('Sign in with a token instead is offered, folded, below Sign in',!!det&&/^Sign in with a token instead$/.test(await p.textContent('#pat summary'))&&!(await det.evaluate(d=>d.open))&&await p.evaluate(()=>!!(document.getElementById('f-signin').compareDocumentPosition(document.getElementById('pat'))&Node.DOCUMENT_POSITION_FOLLOWING)));
   await p.click('#pat summary');
   const make=await p.$('#pat a[href^="https://github.com/settings/personal-access-tokens/new"]');
   t.check('it links to making a fine-grained token on GitHub, in a new tab',!!make&&(await make.getAttribute('target'))==='_blank'&&/noopener/.test(await make.getAttribute('rel')));

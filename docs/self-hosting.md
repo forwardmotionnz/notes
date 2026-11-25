@@ -116,6 +116,12 @@ The deployment block, just above the script:
 
 `clientId` and `appSlug` come from step 2, `broker` from step 3.
 
+This repository's block also has `"appKeyDeleted": "2026-10-08"`, which makes
+the sign-in screen say the copy's owner cannot reach people's notes without
+them signed in. Leave it out, as above, unless you have deleted every private
+key of your app (step 2); then give the date you did. Without it the screen
+says that whoever runs the copy's GitHub App can reach the notes too.
+
 The second `Content-Security-Policy` tag at the very top, the one that is
 only `connect-src`: replace the broker address in it (in this repository,
 `https://notes-token-broker.forwardmotionnz.workers.dev`) with the same

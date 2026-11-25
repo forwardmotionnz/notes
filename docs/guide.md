@@ -14,7 +14,7 @@ banner at the top leaves the demo.
 ## Sign in with a token instead
 
 For the most privacy short of running your own copy: on the sign-in
-screen, open **Other ways to sign in** and use a GitHub fine-grained
+screen, open **Sign in with a token instead** and use a GitHub fine-grained
 personal access token instead of the app. Make it with the link there,
 choosing **Only select repositories** (your notes repository),
 **Contents: Read and write** and an expiry date, then paste it. It goes

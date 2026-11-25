@@ -10,6 +10,8 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- The README says who makes Padgit and who runs the shared copy at padgit.com, and the privacy note's *Who you are trusting* links to it.
+- The sign-in screen answers the question people stop at, in three lines above the button: what Padgit can reach (only repositories the app is installed on, which you choose; one private repository is enough), who else can reach your notes, and **Use a token instead** for anyone who would rather not install an app. The shared copy now says there that its GitHub App has no private key, so its owner cannot reach notes without you signed in (the owner's word, as the privacy note explains); a copy that does not say when its keys were deleted keeps the old warning. *Other ways to sign in* is now called **Sign in with a token instead**.
 - **New folder**, the folder button beside Files: an empty folder at the top level or inside another, without making a note first. Git keeps a folder only while it holds a file, so it stays on the device you made it on until you put a note in it; nothing is written to your repository for it.
 - Notes open in **Preview**, ready to read; press **Edit** to change one. New and empty notes, notes with unsaved changes and files that are not Markdown still open in Edit.
 - **Sign in with a token** (Other ways to sign in): a GitHub fine-grained personal access token instead of the app. No app installation, no sign-in service: the token goes only from your browser to GitHub.
@@ -118,6 +120,7 @@ in the [development ledger](docs/dev/MVP.md)).
   result.
 
 ### Fixed
+- The link that installs Padgit's GitHub App on a repository (**Choose repositories**, and first run) now goes to the app under its current name, Padgit Notes.
 - Tables in Preview no longer break words in the middle to fit a narrow screen ("Subur / b"): cells wrap between words, and a table too wide for the screen scrolls sideways on its own.
 - On a phone, the closed Files sheet no longer casts a grey shadow down the left edge of the note.
 - A long note name is no longer cut off in its tab: the open note's tab grows to show the whole name, the other tabs end in an ellipsis, and on a phone the tab's Close stays inside it instead of sliding under the next tab.

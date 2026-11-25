@@ -76,7 +76,7 @@ handles the requests that reach it.
 
 ## Signing in with a token instead
 
-Under **Other ways to sign in**, you can use a GitHub fine-grained personal
+Under **Sign in with a token instead**, you can use a GitHub fine-grained personal
 access token instead of the GitHub App. You make it on GitHub, choosing the
 one repository it may reach, *Contents: Read and write*, and when it
 expires. It then goes only from your browser to `api.github.com`: no GitHub

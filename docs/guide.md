@@ -136,6 +136,12 @@ invalid settings show an explanation and leave the current note alone.
 - Markdown editor that saves itself; `Ctrl`/`Cmd`+`S` commits at once
 - The note's **⋯** menu, at the top right, holds **Rename or move**,
   **Outline**, **Tags** and **Delete**.
+- **New folder** (the folder button beside **Files**) adds an empty folder,
+  at the top level or inside another. Git keeps a folder only while it holds
+  a file, and Padgit writes no file of its own to your repository, so the
+  folder is kept on this device until you put a note in it (its **+**, drag
+  a note onto it, or **Rename or move**); from then on it is an ordinary
+  folder everywhere. An empty one can be removed with its **×**
 - **Rename or move** opens the same dialog on the note's name and folder:
   change either, and the line underneath says where it will go. A saved note
   moves in a single commit: it either happens completely or not at all, and

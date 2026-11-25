@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- **New folder**, the folder button beside Files: an empty folder at the top level or inside another, without making a note first. Git keeps a folder only while it holds a file, so it stays on the device you made it on until you put a note in it; nothing is written to your repository for it.
 - Notes open in **Preview**, ready to read; press **Edit** to change one. New and empty notes, notes with unsaved changes and files that are not Markdown still open in Edit.
 - **Sign in with a token** (Other ways to sign in): a GitHub fine-grained personal access token instead of the app. No app installation, no sign-in service: the token goes only from your browser to GitHub.
 - The privacy note says exactly what a copy's owner can and cannot do: using the GitHub App's installations without you needs the app's private key, which Padgit never uses and an owner can delete; the page and broker remain trust in the owner. Running your own copy now says not to create a private key.
@@ -117,6 +118,9 @@ in the [development ledger](docs/dev/MVP.md)).
   result.
 
 ### Fixed
+- Tables in Preview no longer break words in the middle to fit a narrow screen ("Subur / b"): cells wrap between words, and a table too wide for the screen scrolls sideways on its own.
+- On a phone, the closed Files sheet no longer casts a grey shadow down the left edge of the note.
+- A long note name is no longer cut off in its tab: the open note's tab grows to show the whole name, the other tabs end in an ellipsis, and on a phone the tab's Close stays inside it instead of sliding under the next tab.
 - Checklists with sub-tasks indented by tabs (Obsidian's default) or four spaces can be ticked, edited, moved and removed in Preview again. Before, one such sub-task made the whole note's checklist read-only.
 - A space or tab left at the end of a checklist's last line no longer makes the whole checklist read-only in Preview.
 - Clear done leaves a ticked task in place when its unticked sub-tasks are indented a tab or four spaces: without it they would turn into a code block.

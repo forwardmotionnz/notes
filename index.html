@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-+OZXD5U7Pt6+wOOgZqQHBNcQB1wnfW0BLQFZf/8R4I0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-VgrVUmdfQtXq6agizqiUi1musYVs0/Y5rR7eVIW7bJ4=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -51,7 +51,7 @@ header{display:flex;align-items:center;gap:8px;padding:8px 10px;padding-top:max(
 #degraded, #ephemeral, #readonly{display:none;flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-soft);border:1px solid var(--line);border-radius:999px;padding:1px 7px;cursor:help;}
 body.plain-editor #degraded{display:inline-block;}
 body.read-only #readonly{display:inline-block;color:var(--danger);border-color:var(--danger);cursor:pointer;}
-body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-rename, body.read-only #btn-delete{display:none;}
+body.read-only #btn-save, body.read-only #btn-new, body.read-only #btn-new-folder, body.read-only #btn-rename, body.read-only #btn-delete{display:none;}
 body.session-only #ephemeral{display:inline-block;color:var(--accent);border-color:var(--accent);}
 main{flex:1;display:flex;min-height:0;}
 #sidebar{width:clamp(180px, var(--side-w, 260px), min(600px, 60vw));flex:none;border-right:1px solid var(--line);background:var(--bg-soft);display:flex;flex-direction:column;min-height:0;}
@@ -134,8 +134,8 @@ select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1
 @media (max-width:820px){input, textarea, select, #filter, #editor-pane .CodeMirror, .fallback-editor{font-size:16px;}
 .only-narrow{display:inline-block;}
 #editor-pane .CodeMirror, .fallback-editor{font-size:16px;}
-#sidebar{position:absolute;z-index:20;top:0;bottom:0;left:0;width:min(80vw, 300px);transform:translateX(-102%);transition:transform .18s ease;box-shadow:0 0 40px rgba(0,0,0,.25);}
-body.tree-open #sidebar{transform:none;}
+#sidebar{position:absolute;z-index:20;top:0;bottom:0;left:0;width:min(80vw, 300px);transform:translateX(-102%);transition:transform .18s ease;}
+body.tree-open #sidebar{transform:none;box-shadow:0 0 40px rgba(0,0,0,.25);}   /* only when open: off-screen, its shadow fell on the note's left edge */
 #sidebar-resize{display:none;}
 body.side-hidden #sidebar{display:flex;}
 #scrim{position:absolute;inset:0;z-index:15;background:rgba(0,0,0,.35);display:none;}
@@ -153,7 +153,7 @@ body.preview-view #editor-pane{display:none;}
 #preview #pins>*{max-width:760px;margin-left:auto;margin-right:auto;}
 #preview{flex:1;min-width:0;overflow:auto;padding:20px;overflow-wrap:anywhere;}
 #preview pre{white-space:pre-wrap;background:var(--bg-soft);padding:12px;border:1px solid var(--line);}
-#preview table{border-collapse:collapse;display:block;overflow:auto;}
+#preview table{border-collapse:collapse;display:block;overflow:auto;overflow-wrap:break-word;}   /* not anywhere: that broke words inside cells to fit; a wide table scrolls */
 #preview th, #preview td{border:1px solid var(--line);padding:6px;}
 #preview input{width:auto;}
 #preview .frontmatter{font-size:12px;color:var(--fg-soft);}
@@ -304,6 +304,13 @@ body:not(.tags-open) #note-tags{display:none;}
 .row:hover .row-add, .row-add:focus-visible{opacity:1;}
 @media (hover:none), (max-width:820px){.row-add{opacity:1;}}
 body.read-only .row-add{display:none;}
+/* New folder, beside the Files heading; an empty folder made here can be removed, and says where it is kept. */
+#files-row{display:flex;align-items:flex-end;}
+#files-row h2{flex:1;}
+#btn-new-folder{flex:none;width:28px;min-height:26px;padding:0;}
+#btn-new-folder svg{width:16px;height:16px;}
+.row-del+.row-add{margin-left:0;}
+.folder-hint{margin:0;padding-top:2px;padding-bottom:6px;padding-right:8px;font-size:12px;color:var(--fg-soft);}
 #side-repo{flex:none;margin:auto -8px 0;padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--fg-soft);overflow-wrap:anywhere;}
 #side-repo:empty{display:none;}
 #note-tabs{background:var(--bg-soft);max-height:none;}
@@ -313,7 +320,10 @@ body.read-only .row-add{display:none;}
 #note-tabs span button{min-height:26px;padding:0;border:0;background:none;color:var(--fg-soft);font-size:13px;}
 #note-tabs span.on button:first-child{color:var(--fg);font-weight:500;}
 #note-tabs button[aria-pressed=true]{background:none;font-weight:500;}
-#note-tabs span button+button{width:24px;border-radius:6px;opacity:.7;}
+/* A long name: the open note's tab grows to show it, the others end in an ellipsis, and Close stays in its tab. */
+#note-tabs span.on{max-width:min(480px, calc(100% - 24px));}
+#note-tabs span button:first-child{display:block;flex:0 1 auto;min-width:0;text-align:left;}   /* block: a flex button centres its text and shows no ellipsis */
+#note-tabs span button+button{flex:none;width:24px;border-radius:6px;opacity:.7;}
 #note-tabs span button+button:hover{opacity:1;background:var(--bg-hover);}
 #note-tabs span button+button svg{width:14px;height:14px;}
 #format-toolbar{align-items:center;gap:2px;min-height:44px;padding:4px 16px;}
@@ -368,7 +378,6 @@ header:has(#btn-discard:not([hidden])) #btn-save:not(:disabled) .to-save{display
 #note-tabs span{height:32px;flex:none;max-width:200px;margin:0;padding:0 2px 0 12px;border:0;border-radius:999px;background:var(--bg-sunk);}
 #note-tabs span.on{background:var(--accent-soft);}
 #note-tabs span.on button:first-child{color:var(--accent);}
-#note-tabs span button:first-child{flex:none;text-align:left;}
 .row, #pin-tabs button, #recent-list button{min-height:38px;font-size:15px;}
 #sidebar{padding-top:max(10px, env(safe-area-inset-top));}
 #format-toolbar{padding:4px 8px;}
@@ -444,6 +453,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
 <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></symbol>
 <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></symbol>
+<symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M20 19a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2zM12 10v6M9 13h6"/></symbol>
 <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 19a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/></symbol>
 <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></symbol>
 <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
@@ -519,7 +529,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			<details id="recent-notes"><summary>Recent</summary><div id="recent-list"></div><p id="recent-status" role="status"></p></details>
 			<details id="deleted-notes"><summary>Recently deleted</summary><div id="deleted-list"></div><p id="deleted-status" role="status"></p></details>
 			<details id="tags-panel"><summary>Tags</summary><div id="tags-results"><div id="tag-counts"></div><div id="tag-notes"></div></div><p id="tags-status" role="status"></p></details>
-			<h2 class="side-head" id="files-head">Files</h2>
+			<div id="files-row"><h2 class="side-head" id="files-head">Files</h2><button class="plain ib" id="btn-new-folder" title="New folder" aria-label="New folder"><svg class="i" aria-hidden="true"><use href="#i-folder-plus"/></svg></button></div>
 			<div id="tree"></div>
 			<div id="side-repo"></div>
 		</aside>
@@ -553,7 +563,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 	<div class="dlg-body">
 		<h2 id="nn-title">New note</h2>
 		<label><span>Name</span><input id="nn-name" autocomplete="off" spellcheck="false"></label>
-		<label><span>Folder</span><select id="nn-folder"></select></label>
+		<label><span id="nn-folder-label">Folder</span><select id="nn-folder"></select></label>
 		<label id="nn-new-wrap" hidden><span>New folder</span><input id="nn-new-folder" autocomplete="off" spellcheck="false" placeholder="For example Projects/Garden"></label>
 		<p id="nn-path" class="nn-path" role="status"></p>
 	</div>
@@ -1913,10 +1923,13 @@ function renderTree() {
 	var blobs = files.filter(function (f) {
 		return f.type === "blob" && !isHidden(f.path);
 	});
+	var made = emptyFolders(), kept = treeState === "ok" ? made.filter(function (p) { return !blobs.some(function (f) { return f.path.indexOf(p + "/") === 0; }); }) : made;
+	if (kept.length !== made.length) { ui.folders = { scope: recentScope(), paths: kept }; persist(UI_KEY, ui); }   // it holds a note now: the repository keeps it
 	if (term) {
 		blobs = blobs.filter(function (f) { return f.path.toLowerCase().indexOf(term) !== -1; });
+		kept = [];
 	}
-	if (!blobs.length) {
+	if (!blobs.length && !kept.length) {
 		var e = document.createElement("div");
 		e.className = "empty";
 		e.textContent = configured()
@@ -1945,6 +1958,10 @@ function renderTree() {
 		}
 		node.files.push({ name: parts[parts.length - 1], path: f.path });
 	});
+	kept.forEach(function (p) {
+		var node = root;
+		p.split("/").forEach(function (seg) { node = node.dirs[seg] = node.dirs[seg] || { dirs: pathMap(), files: [] }; });
+	});
 	(function walk(node, prefix, depth) {
 		Object.keys(node.dirs).sort().forEach(function (name) {
 			var path = prefix ? prefix + "/" + name : name;
@@ -1956,6 +1973,18 @@ function renderTree() {
 			row.appendChild(icon("folder"));
 			row.appendChild(document.createTextNode(name));      // a folder name: text, never markup
 			row.setAttribute("aria-expanded", String(open));
+			var sub = node.dirs[name], bare = !sub.files.length && !Object.keys(sub.dirs).length;   // only a folder made here is empty
+			if (bare) {
+				var del = document.createElement("button");
+				del.className = "plain row-add row-del"; del.appendChild(icon("x"));
+				del.title = "Remove this empty folder"; del.setAttribute("aria-label", "Remove the empty folder " + path);   // attribute: text
+				del.onclick = function (e) {
+					e.stopPropagation();
+					ui.folders = { scope: recentScope(), paths: emptyFolders().filter(function (p) { return p !== path; }) };
+					persist(UI_KEY, ui); renderTree();
+				};
+				row.appendChild(del);
+			}
 			var add = document.createElement("button");
 			add.className = "plain row-add"; add.appendChild(icon("plus"));
 			add.title = "New note in " + path; add.setAttribute("aria-label", "New note in " + path);   // attribute: text
@@ -1968,7 +1997,13 @@ function renderTree() {
 			};
 			dropTarget(row, path);
 			host.appendChild(row);
-			if (open) walk(node.dirs[name], path, depth + 1);
+			if (open && bare) {
+				var hint = document.createElement("p");
+				hint.className = "folder-hint"; hint.style.paddingLeft = (8 + (depth + 1) * 14 + 22) + "px";
+				hint.textContent = "Empty. Kept on this device until it holds a note.";
+				host.appendChild(hint);
+			}
+			if (open) walk(sub, path, depth + 1);
 		});
 		node.files.sort(function (a, b) {
 			return a.name.localeCompare(b.name);
@@ -2850,7 +2885,35 @@ function folderList() {
 		var parts = f.path.split("/");
 		for (var i = 1; i < parts.length; i++) seen[parts.slice(0, i).join("/")] = true;
 	});
+	emptyFolders().forEach(function (p) {
+		var parts = p.split("/");
+		for (var i = 1; i <= parts.length; i++) seen[parts.slice(0, i).join("/")] = true;
+	});
 	return Object.keys(seen).sort(function (a, b) { return a.localeCompare(b); });
+}
+/* New folder. Git keeps a folder only while it holds a file, and the app writes no file of its own to
+   a repository: a folder made here is kept in this browser, per repository, until a note is put in it. */
+function folderPathOk(p) {
+	return typeof p === "string" && !!p && p.length < 300 && !isHidden(p) && !/[\\\x00-\x1f]/.test(p) &&
+		!p.split("/").some(function (x) { return !x || x !== x.trim() || x === ".."; });
+}
+function emptyFolders() {
+	var saved = ui.folders;
+	return saved && saved.scope === recentScope() && Array.isArray(saved.paths) ? saved.paths.filter(folderPathOk).slice(-50) : [];
+}
+function newFolder() {
+	place = { kind: "folder" };
+	placeDialog("folder", "", "");
+}
+function folderProblem(path) {
+	if (!path) return "Type a name for the folder.";
+	if (isHidden(path)) return "Names and folders starting with a dot are hidden here. Choose another.";
+	if (!folderPathOk(path)) return "A folder name cannot have \\ in it, or nothing between two slashes.";
+	var low = path.toLowerCase() + "/";
+	var note = files.filter(function (f) { return f.type === "blob" && low.indexOf(f.path.toLowerCase() + "/") === 0; })[0];
+	if (note) return note.path + " is a note, not a folder. Choose another name.";
+	var twin = folderList().filter(function (f) { return f.toLowerCase() + "/" === low; })[0];
+	return twin ? "The folder " + twin + " is already there." : "";
 }
 /* One dialog places a note: New note, and Rename or move (a folder picker instead of a typed path). */
 var place = null;   // { kind: "new" } or { kind: "move", doc, from }
@@ -2860,9 +2923,10 @@ function placeDialog(kind, name, folder) {
 	function option(value, text) { var o = document.createElement("option"); o.value = value; o.textContent = text; sel.appendChild(o); }   // folder names: text
 	option("", "Top level");
 	folders.forEach(function (f) { option(f, f); });
-	option(NEW_FOLDER, "New folder\u2026");
+	if (kind !== "folder") option(NEW_FOLDER, "New folder\u2026");
 	sel.value = folders.indexOf(folder) !== -1 ? folder : "";
-	$("nn-title").textContent = kind === "new" ? "New note" : "Rename or move";
+	$("nn-title").textContent = kind === "new" ? "New note" : kind === "folder" ? "New folder" : "Rename or move";
+	$("nn-folder-label").textContent = kind === "folder" ? "Inside" : "Folder";
 	$("nn-name").value = name;
 	$("nn-new-folder").value = ""; $("nn-new-wrap").hidden = true;
 	newNoteCheck();
@@ -2877,6 +2941,7 @@ function newNotePath() {
 	var name = $("nn-name").value.trim().replace(/^\/+/, "");
 	var folder = $("nn-folder").value === NEW_FOLDER ? $("nn-new-folder").value.trim() : $("nn-folder").value;
 	if (!name) return "";
+	if (place && place.kind === "folder") return (folder ? folder + "/" : "") + name.replace(/\/+$/, "");
 	var path = ((folder ? folder.replace(/^\/+|\/+$/g, "") + "/" : "") + name).replace(/\/{2,}/g, "/");
 	if (place && place.kind === "move") {
 		/* N182 */
@@ -2889,6 +2954,7 @@ function newNotePath() {
 	return path;
 }
 function placeProblem(path) {
+	if (place.kind === "folder") return folderProblem(path);
 	if (!path) return place.kind === "new" ? "Type a name for the note." : "Type a name.";
 	if (isHidden(path)) return "Names and folders starting with a dot are hidden here. Choose another.";
 	if (place.kind === "move") {
@@ -2904,15 +2970,22 @@ function newNoteCheck() {
 	var path = newNotePath(), exists = place.kind === "new" && !!path && (!!readDraft(path) || files.some(function (f) { return f.path === path; }));
 	var why = placeProblem(path);
 	$("nn-new-wrap").hidden = $("nn-folder").value !== NEW_FOLDER;
-	$("nn-path").textContent = why || (exists ? path + " already exists. Open it instead." :   // text, never markup
+	$("nn-path").textContent = why || (place.kind === "folder" ? "Will add the folder " + path + ". Git keeps a folder only while it holds a note, so it stays on this device until you put one in it." : exists ? path + " already exists. Open it instead." :   // text, never markup
 		(place.kind === "new" ? "Will be saved as " : place.doc.sha ? "Will move to " : "Will be saved as ") + path);
 	$("nn-go").disabled = !!why;
-	$("nn-go").textContent = exists ? "Open" : place.kind === "new" ? "Create" : place.from.replace(/[^/]*$/, "") === path.replace(/[^/]*$/, "") ? "Rename" : "Move";
+	$("nn-go").textContent = place.kind === "folder" ? "Create" : exists ? "Open" : place.kind === "new" ? "Create" : place.from.replace(/[^/]*$/, "") === path.replace(/[^/]*$/, "") ? "Rename" : "Move";
 }
 function newNoteGo() {
 	var path = newNotePath();
 	if (placeProblem(path)) return;
 	$("new-note").close();
+	if (place.kind === "folder") {
+		ui.folders = { scope: recentScope(), paths: emptyFolders().concat(path) };
+		path.split("/").forEach(function (seg, i, all) { ui.open[all.slice(0, i + 1).join("/")] = true; });
+		persist(UI_KEY, ui); renderTree();
+		flash("Added the folder " + path + ". Put a note in it to keep it.");
+		return;
+	}
 	if (place.kind === "new") startNote(path);
 	else if (current === place.doc && !openingPath) moveCurrent(place.doc, path);
 	else flash("Not moved: another note opened meanwhile. Try again from its menu.", true);
@@ -4460,6 +4533,7 @@ $("btn-daily").onclick    = toggleDailyTemplate;
 $("btn-history").onclick  = showHistory;
 $("history-close").onclick = function () { $("history").close(); };
 $("btn-new").onclick      = newFile;
+$("btn-new-folder").onclick = newFolder;
 ["nn-name", "nn-new-folder"].forEach(function (id) {
 	$(id).addEventListener("input", newNoteCheck);
 	$(id).addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); newNoteGo(); } });
@@ -4698,7 +4772,7 @@ function renderTabs() {
 		open.textContent=twins(path)?path.replace(/\.(md|markdown)$/i,""):label(path);open.title=path;row.className=current&&current.path===path?"on":"";open.setAttribute("aria-pressed",String(!!current&&current.path===path));open.onclick=function(){openFile(path);};
 		close.appendChild(icon("x"));close.className="plain";close.setAttribute("aria-label","Close "+path);close.title="Close";close.onclick=function(){closeNoteTab(path);};row.append(open,close);list.append(row);
 	});
-	var on=list.querySelector(".on");if(on&&(on.offsetLeft<list.scrollLeft||on.offsetLeft+on.offsetWidth>list.scrollLeft+list.clientWidth))list.scrollLeft=Math.max(0,on.offsetLeft-12);
+	var on=list.querySelector(".on");if(on&&(on.offsetLeft<list.scrollLeft||on.offsetLeft+on.offsetWidth>list.scrollLeft+list.clientWidth-12))list.scrollLeft=Math.max(0,on.offsetLeft-12);
 }
 function closeNoteTab(path) {
 	if(moving)return;

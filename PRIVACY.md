@@ -102,7 +102,9 @@ data only to GitHub and the broker.
 ## Who you are trusting
 
 If you use someone else's copy of Padgit, you are trusting that person, not
-just this code:
+just this code. The shared copy at padgit.com is run by the person who makes
+Padgit; the README says
+[who that is](https://github.com/forwardmotionnz/notes#who-makes-padgit).
 
 - **Their GitHub App.** Installing it grants the app itself read and write
   access to the contents of the repositories you choose. Whoever owns the

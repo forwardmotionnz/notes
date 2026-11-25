@@ -71,6 +71,18 @@ library it loads is pinned to its exact contents. The
 [privacy note](PRIVACY.md) says exactly who sees what, including what you
 trust when you use someone else's copy.
 
+## Who makes Padgit
+
+Padgit is made by Francisco Roldão, in New Zealand, and published under the
+[Forward Motion NZ](https://github.com/forwardmotionnz) organisation on
+GitHub. It is a community project: free, open source, with no paid tier and
+no plans for one. It is paid for by its maintainer and by sponsors (the
+**Sponsor** button at the top of the repository page).
+
+The shared copy at padgit.com is run by the same person. Questions and
+problems go to [issues](https://github.com/forwardmotionnz/notes/issues);
+security reports follow [SECURITY.md](SECURITY.md).
+
 ## How it fits together
 
 ```

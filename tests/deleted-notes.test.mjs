@@ -27,7 +27,9 @@ const c = await H.context(gh), p = await H.page(c); p.setDefaultTimeout(5000);
 await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
 t.check('history is read only when asked', !gh.log.commitReads);
 const open = async () => {
-  await p.evaluate(() => { const d = document.getElementById('deleted-notes'); if (d.open) d.open = false; d.open = true; });
+  // The status is emptied first: the toggle event comes later, and the last load's status still on show let this
+  // return before the new load began, so the rows were read while the list was empty (WebKit in CI, 2026-11-25).
+  await p.evaluate(() => { const d = document.getElementById('deleted-notes'); document.getElementById('deleted-status').textContent = ''; if (d.open) d.open = false; d.open = true; });
   await p.waitForFunction(() => !deletedLoading && /deleted in the last/.test(document.getElementById('deleted-status').textContent));
 };
 const rows = () => p.$$eval('#deleted-list > div small', e => e.map(s => s.textContent.split(' · ')[0]));

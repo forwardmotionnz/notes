@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-47DgssprZob7DbBQSVxsS+VU/68Rlorbv+9oItc1MHc=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-oyKcBwqgTGPrsnWa1UaIGrnS5hHKVEiwdDI9V0wm8nA=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -485,6 +485,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></symbol>
 <symbol id="i-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
 <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></symbol>
 </defs></svg>
 <div id="shell">
 	<div id="demo-bar" role="note" hidden>Demo: sample notes in this tab only; nothing is saved. <a>Sign in to use your own notes</a></div>
@@ -506,6 +507,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			<button role="menuitem" id="btn-outline" hidden><svg class="i" aria-hidden="true"><use href="#i-outline"/></svg><span>Outline</span></button>
 			<button role="menuitemcheckbox" id="btn-tags" hidden aria-checked="false"><svg class="i" aria-hidden="true"><use href="#i-tag"/></svg><span>Tags</span></button>
 			<button role="menuitem" id="btn-history" hidden><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg><span>History</span></button>
+			<button role="menuitem" id="btn-download" hidden title="Save this note as a file on this device, as it is on screen"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg><span>Download</span></button>
 			<button role="menuitem" id="btn-daily" hidden><svg class="i" aria-hidden="true"><use href="#i-cal"/></svg><span>Use for new daily notes</span></button>
 			<button role="menuitem" id="btn-delete" class="danger" hidden title="Delete this note (it stays in the repository's history)"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>Delete</span></button>
 		</div>
@@ -2504,7 +2506,7 @@ function showDiscard(on, copy) {
 function setCrumb(path, tag) {
 	renderPinTabs();                     // the pinned shortcut marks the open note
 	/* N165 */
-	$("btn-rename").hidden = !(current && current.path === path);
+	$("btn-rename").hidden = $("btn-download").hidden = !(current && current.path === path);
 	$("btn-delete").hidden = !(current && current.sha && current.path === path);
 	var el = $("crumb");
 	el.textContent = "";
@@ -3375,7 +3377,7 @@ function followDelete(path, fromElsewhere) {
 		showDiscard(false);
 		$("btn-save").disabled = true;
 		$("crumb").textContent = describe();
-		$("btn-rename").hidden = $("btn-delete").hidden = true;
+		$("btn-rename").hidden = $("btn-delete").hidden = $("btn-download").hidden = true;
 		if (fromElsewhere) loadNote = path.split("/").pop() + " was deleted in another tab.";
 	}
 	delete pinCache[path];
@@ -4401,6 +4403,7 @@ function showPointed(changedRepo) {
 		if (editor) editor.setValue("");
 		editorLock();
 		showDiscard(false);
+		$("btn-rename").hidden = $("btn-delete").hidden = $("btn-download").hidden = true;   // no note open: ⋯ offers nothing for one
 	}
 	if (current) setCrumb(current.path, dirty() ? "(unsaved)" : "");
 	else $("crumb").textContent = describe();
@@ -4543,6 +4546,19 @@ $("btn-rename").onclick   = renameCurrent;
 $("btn-delete").onclick   = deleteCurrent;
 $("btn-daily").onclick    = toggleDailyTemplate;
 $("btn-history").onclick  = showHistory;
+$("btn-download").onclick = downloadCurrent;
+/* N50: ⋯ → Download. The open note as a file on this device: what is on screen
+   (unsaved typing too), with the note's line endings and byte-order mark, as a
+   save would write it. Made in the browser; nothing is sent anywhere. */
+function downloadCurrent() {
+	if (!current || !editor) return;
+	var name = current.path.split("/").pop();
+	var blob = new Blob([rawFor(editor.getValue(), current.base)], { type: (/\.(md|markdown)$/i.test(name) ? "text/markdown" : "text/plain") + ";charset=utf-8" });
+	var url = URL.createObjectURL(blob), a = document.createElement("a");
+	a.href = url; a.download = name;
+	document.body.appendChild(a); a.click(); a.remove();
+	setTimeout(function () { URL.revokeObjectURL(url); }, 60000);   // later: Safari reads the blob after click() returns
+}
 $("history-close").onclick = function () { $("history").close(); };
 $("btn-new").onclick      = newFile;
 $("btn-new-folder").onclick = newFolder;
@@ -4794,7 +4810,7 @@ function closeNoteTab(path) {
 	paths.splice(at,1);ui.openNotes={scope:recentScope(),paths:paths};
 	if(current&&current.path===path){
 		if(paths.length)openFile(paths[Math.min(at,paths.length-1)]).then(function(){if(current&&current.path===path){rememberNote(path);persist(UI_KEY,ui);}});
-		else {openSeq++;current=null;ui.last=null;renderPinTabs();previewView(false);if(editor)editor.setValue("");editorLock();showDiscard(false);$("crumb").textContent=describe();$("btn-rename").hidden=$("btn-delete").hidden=true;$("btn-save").disabled=true;history.replaceState(null,"",redirectUri());navPosition=navEnd=0;navButtons();}
+		else {openSeq++;current=null;ui.last=null;renderPinTabs();previewView(false);if(editor)editor.setValue("");editorLock();showDiscard(false);$("crumb").textContent=describe();$("btn-rename").hidden=$("btn-delete").hidden=$("btn-download").hidden=true;$("btn-save").disabled=true;history.replaceState(null,"",redirectUri());navPosition=navEnd=0;navButtons();}
 	}
 	persist(UI_KEY,ui);renderTabs();
 }

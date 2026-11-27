@@ -13,7 +13,9 @@ const gh = H.fakeGitHub({ files: { 'Garden/Plan.md': '# Plan\n\nhello\n', 'Garde
 const c = await H.context(gh, { noCdn: true }), p = await H.page(c); p.setDefaultTimeout(5000);
 await H.signIn(p); await p.waitForFunction(() => treeState === 'ok');
 await p.evaluate(() => openFile('Garden/Plan.md')); await p.waitForFunction(() => current?.path === 'Garden/Plan.md');
-await H.expand(p, 'Garden');
+// N51: opening a note opens its folder; clicking Garden then would close it.
+await H.settle(p, 100);
+t.check('Garden is open, with the open note', await p.locator('#tree .row.dir[aria-expanded=true]', { hasText: 'Garden' }).count() === 1);
 
 // open an image from Files
 await H.clickRow(p, 'Pasted image 1.png');

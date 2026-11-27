@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-oyKcBwqgTGPrsnWa1UaIGrnS5hHKVEiwdDI9V0wm8nA=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-1b2V5j2wZAWjNW6jHwD0w8h7h4715IXinQP18aNw0JQ=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -2025,6 +2025,28 @@ function renderTree() {
 			host.appendChild(fileRow(f.name, f.path, depth));
 		});
 	})(root, "", 0);
+	if (revealPath && current && current.path === revealPath && showActiveRow()) revealPath = null;
+}
+/* N51: the open note is shown in Files. Opening a note opens the folders above
+   it (never closing any) and, once its row is drawn, scrolls the list to it,
+   once: later redraws leave the list where the person put it. The list scrolls
+   itself, not the page, and the keyboard focus stays where it was. */
+var revealPath = null;
+function revealInTree(path) {
+	var parts = path.split("/"), changed = false;
+	for (var i = 1; i < parts.length; i++) {
+		var dir = parts.slice(0, i).join("/");
+		if (!ui.open[dir]) { ui.open[dir] = true; changed = true; }
+	}
+	if (changed) persist(UI_KEY, ui);
+	revealPath = path;
+}
+function showActiveRow() {
+	var tree = $("tree"), row = tree.querySelector(".row.active");
+	if (!row || !tree.clientHeight) return false;   // not drawn yet, or Files hidden: try again later
+	var r = row.getBoundingClientRect(), b = tree.getBoundingClientRect();
+	if (r.top < b.top || r.bottom > b.bottom) tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+	return true;
 }
 function twisty(open) {
 	var tw = document.createElement("span");
@@ -2584,6 +2606,7 @@ function openFile(path, discarding, navigating) {
 		// when the preview libraries could not load, open in Edit.
 		if (!draft && /\S/.test(r.text) && /\.(md|markdown)$/i.test(path) && window.marked && window.DOMPurify && DOMPurify.isSupported) previewView(true);
 		renderPinTabs();
+		if (!left || left.path !== path) revealInTree(path);   // the same note again (Discard, keep my copy): leave Files as it is
 		renderTree();
 		if (!draft) flash("");
 		else if ((draft.sha || null) !== r.sha) {
@@ -4606,6 +4629,7 @@ $("btn-tree").onclick = function () {
 	if (wide()) { ui.sideHidden = !ui.sideHidden; persist(UI_KEY, ui); }
 	else document.body.classList.toggle("tree-open");
 	sideLayout();
+	if (current && (wide() ? !ui.sideHidden : document.body.classList.contains("tree-open")) && showActiveRow()) revealPath = null;   // N51: Files shown again: the open note in view
 };
 $("scrim").onclick = function () {
 	document.body.classList.remove("tree-open");

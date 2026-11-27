@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- **Collapse all**, beside New folder in the Files heading: closes every folder in the list at once, and is remembered like folding one by hand.
 - **Files follows the open note**: switching tabs or opening a note from a link or search opens its folders and scrolls Files to it, marked. Nothing closes, and the keyboard stays where it was.
 - **Download**, in a note's **⋯** menu: the open note as a file on this device, as it is on screen (unsaved changes too), under its own name. Nothing is sent anywhere.
 - The README says who makes Padgit and who runs the shared copy at padgit.com, and the privacy note's *Who you are trusting* links to it.

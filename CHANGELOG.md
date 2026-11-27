@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- **Files follows the open note**: switching tabs or opening a note from a link or search opens its folders and scrolls Files to it, marked. Nothing closes, and the keyboard stays where it was.
 - **Download**, in a note's **⋯** menu: the open note as a file on this device, as it is on screen (unsaved changes too), under its own name. Nothing is sent anywhere.
 - The README says who makes Padgit and who runs the shared copy at padgit.com, and the privacy note's *Who you are trusting* links to it.
 - The sign-in screen answers the question people stop at, in three lines above the button: what Padgit can reach (only repositories the app is installed on, which you choose; one private repository is enough), who else can reach your notes, and **Use a token instead** for anyone who would rather not install an app. The shared copy now says there that its GitHub App has no private key, so its owner cannot reach notes without you signed in (the owner's word, as the privacy note explains); a copy that does not say when its keys were deleted keeps the old warning. *Other ways to sign in* is now called **Sign in with a token instead**.

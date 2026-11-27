@@ -125,7 +125,10 @@ A new daily note is created only when saved (or after editing triggers
 autosave). Existing notes and drafts are preserved. Missing templates or
 invalid settings show an explanation and leave the current note alone.
 
-- Folder tree of the repository, collapse state remembered
+- Folder tree of the repository, collapse state remembered. Opening a note
+  (from a tab, a link, search or Back) opens the folders above it, marks it
+  and scrolls Files to it; folders you opened stay open, and the keyboard
+  stays where it was
 - **New note** asks for a name and a folder: it starts in the folder of the
   note you have open, lists every folder in the repository, and offers **New
   folder…** for one that does not exist yet (it is made when the note is first

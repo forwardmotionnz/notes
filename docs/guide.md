@@ -182,6 +182,11 @@ invalid settings show an explanation and leave the current note alone.
   change that deleted the note is listed but cannot be restored from here
   (see **Recently deleted**), and history from before a rename or move is
   not shown.
+- **Download**, in the **⋯** menu, saves the open note as a file on this
+  device, under its own name: what is on screen, unsaved changes included,
+  with its line endings kept. Nothing is sent to GitHub. Pictures the note
+  shows from other files in the repository are not included. For a PDF, open
+  **Preview** and use your browser's Print, then Save as PDF.
 - Pin or unpin the open note using the star beside its name. Pinned files
   appear at the top of Files as shortcuts and open like any other note. A pin is saved in the note itself, as the property
   `pinned: true` at its top (Obsidian shows it as a property; other editors

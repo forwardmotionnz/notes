@@ -72,7 +72,8 @@ Before browsing folders, you can use **Find** in the header or **Ctrl/Cmd+K**
 to open a note by name or path. Recent notes appear first for an empty query;
 typing ranks exact names and then name prefixes. Use arrow keys and Enter,
 or tap a result. Escape closes the switcher. This searches the loaded file
-list without reading note contents; use **Search contents** for that.
+list without reading note contents; to search inside notes, type in the find
+box in Files and choose **Search contents for “…”** at the end of the list.
 
 The line below the note keeps its save status visible, including in Preview:
 Saved, Saving, Unsaved changes, a conflict, or an offline draft. A successful
@@ -280,12 +281,13 @@ unchecked children (a ticked task stays when its unchecked sub-tasks are
 indented a tab or four spaces, which would otherwise read as code); × removes
 the whole task and its children. Both offer Undo.
 
-In **Files**, typing filters filenames instantly. Press **Enter** or **Search
-contents** to search note text as well, including local drafts. Opening a result
+In **Files**, typing filters filenames instantly, and the last line of the
+list offers **Search contents for “…”**: choose it, or press **Enter**, to
+search note text as well, including local drafts. Opening a result
 keeps the list available. Search reads up to 300 text files, four at a time;
 files over 1 MB and hidden folders are excluded. It reports unreadable files,
 scan limits and partial file lists rather than claiming a complete search.
-Press Search contents again to update results after edits, or refresh Files
+Choose it again to update results after edits, or refresh Files
 to pick up remote changes. Search creates no index or extra repository files.
 
 ## If a request fails

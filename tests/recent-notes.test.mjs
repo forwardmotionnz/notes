@@ -36,7 +36,8 @@ await c.close();
  t.check('reader caps concurrency and cancels queued work',count===4&&results.every(r=>r.cancelled));await c.unroute('**/contents/n*.md?*');
  await p.evaluate(()=>Promise.all(files.filter(f=>f.type==='blob').map(f=>sharedRead(f.path))));t.check('cache is bounded by entries and bytes',await p.evaluate(()=>noteReadCache.size===64&&noteReadBytes<=2097152));
  await p.setViewportSize({width:390,height:844});await p.evaluate(()=>{ui.recent={scope:recentScope(),paths:files.slice(0,20).map(f=>f.path)};recentChanges=async()=>[];document.querySelector('#recent-notes').open=true;document.body.classList.add('tree-open');});await p.evaluate(()=>loadRecent());
- t.check('long Recent list scrolls within the phone screen',await p.locator('#recent-list').evaluate(el=>el.scrollHeight>el.clientHeight&&el.clientHeight<=innerHeight*.26&&getComputedStyle(el).overflowY==='auto'));
+ // N56: the sections above Files (Pinned, Recent, Recently deleted, Tags) now scroll as one area, at most 45vh, instead of each list scrolling on its own inside a short window.
+t.check('long Recent list scrolls within the phone screen',await p.evaluate(()=>{const a=document.getElementById('side-sections'),l=document.getElementById('recent-list'),t=document.getElementById('tree').getBoundingClientRect();return a.contains(l)&&a.scrollHeight>a.clientHeight&&a.clientHeight<=innerHeight*.45+1&&getComputedStyle(a).overflowY==='auto'&&t.top<innerHeight-100;}));
  await p.evaluate(()=>{recentChanges=async function(){cfg.token='';cfg.refresh='';throw signedOutError();};});await p.evaluate(()=>loadRecent());t.check('expired sign-in prompts again and ends loading',await H.dialogOpen(p)&&!(await p.textContent('#recent-status')).includes('Loading'));
  t.check('sign-in boundary clears cached private text',await p.evaluate(()=>noteReadCache.size===0));await c.close();
 }

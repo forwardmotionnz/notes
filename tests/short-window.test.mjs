@@ -12,9 +12,9 @@ for (let i = 0; i < 30; i++) FILES['n' + String(i).padStart(2, '0') + '.md'] = '
 const MANY = { ...FILES };
 for (let i = 0; i < 8; i++) MANY['Pin ' + i + '.md'] = '---\npinned: true\n---\n# Pin\n\n#topic' + i + ' #shared\n';
 
-async function setup(w, h, files = FILES) {
+async function setup(w, h, files = FILES, touch = true) {   // WebKit has no mouse wheel in a touch (phone) context; wheel checks pass touch = false
   const gh = H.fakeGitHub({ files: { ...files } });
-  const ctx = await H.context(gh, { noCdn: true, viewport: { width: w, height: h }, touch: true });
+  const ctx = await H.context(gh, { noCdn: true, viewport: { width: w, height: h }, ...(touch ? { touch } : {}) });
   const p = await H.page(ctx); await H.signIn(p); p.setDefaultTimeout(5000);
   await p.waitForFunction(() => !accessPending && treeState === 'ok');
   if (w <= 820) { await p.click('#btn-tree'); await H.still(p); }
@@ -78,12 +78,13 @@ for (const [w, h] of [[844, 390], [390, 600]]) {
   // Review: one scroll area. A list scrolling inside it (Pinned, Recent, Recently deleted, Tags) caught the swipe
   // while showing a row or two of itself, so the sections under it could not be reached.
   for (const [w, h] of [[844, 390], [740, 360], [390, 600], [1280, 800]]) {
-    const { ctx, p } = await setup(w, h, MANY);
+    let { ctx, p } = await setup(w, h, MANY);
     await p.evaluate(() => { for (const id of ['recent-notes', 'deleted-notes', 'tags-panel']) document.getElementById(id).open = true; });
     await p.waitForFunction(() => document.querySelectorAll('#tag-counts button').length > 3).catch(() => {}); await H.settle(p, 300);
     const inner = await p.evaluate(() => [...document.querySelectorAll('#side-sections *')].filter(e => e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY)).map(e => e.id || e.className));
     t.check(`${w}×${h}: nothing inside the sections area scrolls on its own`, inner.length === 0, JSON.stringify(inner));
     if (w === 844) {
+      await ctx.close(); ({ ctx, p } = await setup(w, h, MANY, false));
       const at = await p.evaluate(() => { const r = document.querySelector('#pin-tabs').getBoundingClientRect(), a = document.getElementById('side-sections').getBoundingClientRect(); return { x: r.left + 40, y: Math.max(r.top, a.top) + 10 }; });
       await p.mouse.move(at.x, at.y); for (let i = 0; i < 3; i++) { await p.mouse.wheel(0, 40); await H.settle(p, 60); }
       t.check(`${w}×${h}: scrolling over Pinned moves the sections area, towards Recent and Tags`, await p.evaluate(() => document.getElementById('side-sections').scrollTop > 0));
@@ -95,7 +96,7 @@ for (const [w, h] of [[844, 390], [390, 600]]) {
 }
 {
   // Review: very short windows (a phone sideways with large text) give the list no less than before (100 px).
-  const { ctx, p } = await setup(563, 227, MANY);
+  const { ctx, p } = await setup(563, 227, MANY, false);
   const h = await p.evaluate(() => document.getElementById('tree').getBoundingClientRect().height);
   t.check('563×227: the Files list is at least 100 px tall, as before', h >= 99.5, String(h));
   // A swipe that starts on the sections area carries on to the sidebar once that area is at its end, bringing Files up.

@@ -48,6 +48,8 @@ if(exists){
   t.check(`${width}: a long tab's Close can be pressed`,!(await paths()).includes(LONG));
   await p.getByRole('button',{name:'Close '+LONG2,exact:true}).click({timeout:3000}).catch(()=>{});
  }
+ // Closing the open tab opens its neighbour; let that finish first, or under load it lands in the new repository's tabs (seen on the base commit too).
+ await p.waitForFunction(()=>!openingPath);
  await p.evaluate(()=>{cfg.repo='another';renderTabs();});t.check('another repository cannot see previous tabs',(await paths()).length===0);
 }
 await c.close();await H.stop();t.finish();

@@ -2,7 +2,8 @@ import * as H from './harness.mjs';
 const t=H.suite('content-search');await H.start();
 const gh=H.fakeGitHub({files:{'alpha.md':'Hidden needle in content','needle.md':'path match','draft.md':'old text','no.md':'unrelated','.hidden.md':'needle','photo.png':'needle','broken.md':'needle'}});
 const ctx=await H.context(gh),p=await H.page(ctx);await H.signIn(p);p.setDefaultTimeout(5000);await p.waitForFunction(()=>treeState==='ok'&&files.length&&!pinScanning);await p.evaluate(()=>resetNoteReads());
-const present=await p.locator('#btn-search').count();t.check('explicit content search offered',present===1);
+// N53: the search is offered as the list's last line once something is typed, not as a button before.
+await p.fill('#filter','needle');const present=await p.locator('#tree #btn-search').count();t.check('explicit content search offered',present===1);
 if(present){
  await p.evaluate(()=>openFile('draft.md'));await H.setEditor(p,'unsaved NEEDLE');
  await p.fill('#filter','needle');t.check('typing keeps fast path filter',(await H.rows(p)).includes('needle.md')&&!(await H.rows(p)).includes('alpha.md'));

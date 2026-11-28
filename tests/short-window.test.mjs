@@ -8,9 +8,12 @@ await H.start();
 
 const FILES = { 'Plans.md': '---\npinned: true\n---\n# Plans\n\n- [ ] one\n' };
 for (let i = 0; i < 30; i++) FILES['n' + String(i).padStart(2, '0') + '.md'] = '# n\n';
+// Review: several pins, and tags enough to fill the Tags panel.
+const MANY = { ...FILES };
+for (let i = 0; i < 8; i++) MANY['Pin ' + i + '.md'] = '---\npinned: true\n---\n# Pin\n\n#topic' + i + ' #shared\n';
 
-async function setup(w, h) {
-  const gh = H.fakeGitHub({ files: { ...FILES } });
+async function setup(w, h, files = FILES) {
+  const gh = H.fakeGitHub({ files: { ...files } });
   const ctx = await H.context(gh, { noCdn: true, viewport: { width: w, height: h }, touch: true });
   const p = await H.page(ctx); await H.signIn(p); p.setDefaultTimeout(5000);
   await p.waitForFunction(() => !accessPending && treeState === 'ok');
@@ -69,6 +72,47 @@ for (const [w, h] of [[844, 390], [390, 600]]) {
     return { scrollers, sideScroll: s.scrollHeight - s.clientHeight, gap: Math.round(repo.getBoundingClientRect().top - tr.getBoundingClientRect().bottom) };
   });
   t.check('1280×800: nothing above Files scrolls, and the list reaches down to the repository line', r.scrollers.length === 0 && r.sideScroll <= 0 && Math.abs(r.gap) <= 2, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  // Review: one scroll area. A list scrolling inside it (Pinned, Recent, Recently deleted, Tags) caught the swipe
+  // while showing a row or two of itself, so the sections under it could not be reached.
+  for (const [w, h] of [[844, 390], [740, 360], [390, 600], [1280, 800]]) {
+    const { ctx, p } = await setup(w, h, MANY);
+    await p.evaluate(() => { for (const id of ['recent-notes', 'deleted-notes', 'tags-panel']) document.getElementById(id).open = true; });
+    await p.waitForFunction(() => document.querySelectorAll('#tag-counts button').length > 3).catch(() => {}); await H.settle(p, 300);
+    const inner = await p.evaluate(() => [...document.querySelectorAll('#side-sections *')].filter(e => e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY)).map(e => e.id || e.className));
+    t.check(`${w}×${h}: nothing inside the sections area scrolls on its own`, inner.length === 0, JSON.stringify(inner));
+    if (w === 844) {
+      const at = await p.evaluate(() => { const r = document.querySelector('#pin-tabs').getBoundingClientRect(), a = document.getElementById('side-sections').getBoundingClientRect(); return { x: r.left + 40, y: Math.max(r.top, a.top) + 10 }; });
+      await p.mouse.move(at.x, at.y); for (let i = 0; i < 3; i++) { await p.mouse.wheel(0, 40); await H.settle(p, 60); }
+      t.check(`${w}×${h}: scrolling over Pinned moves the sections area, towards Recent and Tags`, await p.evaluate(() => document.getElementById('side-sections').scrollTop > 0));
+    }
+    // Before, Pinned (35%) and three open lists (25vh each) left the list its 100 px minimum and the sidebar scrolled.
+    if (w === 1280) t.check('1280×800: with many pins and every section open, the sections take at most 45% of the window and the list keeps the rest', await p.evaluate(() => document.getElementById('side-sections').offsetHeight <= innerHeight * .45 + 1 && document.getElementById('tree').clientHeight >= 200 && document.getElementById('sidebar').scrollHeight <= document.getElementById('sidebar').clientHeight), JSON.stringify(await layout(p)));
+    await ctx.close();
+  }
+}
+{
+  // Review: very short windows (a phone sideways with large text) give the list no less than before (100 px).
+  const { ctx, p } = await setup(563, 227, MANY);
+  const h = await p.evaluate(() => document.getElementById('tree').getBoundingClientRect().height);
+  t.check('563×227: the Files list is at least 100 px tall, as before', h >= 99.5, String(h));
+  // A swipe that starts on the sections area carries on to the sidebar once that area is at its end, bringing Files up.
+  const at = await p.evaluate(() => { const r = document.getElementById('side-sections').getBoundingClientRect(); return { x: r.left + 40, y: r.top + r.height / 2 }; });
+  await p.mouse.move(at.x, at.y); for (let i = 0; i < 40; i++) { await p.mouse.wheel(0, 60); await H.settle(p, 30); }
+  const s = await p.evaluate(() => ({ sections: document.getElementById('side-sections').scrollTop, sidebar: document.getElementById('sidebar').scrollTop, room: document.getElementById('sidebar').scrollHeight - document.getElementById('sidebar').clientHeight }));
+  t.check('563×227: scrolling on the sections area, past its end, scrolls the sidebar on to Files', s.room > 0 && s.sidebar > 0, JSON.stringify(s));
+  await ctx.close();
+}
+{
+  // Review: tapping an inline #tag opens Tags; on a short window it is brought into view in the sections area.
+  const { ctx, p } = await setup(844, 390, MANY);
+  await p.evaluate(() => openFile('Pin 7.md')); await p.waitForFunction(() => current?.path === 'Pin 7.md' && current.sha);
+  await p.evaluate(() => [...document.querySelectorAll('#tag-chips button')].find(b => b.textContent === '#shared').click());
+  await H.settle(p, 300);
+  const seen = await p.evaluate(() => { const s = document.querySelector('#tags-panel summary').getBoundingClientRect(), a = document.getElementById('side-sections').getBoundingClientRect(); return { ok: document.getElementById('tags-panel').open && s.top >= a.top - 1 && s.bottom <= a.bottom + 1, s: [s.top, s.bottom], a: [a.top, a.bottom] }; });
+  t.check('844×390: tapping an inline #tag shows the Tags panel, scrolled into view', seen.ok, JSON.stringify(seen));
   await ctx.close();
 }
 await H.stop();

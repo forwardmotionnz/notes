@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-kB+WzY/eyKaBiK4737QicrNLn9I3N46t56MuqW4jAmE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-4HBbJVYAlQmMKCkg3uXgzPAyx76g4huR2ECjZwLCrXo=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -86,7 +86,7 @@ body.side-hidden .side-note{display:inline;}
 #pin-tabs button{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:none;}
 #pin-tabs button.active{background:var(--bg);color:var(--accent);}
 #pin-help{font-size:12px;color:var(--fg-soft);padding:0 12px;}
-#pinned-files{border-bottom:1px solid var(--line);max-height:35vh;overflow:auto;flex:none;}   /* vh: its parent, #side-sections, has no fixed height for a % */
+#pinned-files{border-bottom:1px solid var(--line);flex:none;}   /* no scroll box of its own: #side-sections scrolls it with Recent and Tags */
 #btn-pin{padding:2px 5px;flex:none;}
 #pin-list{flex:1;overflow:auto;padding:0 8px 40px;-webkit-overflow-scrolling:touch;}
 .clear-done{margin:10px 4px 0;background:none;border:none;padding:4px 0;font-size:12.5px;color:var(--fg-soft);text-decoration:underline;}
@@ -192,18 +192,18 @@ body.preview-view #editor-pane{display:none;}
 #note-tabs button[aria-pressed=true]{background:var(--accent-soft);font-weight:600;}
 #recent-notes{padding:8px;border-bottom:1px solid var(--line);font-size:13px;}
 #recent-notes summary{cursor:pointer;}
-#recent-list{max-height:25vh;overflow:auto;}
 #recent-list button{display:block;width:100%;text-align:left;margin-top:5px;overflow-wrap:anywhere;}
 #recent-list small{display:block;color:var(--muted);font-weight:normal;}
 #sidebar{overflow:auto;}#side-sections>*{flex-shrink:0;}
 /* Short windows (a phone on its side, 844×390): the sections above Files scroll in their own area and give way,
-   so the Files list keeps a few rows on screen; on a tall window they show in full and the list takes the rest. */
-#side-sections{display:flex;flex-direction:column;flex:0 1 auto;min-height:44px;overflow:auto;overscroll-behavior:contain;
+   so the Files list keeps a few rows on screen; on a tall window they show in full (up to 45vh) and the list takes the rest.
+   One scroll area for all of them: a list scrolling inside it would catch the swipe while showing a row or two. */
+#side-sections{display:flex;flex-direction:column;flex:0 1 auto;min-height:44px;max-height:45vh;overflow:auto;
   /* a shade at an edge with more beyond it (phones hide scroll bars); the "local" covers hide it at either end */
   background:linear-gradient(var(--bg-soft) 40%, transparent) top / 100% 24px no-repeat local, linear-gradient(transparent, var(--bg-soft) 60%) bottom / 100% 24px no-repeat local,
     linear-gradient(color-mix(in srgb, var(--fg) 22%, transparent), transparent) top / 100% 8px no-repeat scroll, linear-gradient(transparent, color-mix(in srgb, var(--fg) 22%, transparent)) bottom / 100% 8px no-repeat scroll;}
-#tree{flex:1 1 0;min-height:min(130px, 33vh);}
-#tags-panel{padding:8px;border-bottom:1px solid var(--line);font-size:13px;}#tags-results{max-height:25vh;overflow:auto;}#tags-results button{margin:3px;max-width:100%;overflow-wrap:anywhere;}#tag-notes button{display:block;text-align:left;}
+#tree{flex:1 1 0;min-height:clamp(100px, 33vh, 130px);}   /* never below the 100px it had before */
+#tags-panel{padding:8px;border-bottom:1px solid var(--line);font-size:13px;}#tags-results button{margin:3px;max-width:100%;overflow-wrap:anywhere;}#tag-notes button{display:block;text-align:left;}
 #note-tags{padding:4px 8px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;max-height:18vh;overflow:auto;border-bottom:1px solid var(--line);font-size:12px;}#note-tags button{padding:3px 7px;overflow-wrap:anywhere;max-width:100%;}#note-tags input{width:115px;}#note-tags [data-inline]{color:var(--muted);}
 #note-tags[hidden]{display:none;}
 #tag-counts [aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);}
@@ -213,7 +213,6 @@ body.preview-view #editor-pane{display:none;}
 .diff{font:13px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;}.diff .del{color:var(--danger);text-decoration:line-through;}.diff .add{color:var(--accent);}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 #recent-list .fresh b{color:var(--accent);}#outline-list{max-height:50vh;overflow:auto;}#outline-list button{display:block;text-align:left;width:100%;overflow-wrap:anywhere;margin:4px 0;}
 #recent-status, #deleted-status{color:var(--muted);font-size:12px;}
-#deleted-list{max-height:25vh;overflow:auto;}
 #deleted-status{padding:0 8px;}
 #deleted-list div{display:flex;align-items:center;gap:8px;padding:3px 8px;}
 #deleted-list span{flex:1;min-width:0;overflow-wrap:anywhere;}
@@ -3999,7 +3998,7 @@ function renderNoteTags(){
 	var info=noteTags(editor.getValue()),locked=!!readOnly||moving||current.leaving||!!pinBusy[current.path],signature=JSON.stringify([current.path,info.tags,info.front.tags,locked]);
 	tagIndex[current.path]=info.tags;
 	if(signature===tagSignature)return;tagSignature=signature;$("tag-chips").replaceChildren();
-	info.tags.forEach(function(tag){var b=document.createElement("button"),property=info.front.tags.some(t=>t.toLowerCase()===tag.toLowerCase());b.textContent="#"+tag+(property?" ×":"");b.title=property?"Remove frontmatter tag "+tag:"Inline tag: edit it in the note text";b.setAttribute("aria-label",b.title);b.disabled=property&&locked;b.dataset.inline=String(!property);b.onclick=function(){if(property)editTag(tag,true);else{tagChoice=tag.toLowerCase();$("tags-panel").open=true;loadTags();document.body.classList.add("tree-open");}};$("tag-chips").appendChild(b);});
+	info.tags.forEach(function(tag){var b=document.createElement("button"),property=info.front.tags.some(t=>t.toLowerCase()===tag.toLowerCase());b.textContent="#"+tag+(property?" ×":"");b.title=property?"Remove frontmatter tag "+tag:"Inline tag: edit it in the note text";b.setAttribute("aria-label",b.title);b.disabled=property&&locked;b.dataset.inline=String(!property);b.onclick=function(){if(property)editTag(tag,true);else{tagChoice=tag.toLowerCase();$("tags-panel").open=true;loadTags();document.body.classList.add("tree-open");var area=$("side-sections");area.scrollTop+=$("tags-panel").getBoundingClientRect().top-area.getBoundingClientRect().top;}};   /* a short window: Tags may be scrolled out of its area */$("tag-chips").appendChild(b);});
 	$("tag-input").disabled=locked;$("tag-add").querySelector("button").disabled=locked;
 	if($("tags-panel").open)renderTags();
 }

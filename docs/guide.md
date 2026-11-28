@@ -201,7 +201,9 @@ invalid settings show an explanation and leave the current note alone.
   only notes that changed. Files that cannot hold a property (not Markdown,
   or in a read-only repository), and pins made before this change, stay
   pinned in this browser only; unpinning one and pinning it again moves it
-  into the note.
+  into the note. A short line under Pinned explains this the first time;
+  **Got it** hides it in that browser, and the **ⓘ** beside Pinned shows it
+  again.
 - Any note's Preview has live checklists. Add a task in Edit, as a `- [ ]`
   line or with the toolbar's checklist button. In Preview, tick it, tap its
   text to edit it, drag its handle to reorder it, or use its **⋯** menu for

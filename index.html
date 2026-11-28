@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-3zepUZDcPnJWUgBnhd9V0qDLUHEPw+lyfeUxdBcmwQ0=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-ep80DRD+fk6dDWRPNQOjx2+Uf5V4NQQUTbJRLeU0eiY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -283,6 +283,9 @@ button.search-more:hover{background:var(--bg-sunk);color:var(--accent);}
 #pin-tabs button.active{background:var(--accent-soft);color:var(--accent);font-weight:500;}
 #pin-tabs button.active svg{color:var(--accent);fill:currentColor;}
 #pin-help{font-size:11.5px;padding:2px 8px 2px;margin:4px 0;}
+#pin-why-again{width:24px;min-height:24px;margin:-6px 0 -6px 4px;padding:0;vertical-align:middle;}
+#pin-why-again svg{width:13px;height:13px;}
+#pin-why-ok{min-height:26px;padding:0 8px;font-size:11.5px;color:var(--accent);}
 #recent-notes, #deleted-notes, #tags-panel{padding:0;border:0;font-size:13.5px;}
 #recent-notes summary, #deleted-notes summary, #tags-panel summary{list-style:none;display:flex;align-items:center;gap:6px;margin:10px 0 2px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-soft);cursor:pointer;}
 #recent-notes summary::-webkit-details-marker, #deleted-notes summary::-webkit-details-marker, #tags-panel summary::-webkit-details-marker{display:none;}
@@ -530,9 +533,9 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			</div>
 			<div id="search-tools"><span id="search-status" role="status"></span></div>
 			<section id="pinned-files" aria-label="Pinned files">
-				<h2 class="side-head">Pinned</h2>
+				<h2 class="side-head" title="Pinned notes say so in their properties, so they show on every device. (A pinned note has pinned: true in its properties.)">Pinned<button class="plain ib" id="pin-why-again" hidden aria-label="About pinned notes" title="About pinned notes"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg></button></h2>
 				<div id="pin-tabs"></div>
-				<p id="pin-help">Pinned notes say so in their properties, so they show on every device.</p>
+				<p id="pin-help"><span id="pin-why">Pinned notes say so in their properties, so they show on every device. <button class="plain" id="pin-why-ok">Got it</button></span><span id="pin-progress"></span></p>
 			</section>
 			<details id="recent-notes"><summary>Recent</summary><div id="recent-list"></div><p id="recent-status" role="status"></p></details>
 			<details id="deleted-notes"><summary>Recently deleted</summary><div id="deleted-list"></div><p id="deleted-status" role="status"></p></details>
@@ -808,6 +811,7 @@ function deployed() {
 /* CONFIG */
 var CFG_KEY = "notes.config.v2";
 var UI_KEY  = "notes.ui.v1";
+var HINT_KEY = "notes.pinhint.v1";     // N54: its own key, so another tab writing its UI state cannot undo Got it
 var AUTH_KEY = "notes.signin";          // state + PKCE verifier, one sign-in
 /* N48: Look around first. With ?demo the app works on sample notes held only in this tab: requests
    are answered by demoRequest (nothing reaches GitHub or the broker), and nothing is read from or
@@ -4040,10 +4044,22 @@ async function scanPins() {
 		ui.pinShas = keep;
 	}
 	persist(UI_KEY, ui);
-	$("pin-help").textContent = "Pinned notes say so in their properties, so they show on every device." +
-		(left ? " Looked in " + (notes.length - left) + " of " + notes.length + " notes so far." : "");
+	$("pin-progress").textContent = left ? " Looked in " + (notes.length - left) + " of " + notes.length + " notes so far." : "";
+	pinHelp();
 	if (current) setCrumb(current.path, $("crumb").querySelector(".tag") ? $("crumb").querySelector(".tag").textContent : "");
 }
+/* N54: the explanation is a one-time hint (Got it, remembered in this browser);
+   the Pinned heading keeps it as a tooltip. A partial search is always said. */
+var pinHelpSeen = !DEMO && load(HINT_KEY, { seen: false }).seen === true;
+function pinHelp() {
+	$("pin-why").hidden = pinHelpSeen;
+	$("pin-why-again").hidden = !pinHelpSeen;   // ⓘ brings it back: phones have no tooltip
+	$("pin-help").hidden = pinHelpSeen && !$("pin-progress").textContent;
+}
+pinHelp();
+$("pin-why-ok").onclick = function () { pinHelpSeen = true; persist(HINT_KEY, { seen: true }); pinHelp(); $("pin-why-again").focus(); };   // focus where the hint was
+$("pin-why-again").onclick = function () { pinHelpSeen = false; persist(HINT_KEY, { seen: false }); pinHelp(); $("pin-why-ok").focus(); };
+window.addEventListener("storage", function (e) { if (e.key === HINT_KEY && !DEMO) { try { pinHelpSeen = !!e.newValue && JSON.parse(e.newValue).seen === true; } catch (err) { pinHelpSeen = false; } pinHelp(); } });
 function togglePin() {
 	if (!current || !signedIn()) return;
 	var path = current.path, text = editor.getValue(), at = cfg.pins.indexOf(path);
@@ -4513,6 +4529,7 @@ function forget() {
 	repoListSeq++;
 	forgetStored(CFG_KEY);
 	forgetStored(UI_KEY);
+	forgetStored(HINT_KEY);
 	try { sessionStorage.removeItem("notes.navigation"); } catch (e) {}
 	forgetDrafts();
 	current = null;                      /* N207 */

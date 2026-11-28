@@ -10,6 +10,7 @@ owner reported the real-phone and real-GitHub checks completed on 2026-09-27 (th
 in the [development ledger](docs/dev/MVP.md)).
 
 ### Added
+- The line under **Pinned** explaining where pins are kept now shows until you choose **Got it**, then stays out of the way; the **ⓘ** beside Pinned shows it again. A partial pin search is still reported there.
 - **Search contents** is now the last line of the Files list while you type in the find box (*Search contents for “…”*), instead of a button of its own under it; Enter still searches. With nothing matching a file name, the list says so instead of “No notes here yet”.
 - **Collapse all**, beside New folder in the Files heading: closes every folder in the list at once, and is remembered like folding one by hand.
 - **Files follows the open note**: switching tabs or opening a note from a link or search opens its folders and scrolls Files to it, marked. Nothing closes, and the keyboard stays where it was.

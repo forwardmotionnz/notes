@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- Both CSP policies apply. App scripts use hashes and pinned CDN paths;
 connect-src below must name your broker. Update the inline hash after edits. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-ep80DRD+fk6dDWRPNQOjx2+Uf5V4NQQUTbJRLeU0eiY=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-it75xJdjOH64lOlWtUSnlLKe0P4DJ5jl4xp1MKfdRuc=' 'sha256-kB+WzY/eyKaBiK4737QicrNLn9I3N46t56MuqW4jAmE=' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/ https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js; style-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/; connect-src https:; img-src 'self' data: https://avatars.githubusercontent.com; form-action 'none'; base-uri 'none'; object-src 'none'; manifest-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="connect-src https://api.github.com https://notes-token-broker.forwardmotionnz.workers.dev">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Padgit</title>
@@ -297,6 +297,12 @@ button.search-more:hover{background:var(--bg-sunk);color:var(--accent);}
 #files-head{margin-top:10px;}
 #tree{padding:0 0 16px;}
 .row{gap:6px;min-height:30px;padding:3px 8px 3px 0;border-radius:7px;color:var(--fg);}
+/* N55: folders above the rows in view stay at the top of the list, one under another; each lets go when its own group has scrolled past */
+#tree{--rowh:30px;}
+#tree .row.dir{position:sticky;top:calc(var(--d, 0) * var(--rowh));z-index:calc(20 - var(--d, 0));min-height:var(--rowh);background:var(--bg-soft);}
+#tree .row.dir:hover{background:var(--bg-hover);}
+#tree .row.dir.drop{background:var(--accent-soft);}
+#tree .row.dir.unheld{position:static;}   /* beyond what fits in half the list: scrolls like any row */
 .row svg{width:16px;height:16px;color:var(--fg-soft);}
 .row:hover{background:var(--bg-hover);}
 .row.dir{color:var(--fg);}
@@ -387,6 +393,7 @@ header:has(#btn-discard:not([hidden])) #btn-save:not(:disabled) .to-save{display
 #note-tabs span.on{background:var(--accent-soft);}
 #note-tabs span.on button:first-child{color:var(--accent);}
 .row, #pin-tabs button, #recent-list button{min-height:38px;font-size:15px;}
+#tree{--rowh:38px;}
 #sidebar{padding-top:max(10px, env(safe-area-inset-top));}
 #format-toolbar{padding:4px 8px;}
 #format-toolbar button{width:36px;min-height:36px;}
@@ -2006,13 +2013,14 @@ function renderTree() {
 		var node = root;
 		p.split("/").forEach(function (seg) { node = node.dirs[seg] = node.dirs[seg] || { dirs: pathMap(), files: [] }; });
 	});
-	(function walk(node, prefix, depth) {
+	(function walk(node, prefix, depth, host) {
 		Object.keys(node.dirs).sort().forEach(function (name) {
 			var path = prefix ? prefix + "/" + name : name;
 			var open = !!ui.open[path];
 			var row = document.createElement("div");
 			row.className = "row dir";
 			row.style.paddingLeft = (8 + depth * 14) + "px";
+			row.style.setProperty("--d", depth);   // N55: its place in the stack held at the top
 			row.appendChild(twisty(open));
 			row.appendChild(icon("folder"));
 			row.appendChild(document.createTextNode(name));      // a folder name: text, never markup
@@ -2040,21 +2048,25 @@ function renderTree() {
 				renderTree();
 			};
 			dropTarget(row, path);
-			host.appendChild(row);
+			var group = document.createElement("div");   // N55: a folder and what is under it, so its row stays held only while they are in view
+			group.className = "tree-group";
+			group.appendChild(row);
+			host.appendChild(group);
 			if (open && bare) {
 				var hint = document.createElement("p");
 				hint.className = "folder-hint"; hint.style.paddingLeft = (8 + (depth + 1) * 14 + 22) + "px";
 				hint.textContent = "Empty. Kept on this device until it holds a note.";
-				host.appendChild(hint);
+				group.appendChild(hint);
 			}
-			if (open) walk(sub, path, depth + 1);
+			if (open) walk(sub, path, depth + 1, group);
 		});
 		node.files.sort(function (a, b) {
 			return a.name.localeCompare(b.name);
 		}).forEach(function (f) {
 			host.appendChild(fileRow(f.name, f.path, depth));
 		});
-	})(root, "", 0);
+	})(root, "", 0, host);
+	holdFolders();
 	if (revealPath && current && current.path === revealPath && showActiveRow()) revealPath = null;
 }
 /* N51: the open note is shown in Files. Opening a note opens the folders above
@@ -2062,6 +2074,18 @@ function renderTree() {
    once: later redraws leave the list where the person put it. The list scrolls
    itself, not the page, and the keyboard focus stays where it was. */
 var revealPath = null;
+/* N55: hold only as many folders as fit in half the list, at their measured height (large text
+   included), so a deep note is never hidden under the held folders on a short list. */
+function holdFolders() {
+	var tree = $("tree"), first = tree.querySelector(".row.dir");
+	if (!first) return;
+	tree.style.removeProperty("--rowh");
+	var h = first.offsetHeight;
+	if (h) tree.style.setProperty("--rowh", h + "px");
+	var max = tree.clientHeight && h ? Math.max(1, Math.floor(tree.clientHeight / 2 / h)) : 3;
+	tree.querySelectorAll(".row.dir").forEach(function (r) { r.classList.toggle("unheld", Number(r.style.getPropertyValue("--d")) >= max); });
+}
+if (window.ResizeObserver) new ResizeObserver(function () { holdFolders(); }).observe($("tree"));
 function revealInTree(path) {
 	var parts = path.split("/"), changed = false;
 	for (var i = 1; i < parts.length; i++) {
@@ -2074,8 +2098,9 @@ function revealInTree(path) {
 function showActiveRow() {
 	var tree = $("tree"), row = tree.querySelector(".row.active");
 	if (!row || !tree.clientHeight) return false;   // not drawn yet, or Files hidden: try again later
-	var r = row.getBoundingClientRect(), b = tree.getBoundingClientRect();
-	if (r.top < b.top || r.bottom > b.bottom) tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+	var r = row.getBoundingClientRect(), b = tree.getBoundingClientRect(), cover = 0;
+	for (var g = row.parentElement; g && g !== tree; g = g.parentElement) if (g.classList.contains("tree-group") && !g.firstElementChild.classList.contains("unheld")) cover += g.firstElementChild.offsetHeight;   // N55: the folders held above it
+	if (r.top < b.top + cover || r.bottom > b.bottom) tree.scrollTop += r.top - b.top - cover - Math.max(0, b.height - cover - r.height) / 2;   // centred in the part not covered
 	return true;
 }
 function twisty(open) {

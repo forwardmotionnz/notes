@@ -126,6 +126,7 @@ in the [development ledger](docs/dev/MVP.md)).
   result.
 
 ### Fixed
+- On a short window (a phone held sideways, or a small laptop window) the Files list no longer ends up below the bottom of the screen. The sections above it (Pinned, Recent, Recently deleted, Tags) now scroll in their own area and make room, with a shade at the edge when there is more. On a tall window they show in full, up to nearly half its height, and the lists inside them no longer scroll on their own. Tapping a #tag in a note brings Tags into view.
 - The link that installs Padgit's GitHub App on a repository (**Choose repositories**, and first run) now goes to the app under its current name, Padgit Notes.
 - Tables in Preview no longer break words in the middle to fit a narrow screen ("Subur / b"): cells wrap between words, and a table too wide for the screen scrolls sideways on its own.
 - On a phone, the closed Files sheet no longer casts a grey shadow down the left edge of the note.

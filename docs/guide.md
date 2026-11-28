@@ -130,7 +130,9 @@ invalid settings show an explanation and leave the current note alone.
   (from a tab, a link, search or Back) opens the folders above it, marks it
   and scrolls Files to it; folders you opened stay open, and the keyboard
   stays where it was. **Collapse all** (the button beside New folder in the
-  Files heading) closes every folder at once; it only changes the list
+  Files heading) closes every folder at once; it only changes the list.
+  While you scroll a long folder, the folders it is in stay at the top of
+  the list, so you can always see where a note is
 - **New note** asks for a name and a folder: it starts in the folder of the
   note you have open, lists every folder in the repository, and offers **New
   folder…** for one that does not exist yet (it is made when the note is first

@@ -86,7 +86,7 @@ body.side-hidden .side-note{display:inline;}
 #pin-tabs button{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:none;}
 #pin-tabs button.active{background:var(--bg);color:var(--accent);}
 #pin-help{font-size:12px;color:var(--fg-soft);padding:0 12px;}
-#pinned-files{border-bottom:1px solid var(--line);max-height:35%;overflow:auto;flex:none;}
+#pinned-files{border-bottom:1px solid var(--line);max-height:35vh;overflow:auto;flex:none;}   /* vh: its parent, #side-sections, has no fixed height for a % */
 #btn-pin{padding:2px 5px;flex:none;}
 #pin-list{flex:1;overflow:auto;padding:0 8px 40px;-webkit-overflow-scrolling:touch;}
 .clear-done{margin:10px 4px 0;background:none;border:none;padding:4px 0;font-size:12.5px;color:var(--fg-soft);text-decoration:underline;}
@@ -195,7 +195,14 @@ body.preview-view #editor-pane{display:none;}
 #recent-list{max-height:25vh;overflow:auto;}
 #recent-list button{display:block;width:100%;text-align:left;margin-top:5px;overflow-wrap:anywhere;}
 #recent-list small{display:block;color:var(--muted);font-weight:normal;}
-#sidebar{overflow:auto;}#sidebar>details{flex-shrink:0;}#tree{min-height:100px;}
+#sidebar{overflow:auto;}#side-sections>*{flex-shrink:0;}
+/* Short windows (a phone on its side, 844×390): the sections above Files scroll in their own area and give way,
+   so the Files list keeps a few rows on screen; on a tall window they show in full and the list takes the rest. */
+#side-sections{display:flex;flex-direction:column;flex:0 1 auto;min-height:44px;overflow:auto;overscroll-behavior:contain;
+  /* a shade at an edge with more beyond it (phones hide scroll bars); the "local" covers hide it at either end */
+  background:linear-gradient(var(--bg-soft) 40%, transparent) top / 100% 24px no-repeat local, linear-gradient(transparent, var(--bg-soft) 60%) bottom / 100% 24px no-repeat local,
+    linear-gradient(color-mix(in srgb, var(--fg) 22%, transparent), transparent) top / 100% 8px no-repeat scroll, linear-gradient(transparent, color-mix(in srgb, var(--fg) 22%, transparent)) bottom / 100% 8px no-repeat scroll;}
+#tree{flex:1 1 0;min-height:min(130px, 33vh);}
 #tags-panel{padding:8px;border-bottom:1px solid var(--line);font-size:13px;}#tags-results{max-height:25vh;overflow:auto;}#tags-results button{margin:3px;max-width:100%;overflow-wrap:anywhere;}#tag-notes button{display:block;text-align:left;}
 #note-tags{padding:4px 8px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;max-height:18vh;overflow:auto;border-bottom:1px solid var(--line);font-size:12px;}#note-tags button{padding:3px 7px;overflow-wrap:anywhere;max-width:100%;}#note-tags input{width:115px;}#note-tags [data-inline]{color:var(--muted);}
 #note-tags[hidden]{display:none;}
@@ -539,6 +546,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 				</div>
 			</div>
 			<div id="search-tools"><span id="search-status" role="status"></span></div>
+			<div id="side-sections">
 			<section id="pinned-files" aria-label="Pinned files">
 				<h2 class="side-head" title="Pinned notes say so in their properties, so they show on every device. (A pinned note has pinned: true in its properties.)">Pinned<button class="plain ib" id="pin-why-again" hidden aria-label="About pinned notes" title="About pinned notes"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg></button></h2>
 				<div id="pin-tabs"></div>
@@ -547,6 +555,7 @@ details.callout[open] summary.callout-title::after{transform:rotate(45deg);}
 			<details id="recent-notes"><summary>Recent</summary><div id="recent-list"></div><p id="recent-status" role="status"></p></details>
 			<details id="deleted-notes"><summary>Recently deleted</summary><div id="deleted-list"></div><p id="deleted-status" role="status"></p></details>
 			<details id="tags-panel"><summary>Tags</summary><div id="tags-results"><div id="tag-counts"></div><div id="tag-notes"></div></div><p id="tags-status" role="status"></p></details>
+			</div>
 			<div id="files-row"><h2 class="side-head" id="files-head">Files</h2><button class="plain ib" id="btn-collapse" title="Collapse all folders" aria-label="Collapse all folders"><svg class="i" aria-hidden="true"><use href="#i-collapse"/></svg></button><button class="plain ib" id="btn-new-folder" title="New folder" aria-label="New folder"><svg class="i" aria-hidden="true"><use href="#i-folder-plus"/></svg></button></div>
 			<div id="tree"></div>
 			<div id="side-repo"></div>
